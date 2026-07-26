@@ -1,0 +1,150 @@
+---
+import type { PublicCaseView } from "../lib/case-adapter";
+import { withBase } from "../lib/paths";
+import FormField from "./FormField.astro";
+
+interface Props {
+  cases: PublicCaseView[];
+  inputId: string;
+  syncUrl?: boolean;
+  compact?: boolean;
+}
+
+const { cases, inputId, syncUrl = false, compact = false } = Astro.props;
+const safeJson = JSON.stringify(cases).replaceAll("<", "\\u003c");
+---
+
+<section
+  class:list={["case-search-widget", compact && "case-search-widget--compact"]}
+  data-case-search
+  data-sync-url={String(syncUrl)}
+  data-detail-base={withBase("cases/")}
+  aria-labelledby={`${inputId}-title`}
+>
+  <div>
+    <p class="eyebrow">一般案件</p>
+    <h2 id={`${inputId}-title`}>輸入案件編號查進度</h2>
+    <p>只查這一次，不會背景輪詢。Private Support 不會出現在這裡。</p>
+  </div>
+
+  <form
+    action={withBase("cases/")}
+    method="get"
+    class="case-search-widget__form"
+  >
+    <FormField
+      forId={inputId}
+      label="一般案件編號"
+      hint="例如 C01-7K4M2Q-0702-1000"
+      required
+    >
+      <input
+        id={inputId}
+        name="case"
+        autocomplete="off"
+        autocapitalize="characters"
+        aria-describedby={`${inputId}-hint`}
+        required
+      />
+    </FormField>
+    <button type="submit">查詢此案件</button>
+  </form>
+
+  <div class="search-states" aria-live="polite">
+    <div data-search-state="empty">
+      <p>輸入一般案件編號後開始。前後空白與大小寫差異會自動整理。</p>
+    </div>
+    <div data-search-state="loading" hidden aria-busy="true">
+      <p><strong>… 正在查詢本機 fixture</strong></p>
+    </div>
+    <div data-search-state="invalid" hidden role="alert">
+      <p>
+        <strong>格式似乎不完整。</strong> 請使用像 `C01-7K4M2Q-0702-1000` 的案件編號；Private
+        `-P` 案號不會在這裡確認是否存在。
+      </p>
+    </div>
+    <div data-search-state="not-found" hidden role="status">
+      <p>
+        <strong>找不到可公開的一般案件。</strong> 請檢查編號或稍後再試；這不會確認
+        Private Support 是否存在。
+      </p>
+    </div>
+    <article data-search-state="found" hidden class="found-card">
+      <p><strong data-result-status></strong></p>
+      <h3>
+        <span data-result-number></span> · <span data-result-title></span>
+      </h3>
+      <p>最後更新：<time data-result-updated></time></p>
+      <a class="button" data-result-link href={withBase("cases/")}
+        >查看案件詳情</a
+      >
+    </article>
+  </div>
+
+  <script
+    type="application/json"
+    data-case-fixtures
+    is:inline
+    set:html={safeJson}
+  />
+</section>
+
+<script>
+  import "../scripts/case-search";
+</script>
+
+<style>
+  .case-search-widget {
+    display: grid;
+    padding: var(--space-5);
+    border: var(--border-strong) solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    gap: var(--space-4);
+    background: var(--color-surface);
+  }
+
+  .case-search-widget--compact {
+    border-width: var(--border-thin);
+  }
+
+  .eyebrow {
+    margin: 0 0 var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .case-search-widget__form {
+    display: grid;
+    gap: var(--space-3);
+    align-items: end;
+  }
+
+  .search-states {
+    padding-top: var(--space-3);
+    border-top: var(--border-thin) solid var(--color-border);
+  }
+
+  .search-states :global(:last-child) {
+    margin-bottom: 0;
+  }
+
+  .found-card {
+    padding: var(--space-4);
+    border-inline-start: 0.35rem solid var(--color-success-border);
+    border-radius: var(--radius-md);
+    background: var(--color-success-bg);
+  }
+
+  @media (min-width: 42rem) {
+    .case-search-widget {
+      padding: var(--space-6);
+    }
+
+    .case-search-widget__form {
+      grid-template-columns: minmax(15rem, 1fr) auto;
+    }
+  }
+</style>

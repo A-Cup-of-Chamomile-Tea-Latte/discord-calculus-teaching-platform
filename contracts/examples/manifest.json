@@ -1,0 +1,142 @@
+{
+  "valid": [
+    { "schema": "user.schema.json", "instance": "valid/user.json" },
+    {
+      "schema": "verified-email.schema.json",
+      "instance": "valid/verified-email.json"
+    },
+    {
+      "schema": "discord-account.schema.json",
+      "instance": "valid/discord-account.json"
+    },
+    {
+      "schema": "course-membership.schema.json",
+      "instance": "valid/course-membership.json"
+    },
+    { "schema": "case.schema.json", "instance": "valid/case.json" },
+    {
+      "schema": "case-id-mapping.schema.json",
+      "instance": "valid/case-id-mapping.json"
+    },
+    {
+      "schema": "case-message.schema.json",
+      "instance": "valid/case-message.json"
+    },
+    { "schema": "consent.schema.json", "instance": "valid/consent.json" },
+    {
+      "schema": "activation-code.schema.json",
+      "instance": "valid/activation-code.json"
+    },
+    {
+      "schema": "export-manifest.schema.json",
+      "instance": "valid/export-manifest.json"
+    },
+    {
+      "schema": "audit-event.schema.json",
+      "instance": "valid/audit-event.json"
+    },
+    {
+      "schema": "case-lookup-response.schema.json",
+      "instance": "valid/case-lookup-response.json"
+    },
+    {
+      "schema": "thread-export.schema.json",
+      "instance": "valid/thread-export.json"
+    },
+    {
+      "schema": "attachment-index.schema.json",
+      "instance": "valid/attachment-index.json"
+    },
+    {
+      "schema": "sanitized-thread.schema.json",
+      "instance": "valid/sanitized-thread.json"
+    },
+    {
+      "schema": "active-case.schema.json",
+      "instance": "valid/active-case.json"
+    },
+    {
+      "schema": "reduced-case-projection.schema.json",
+      "instance": "valid/reduced-case-projection.json"
+    },
+    { "schema": "sync-state.schema.json", "instance": "valid/sync-state.json" },
+    {
+      "schema": "changed-case-queue.schema.json",
+      "instance": "valid/changed-case-queue.json"
+    },
+    {
+      "schema": "archive-index.schema.json",
+      "instance": "valid/archive-index.json"
+    },
+    {
+      "schema": "sanitized-package.schema.json",
+      "instance": "valid/sanitized-package.json"
+    },
+    {
+      "schema": "weekly-maintenance-run.schema.json",
+      "instance": "valid/weekly-maintenance-run.json"
+    }
+  ],
+  "invalid": [
+    {
+      "schema": "user.schema.json",
+      "instance": "invalid/user-with-oauth-token.json",
+      "reason": "User records forbid raw OAuth access-token fields."
+    },
+    {
+      "schema": "case.schema.json",
+      "instance": "invalid/case-unknown-status.json",
+      "reason": "Case status must use the five fixed workflow values."
+    },
+    {
+      "schema": "case.schema.json",
+      "instance": "invalid/private-case-public-and-included.json",
+      "reason": "Private Support must use a P-suffixed number, teaching-staff visibility, and analysis excluded."
+    },
+    {
+      "schema": "case-id-mapping.schema.json",
+      "instance": "invalid/case-id-mapping-private-without-suffix.json",
+      "reason": "A Private mapping must use the explicit P suffix."
+    },
+    {
+      "schema": "case-message.schema.json",
+      "instance": "invalid/case-message-without-timezone.json",
+      "reason": "Every timestamp must carry Z or an explicit UTC offset."
+    },
+    {
+      "schema": "activation-code.schema.json",
+      "instance": "invalid/activation-code-with-plaintext.json",
+      "reason": "ActivationCode stores only a verifier hash and rejects plaintext code fields."
+    },
+    {
+      "schema": "export-manifest.schema.json",
+      "instance": "invalid/private-export-included.json",
+      "reason": "Private Support export manifests must be analysis-excluded."
+    },
+    {
+      "schema": "case-lookup-response.schema.json",
+      "instance": "invalid/lookup-private-case.json",
+      "reason": "Public lookup can return only a GENERAL case projection."
+    },
+    {
+      "schema": "active-case.schema.json",
+      "instance": "invalid/active-case-unknown-status.json",
+      "reason": "Working status must use the explicit lifecycle vocabulary."
+    },
+    {
+      "schema": "changed-case-queue.schema.json",
+      "instance": "invalid/changed-case-queue-without-idempotency-key.json",
+      "reason": "Every queued change must carry an idempotency key."
+    },
+    {
+      "schema": "sanitized-package.schema.json",
+      "instance": "invalid/sanitized-package-private-or-unbound.json",
+      "reason": "Sanitized packages must explicitly exclude Private Support."
+    },
+    {
+      "schema": "weekly-maintenance-run.schema.json",
+      "instance": "invalid/weekly-maintenance-run-not-dry.json",
+      "reason": "This safe spike accepts dry-run maintenance records only."
+    }
+  ]
+}

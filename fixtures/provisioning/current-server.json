@@ -1,0 +1,8 @@
+{
+  "fixtureOnly": true,
+  "serverName": "Fixture Calculus Empty Server",
+  "roles": [{ "key": "fixture_role_student", "name": "Synthetic Student" }],
+  "categories": [],
+  "channels": [],
+  "botPermissions": []
+}

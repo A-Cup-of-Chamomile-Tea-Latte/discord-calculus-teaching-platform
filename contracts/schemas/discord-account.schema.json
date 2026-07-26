@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/discord-account.schema.json",
+  "title": "DiscordAccount",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "discordAccountId",
+    "userId",
+    "discordUserId",
+    "globalUsername",
+    "linkedAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "discordAccountId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "userId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "discordUserId": { "$ref": "common.schema.json#/$defs/discordId" },
+    "globalUsername": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 32,
+      "pattern": "^[a-z0-9._]+$"
+    },
+    "globalDisplayName": { "type": ["string", "null"], "maxLength": 80 },
+    "linkedAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "updatedAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  }
+}

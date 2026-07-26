@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0",
+  "caseId": "case_000421",
+  "caseNumber": "C01-7K4M2Q-0702-1000",
+  "caseType": "GENERAL",
+  "status": "OPEN",
+  "visibility": "COURSE",
+  "authorDisplayMode": "COURSE_ALIAS",
+  "analysisPermission": "INCLUDED",
+  "createdByUserId": "usr_amber",
+  "classCode": "01",
+  "title": "A fictional limit question",
+  "source": "PORTAL",
+  "discordMapping": {
+    "threadId": "223456789012345678",
+    "forumPostId": "223456789012345678",
+    "channelId": "323456789012345678"
+  },
+  "createdAt": "2026-07-02T10:00:00+08:00",
+  "updatedAt": "2026-07-02T10:00:00+08:00"
+}

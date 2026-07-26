@@ -1,0 +1,41 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "membershipId": "membership_amber_01",
+    "userId": "usr_amber",
+    "courseId": "course_calc_1151",
+    "classCode": "01",
+    "joiningOrder": 7,
+    "courseAlias": "01007",
+    "verificationMethod": "EMAIL",
+    "status": "ACTIVE",
+    "joinedAt": "2026-07-01T09:10:00+08:00",
+    "updatedAt": "2026-07-01T09:10:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "membershipId": "membership_basil_01",
+    "userId": "usr_basil",
+    "courseId": "course_calc_1151",
+    "classCode": "01",
+    "joiningOrder": 8,
+    "courseAlias": "01008",
+    "verificationMethod": "ACTIVATION_CODE",
+    "status": "ACTIVE",
+    "joinedAt": "2026-07-01T09:25:00+08:00",
+    "updatedAt": "2026-07-01T09:25:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "membershipId": "membership_coral_02",
+    "userId": "usr_coral",
+    "courseId": "course_calc_1151",
+    "classCode": "02",
+    "joiningOrder": 3,
+    "courseAlias": "02003",
+    "verificationMethod": "MANUAL",
+    "status": "ACTIVE",
+    "joinedAt": "2026-07-01T09:35:00+08:00",
+    "updatedAt": "2026-07-01T09:35:00+08:00"
+  }
+]

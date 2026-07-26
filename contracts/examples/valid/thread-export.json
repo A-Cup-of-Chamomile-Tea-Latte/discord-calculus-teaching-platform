@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "exportId": "export_case_000421_thread",
+  "caseId": "case_000421",
+  "caseNumber": "C01-7K4M2Q-0702-1000",
+  "threadId": "223456789012345678",
+  "caseSource": "PORTAL",
+  "caseAnalysisPermission": "INCLUDED",
+  "checkpoint": "423456789012345678",
+  "messages": [
+    {
+      "messageId": "msg_000421_a",
+      "authorUserId": "usr_amber",
+      "authorLabel": "01007",
+      "authorRole": "STUDENT",
+      "authorDisplayMode": "COURSE_ALIAS",
+      "body": "Fictional export contract example.",
+      "source": "PORTAL",
+      "analysisPermission": "INCLUDED",
+      "analysisPermissionSource": "ACCOUNT_DEFAULT",
+      "parentMessageId": null,
+      "discordMessageId": "423456789012345678",
+      "editedAt": null,
+      "attachments": [],
+      "createdAt": "2026-07-02T10:01:00+08:00"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "verifiedEmailId": "email_amber_institutional",
+    "userId": "usr_amber",
+    "email": "amber.institutional@example.com",
+    "kind": "INSTITUTIONAL",
+    "verifiedAt": "2026-07-01T09:03:00+08:00",
+    "isPrimary": false,
+    "createdAt": "2026-07-01T09:00:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "verifiedEmailId": "email_amber_contact",
+    "userId": "usr_amber",
+    "email": "amber.student@example.com",
+    "kind": "CONTACT",
+    "verifiedAt": "2026-07-01T09:05:00+08:00",
+    "isPrimary": true,
+    "createdAt": "2026-07-01T09:00:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "verifiedEmailId": "email_basil_contact",
+    "userId": "usr_basil",
+    "email": "basil.student@example.com",
+    "kind": "CONTACT",
+    "verifiedAt": "2026-07-01T09:24:00+08:00",
+    "isPrimary": true,
+    "createdAt": "2026-07-01T09:20:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "verifiedEmailId": "email_coral_contact",
+    "userId": "usr_coral",
+    "email": "coral.student@example.com",
+    "kind": "CONTACT",
+    "verifiedAt": "2026-07-01T09:34:00+08:00",
+    "isPrimary": true,
+    "createdAt": "2026-07-01T09:30:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "verifiedEmailId": "email_staff_contact",
+    "userId": "usr_staff_example",
+    "email": "taylor.staff@example.com",
+    "kind": "CONTACT",
+    "verifiedAt": "2026-07-01T08:04:00+08:00",
+    "isPrimary": true,
+    "createdAt": "2026-07-01T08:00:00+08:00"
+  }
+]

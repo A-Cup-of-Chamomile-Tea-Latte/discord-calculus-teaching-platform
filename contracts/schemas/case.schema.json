@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/case.schema.json",
+  "title": "Case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "caseId",
+    "caseNumber",
+    "caseType",
+    "status",
+    "visibility",
+    "authorDisplayMode",
+    "analysisPermission",
+    "createdByUserId",
+    "classCode",
+    "title",
+    "source",
+    "discordMapping",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "caseId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "caseNumber": { "$ref": "common.schema.json#/$defs/caseNumber" },
+    "caseType": { "$ref": "common.schema.json#/$defs/caseType" },
+    "status": { "$ref": "common.schema.json#/$defs/caseStatus" },
+    "visibility": { "$ref": "common.schema.json#/$defs/visibility" },
+    "authorDisplayMode": { "$ref": "common.schema.json#/$defs/authorDisplayMode" },
+    "analysisPermission": { "$ref": "common.schema.json#/$defs/analysisPermission" },
+    "createdByUserId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "classCode": { "type": ["string", "null"], "pattern": "^[0-9]{2}$" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+    "discordMapping": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["threadId"],
+          "properties": {
+            "threadId": { "$ref": "common.schema.json#/$defs/discordId" },
+            "forumPostId": { "$ref": "common.schema.json#/$defs/discordId" },
+            "channelId": { "$ref": "common.schema.json#/$defs/discordId" }
+          }
+        }
+      ]
+    },
+    "createdAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "updatedAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "caseType": { "const": "GENERAL" } }, "required": ["caseType"] },
+      "then": { "properties": { "caseNumber": { "pattern": "^(?!.*-P$).+$" } } }
+    },
+    {
+      "if": {
+        "properties": { "caseType": { "const": "PRIVATE_SUPPORT" } },
+        "required": ["caseType"]
+      },
+      "then": {
+        "properties": {
+          "caseNumber": { "pattern": "-P$" },
+          "visibility": { "const": "TEACHING_STAFF" },
+          "analysisPermission": { "const": "EXCLUDED" }
+        }
+      }
+    }
+  ]
+}

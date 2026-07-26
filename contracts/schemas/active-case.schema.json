@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/active-case.schema.json",
+  "title": "ActiveCase",
+  "description": "Working-set case row. Long-term payloads belong in the archive model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "caseId",
+    "status",
+    "projectionVersion",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "caseId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "status": {
+      "enum": [
+        "OPEN",
+        "WAITING_FOR_STUDENT",
+        "ANSWERED",
+        "ESCALATED",
+        "TEMPORARILY_CLOSED",
+        "CLOSED",
+        "REOPENED"
+      ]
+    },
+    "projectionVersion": { "type": "integer", "minimum": 1 },
+    "sourceCursor": { "type": ["string", "null"], "maxLength": 256 },
+    "updatedAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  }
+}

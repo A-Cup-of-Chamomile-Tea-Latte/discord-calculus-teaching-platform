@@ -1,0 +1,42 @@
+---
+import StatePanel from "../../components/StatePanel.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { withBase } from "../../lib/paths";
+---
+
+<BaseLayout
+  title="系統狀態"
+  description="Fixture-first Portal 與尚未連接外部服務的狀態。"
+  currentPath="status"
+>
+  <div class="shell stack section">
+    <header class="reading-width">
+      <p><a href={withBase("")}>首頁</a> / 系統狀態</p>
+      <h1>系統狀態</h1>
+      <p>
+        最後人工更新：2026-07-19（Asia/Taipei）。這不是正式 SLA 或即時監控。
+      </p>
+    </header>
+    <StatePanel kind="success" title="Portal static build：可用">
+      <p>所有頁面由本機 fixtures 產生，不需要 backend。</p>
+    </StatePanel>
+    <StatePanel kind="success" title="Case adapter：Fixture mode">
+      <p>
+        只讀取 repository 中的虛構一般案件，沒有 network request 或 polling。
+      </p>
+    </StatePanel>
+    <StatePanel kind="empty" title="Discord / GAS / Sheets / email：未連接">
+      <p>
+        這是預期的安全原型狀態，不是正式服務故障；表單不會寄信、發 Discord
+        訊息或寫入 Sheets。
+      </p>
+    </StatePanel>
+    <StatePanel kind="empty" title="Fallback：請保留正確管道">
+      <p>
+        正式課務資訊以 NTU COOL 為準。若未來 Portal 或 Discord
+        不可用，請改用課程已公告的備援管道；Private Support
+        內容不要改貼到公開討論區。
+      </p>
+    </StatePanel>
+  </div>
+</BaseLayout>

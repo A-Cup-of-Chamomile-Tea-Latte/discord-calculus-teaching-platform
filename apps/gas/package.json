@@ -1,0 +1,16 @@
+{
+  "name": "@calculus/gas",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "esbuild": "^0.28.1",
+    "vitest": "^4.1.10"
+  }
+}

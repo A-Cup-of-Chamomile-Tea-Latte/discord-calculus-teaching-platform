@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0",
+  "recordSets": [
+    { "schema": "user.schema.json", "file": "users/users.json" },
+    {
+      "schema": "verified-email.schema.json",
+      "file": "users/verified-emails.json"
+    },
+    {
+      "schema": "discord-account.schema.json",
+      "file": "users/discord-accounts.json"
+    },
+    {
+      "schema": "course-membership.schema.json",
+      "file": "users/course-memberships.json"
+    },
+    { "schema": "consent.schema.json", "file": "users/consents.json" },
+    {
+      "schema": "activation-code.schema.json",
+      "file": "users/activation-codes.json"
+    },
+    { "schema": "case.schema.json", "file": "cases/cases.json" },
+    {
+      "schema": "reduced-case-projection.schema.json",
+      "file": "cases/case-projections.json"
+    },
+    {
+      "schema": "case-message.schema.json",
+      "file": "messages/case-000421-thread.json"
+    },
+    {
+      "schema": "export-manifest.schema.json",
+      "file": "exports/export-manifests.json"
+    },
+    {
+      "schema": "case-lookup-response.schema.json",
+      "file": "adapters/case-lookup-responses.json"
+    }
+  ],
+  "sharedScenario": {
+    "caseId": "case_000421",
+    "caseNumber": "C01-7K4M2Q-0702-1000",
+    "consumers": {
+      "portal": "fixtures/adapters/case-lookup-responses.json",
+      "gas": "fixtures/adapters/mock-adapters.json#sheetsStorage",
+      "bots": "fixtures/adapters/mock-adapters.json#discordThreadFetch",
+      "tools": "fixtures/exports/export-manifests.json"
+    }
+  }
+}

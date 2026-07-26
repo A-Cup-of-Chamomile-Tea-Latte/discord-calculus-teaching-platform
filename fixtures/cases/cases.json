@@ -1,0 +1,118 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "caseId": "case_000421",
+    "caseNumber": "C01-7K4M2Q-0702-1000",
+    "caseType": "GENERAL",
+    "status": "OPEN",
+    "visibility": "COURSE",
+    "authorDisplayMode": "COURSE_ALIAS",
+    "analysisPermission": "INCLUDED",
+    "createdByUserId": "usr_amber",
+    "classCode": "01",
+    "title": "Fictional limit step question",
+    "source": "PORTAL",
+    "discordMapping": {
+      "threadId": "223456789012345678",
+      "forumPostId": "223456789012345678",
+      "channelId": "323456789012345678"
+    },
+    "createdAt": "2026-07-02T10:00:00+08:00",
+    "updatedAt": "2026-07-02T10:12:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "caseId": "case_000422",
+    "caseNumber": "C02-R8N6WX-0702-1100",
+    "caseType": "GENERAL",
+    "status": "WAITING_FOR_STUDENT",
+    "visibility": "CLASS",
+    "authorDisplayMode": "ANONYMOUS",
+    "analysisPermission": "INCLUDED",
+    "createdByUserId": "usr_coral",
+    "classCode": "02",
+    "title": "Fictional anonymous continuity question",
+    "source": "BOT",
+    "discordMapping": {
+      "threadId": "223456789012345679",
+      "forumPostId": "223456789012345679",
+      "channelId": "323456789012345678"
+    },
+    "createdAt": "2026-07-02T11:00:00+08:00",
+    "updatedAt": "2026-07-02T11:30:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "caseId": "case_000423",
+    "caseNumber": "C01-P3T7V9-0702-1200",
+    "caseType": "GENERAL",
+    "status": "ANSWERED",
+    "visibility": "COURSE",
+    "authorDisplayMode": "REAL_NAME",
+    "analysisPermission": "EXCLUDED",
+    "createdByUserId": "usr_basil",
+    "classCode": "01",
+    "title": "Fictional derivative notation question",
+    "source": "DISCORD",
+    "discordMapping": {
+      "threadId": "223456789012345680",
+      "channelId": "323456789012345678"
+    },
+    "createdAt": "2026-07-02T12:00:00+08:00",
+    "updatedAt": "2026-07-02T12:20:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "caseId": "case_000424",
+    "caseNumber": "C01-H5J8Q4-0702-1300",
+    "caseType": "GENERAL",
+    "status": "ESCALATED",
+    "visibility": "CLASS",
+    "authorDisplayMode": "COURSE_ALIAS",
+    "analysisPermission": "INCLUDED",
+    "createdByUserId": "usr_amber",
+    "classCode": "01",
+    "title": "Fictional theorem interpretation question",
+    "source": "DISCORD",
+    "discordMapping": {
+      "threadId": "223456789012345681",
+      "channelId": "323456789012345678"
+    },
+    "createdAt": "2026-07-02T13:00:00+08:00",
+    "updatedAt": "2026-07-02T13:45:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "caseId": "case_000425",
+    "caseNumber": "C02-M6X2C7-0702-1400",
+    "caseType": "GENERAL",
+    "status": "CLOSED",
+    "visibility": "COURSE",
+    "authorDisplayMode": "COURSE_ALIAS",
+    "analysisPermission": "INCLUDED",
+    "createdByUserId": "usr_coral",
+    "classCode": "02",
+    "title": "Fictional integral setup question",
+    "source": "IMPORT",
+    "discordMapping": null,
+    "createdAt": "2026-07-02T14:00:00+08:00",
+    "updatedAt": "2026-07-02T14:30:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "caseId": "case_private_001",
+    "caseNumber": "C99-B4W9K6-0702-1500-P",
+    "caseType": "PRIVATE_SUPPORT",
+    "status": "OPEN",
+    "visibility": "TEACHING_STAFF",
+    "authorDisplayMode": "ANONYMOUS",
+    "analysisPermission": "EXCLUDED",
+    "createdByUserId": "usr_basil",
+    "classCode": null,
+    "title": "Fictional private support request",
+    "source": "PORTAL",
+    "discordMapping": null,
+    "createdAt": "2026-07-02T15:00:00+08:00",
+    "updatedAt": "2026-07-02T15:00:00+08:00"
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0",
+  "sourceExportId": "export_case_000421_thread",
+  "sourceThreadSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "caseNumber": "C01-7K4M2Q-0702-1000",
+  "generatedAt": "2026-07-19T17:00:00+08:00",
+  "messages": [
+    {
+      "messageRef": "m001",
+      "parentRef": null,
+      "createdAt": "2026-07-02T10:01:00+08:00",
+      "editedAt": null,
+      "authorPseudonym": "student-01",
+      "authorRole": "STUDENT",
+      "contentStatus": "INCLUDED",
+      "body": "Fictional sanitized example.",
+      "source": "PORTAL",
+      "attachments": []
+    }
+  ]
+}

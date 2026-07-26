@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/case-id-mapping.schema.json",
+  "title": "Case ID Mapping",
+  "description": "Protected working-store mapping; internalCaseId must never appear in public projections.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "internalCaseId", "caseNumber", "private", "createdAt"],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "internalCaseId": { "type": "string", "format": "uuid" },
+    "caseNumber": { "$ref": "common.schema.json#/$defs/caseNumber" },
+    "private": { "type": "boolean" },
+    "createdAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "private": { "const": true } }, "required": ["private"] },
+      "then": { "properties": { "caseNumber": { "pattern": "-P$" } } },
+      "else": { "properties": { "caseNumber": { "pattern": "^(?!.*-P$).+$" } } }
+    }
+  ]
+}

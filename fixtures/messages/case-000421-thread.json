@@ -1,0 +1,74 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "messageId": "msg_000421_a",
+    "caseId": "case_000421",
+    "authorUserId": "usr_amber",
+    "authorRole": "STUDENT",
+    "authorDisplayMode": "COURSE_ALIAS",
+    "body": "In this fictional example, why can the limit step use that factorization?",
+    "source": "PORTAL",
+    "analysisPermission": "INHERIT",
+    "parentMessageId": null,
+    "discordMessageId": "423456789012345678",
+    "editedAt": null,
+    "attachments": [],
+    "createdAt": "2026-07-02T10:01:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "messageId": "msg_000421_b",
+    "caseId": "case_000421",
+    "authorUserId": "usr_staff_example",
+    "authorRole": "TA",
+    "authorDisplayMode": "REAL_NAME",
+    "body": "Which algebraic factor did you try first in this invented problem?",
+    "source": "DISCORD",
+    "analysisPermission": "INCLUDED",
+    "parentMessageId": "msg_000421_a",
+    "discordMessageId": "423456789012345679",
+    "editedAt": null,
+    "attachments": [],
+    "createdAt": "2026-07-02T10:05:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "messageId": "msg_000421_c",
+    "caseId": "case_000421",
+    "authorUserId": "usr_amber",
+    "authorRole": "STUDENT",
+    "authorDisplayMode": "COURSE_ALIAS",
+    "body": "I added a fictional sketch and corrected the expression in this edited reply.",
+    "source": "DISCORD",
+    "analysisPermission": "EXCLUDED",
+    "parentMessageId": "msg_000421_b",
+    "discordMessageId": "423456789012345680",
+    "editedAt": "2026-07-02T10:09:00+08:00",
+    "attachments": [
+      {
+        "attachmentId": "attachment_graph_a",
+        "filename": "fictional-limit-sketch.png",
+        "mediaType": "image/png",
+        "sizeBytes": 2048,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "createdAt": "2026-07-02T10:08:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "messageId": "msg_000421_d",
+    "caseId": "case_000421",
+    "authorUserId": "usr_staff_example",
+    "authorRole": "TA",
+    "authorDisplayMode": "REAL_NAME",
+    "body": "This fictional response shows how the shared factor cancels before evaluation.",
+    "source": "DISCORD",
+    "analysisPermission": "INCLUDED",
+    "parentMessageId": "msg_000421_c",
+    "discordMessageId": "423456789012345681",
+    "editedAt": null,
+    "attachments": [],
+    "createdAt": "2026-07-02T10:12:00+08:00"
+  }
+]

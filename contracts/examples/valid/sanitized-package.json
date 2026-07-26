@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "packageId": "package_fixture_001",
+  "sourceExportId": "export_fixture_001",
+  "contentSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "caseCount": 1,
+  "createdAt": "2026-07-26T02:05:00+08:00",
+  "reviewState": "APPROVED",
+  "containsPrivateSupport": false
+}

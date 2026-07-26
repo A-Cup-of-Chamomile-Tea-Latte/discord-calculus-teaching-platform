@@ -1,0 +1,78 @@
+---
+type Tone = "info" | "success" | "warning" | "danger";
+
+interface Props {
+  title: string;
+  tone?: Tone;
+}
+
+const { title, tone = "info" } = Astro.props;
+const symbols: Record<Tone, string> = {
+  info: "i",
+  success: "✓",
+  warning: "!",
+  danger: "×",
+};
+---
+
+<aside
+  class="alert"
+  data-tone={tone}
+  role={tone === "danger" ? "alert" : "status"}
+>
+  <span class="alert__symbol" aria-hidden="true">{symbols[tone]}</span>
+  <div>
+    <p class="alert__title">{title}</p>
+    <div class="alert__body"><slot /></div>
+  </div>
+</aside>
+
+<style>
+  .alert {
+    --state-bg: var(--color-info-bg);
+    --state-border: var(--color-info-border);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--state-border);
+    border-inline-start-width: 0.35rem;
+    border-radius: var(--radius-md);
+    background: var(--state-bg);
+  }
+
+  [data-tone="success"] {
+    --state-bg: var(--color-success-bg);
+    --state-border: var(--color-success-border);
+  }
+
+  [data-tone="warning"] {
+    --state-bg: var(--color-warning-bg);
+    --state-border: var(--color-warning-border);
+  }
+
+  [data-tone="danger"] {
+    --state-bg: var(--color-danger-bg);
+    --state-border: var(--color-danger-border);
+  }
+
+  .alert__symbol {
+    display: inline-grid;
+    width: 1.6rem;
+    height: 1.6rem;
+    place-items: center;
+    border: var(--border-strong) solid currentColor;
+    border-radius: 50%;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .alert__title {
+    margin: 0 0 var(--space-1);
+    font-weight: 800;
+  }
+
+  .alert__body :global(:last-child) {
+    margin-bottom: 0;
+  }
+</style>

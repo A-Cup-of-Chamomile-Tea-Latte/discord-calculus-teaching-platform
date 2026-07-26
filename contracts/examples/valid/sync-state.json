@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0",
+  "syncKey": "fixture:discord:course",
+  "source": "FIXTURE_DISCORD",
+  "cursor": "fixture_cursor_3",
+  "lastSyncedAt": "2026-07-23T10:01:00+08:00",
+  "status": "READY",
+  "errorCode": null
+}

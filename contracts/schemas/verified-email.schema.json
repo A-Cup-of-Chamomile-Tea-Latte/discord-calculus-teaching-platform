@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/verified-email.schema.json",
+  "title": "VerifiedEmail",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "verifiedEmailId",
+    "userId",
+    "email",
+    "kind",
+    "verifiedAt",
+    "isPrimary",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "verifiedEmailId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "userId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "email": { "type": "string", "format": "email", "maxLength": 254 },
+    "kind": { "type": "string", "enum": ["INSTITUTIONAL", "CONTACT"] },
+    "verifiedAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "isPrimary": { "type": "boolean" },
+    "createdAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  }
+}

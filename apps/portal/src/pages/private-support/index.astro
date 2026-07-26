@@ -1,0 +1,181 @@
+---
+import Alert from "../../components/Alert.astro";
+import ButtonLink from "../../components/ButtonLink.astro";
+import FormField from "../../components/FormField.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { withBase } from "../../lib/paths";
+---
+
+<BaseLayout
+  title="Private Support"
+  description="不進入公開案件查詢、預設排除教學分析的私密支援 fixture form。"
+  currentPath="ask"
+>
+  <div class="shell stack section">
+    <header class="reading-width">
+      <p><a href={withBase("")}>首頁</a> / Private Support</p>
+      <h1>Private Support</h1>
+      <p>
+        這是與一般問題分開的受保護路徑；目前只建立不送出的 fixture
+        confirmation。
+      </p>
+    </header>
+
+    <Alert title="不會出現在公開案件查詢" tone="warning">
+      <p>
+        正式內容只應由授權教學團隊處理。Private 案號使用 `-P`
+        尾碼但不能公開查詢，且教學分析預設排除。
+      </p>
+    </Alert>
+    <Alert title="尚未連接受保護 backend">
+      <p>
+        這個 prototype 不會聯絡 Discord、寄信或保存內容；正式 private backend
+        mechanism 仍待 technical spike。
+      </p>
+    </Alert>
+
+    <div class="route-choice" role="note">
+      <div>
+        <h2>Private Support 適合</h2>
+        <p>需要只讓授權教學團隊看見、且不進入教學分析的敏感支援。</p>
+      </div>
+      <div>
+        <h2>一般課程問題</h2>
+        <p>若可依選定範圍討論，請使用一般問題 route。</p>
+        <ButtonLink href={withBase("ask/")} variant="secondary"
+          >改問一般問題</ButtonLink
+        >
+      </div>
+    </div>
+
+    <section
+      class="prototype-panel prototype-panel--private"
+      data-fixture-form
+      data-form-kind="private-support"
+      aria-labelledby="private-form-title"
+    >
+      <div class="reading-width">
+        <p class="fixture-marker">Private fixture mode · 不會送出</p>
+        <h2 id="private-form-title">建立 Private Support 預覽</h2>
+        <p>請只使用虛構內容測試。輸入只留在目前頁面 DOM，重新整理即消失。</p>
+      </div>
+
+      <form class="prototype-form" novalidate>
+        <input type="hidden" name="analysisPermission" value="EXCLUDED" />
+
+        <div
+          class="form-error-summary"
+          data-form-errors
+          role="alert"
+          tabindex="-1"
+          hidden
+        >
+          <h3>還有幾個地方可以補充</h3>
+          <p>不會清除已輸入內容：</p>
+          <ul></ul>
+        </div>
+
+        <FormField
+          forId="private-title"
+          label="支援主旨"
+          hint="5–160 個字元。"
+          required
+        >
+          <input
+            id="private-title"
+            name="title"
+            maxlength="160"
+            autocomplete="off"
+            aria-describedby="private-title-hint private-title-error"
+          />
+          <p
+            id="private-title-error"
+            class="field-error"
+            data-field-error="title"
+            hidden
+          >
+          </p>
+        </FormField>
+
+        <FormField
+          forId="private-content"
+          label="支援內容"
+          hint="至少 20 個字元；此 prototype 請勿輸入真實敏感資料。"
+          required
+        >
+          <textarea
+            id="private-content"
+            name="content"
+            maxlength="5000"
+            aria-describedby="private-content-hint private-content-error"
+          ></textarea>
+          <p
+            id="private-content-error"
+            class="field-error"
+            data-field-error="content"
+            hidden
+          >
+          </p>
+        </FormField>
+
+        <div class="privacy-fixed-settings" aria-label="固定隱私設定">
+          <p><strong>可見範圍：</strong>僅授權教學團隊</p>
+          <p>
+            <strong>Private case number：</strong>fixture confirmation 會顯示
+            `-P` 尾碼，但不開放 public lookup
+          </p>
+          <p>
+            <strong>教學分析：</strong>預設排除，不能在此 prototype 改為
+            included
+          </p>
+        </div>
+        <p class="field-error" data-field-error="analysisPermission" hidden></p>
+
+        <fieldset class="choice-group">
+          <legend>Private Support 確認</legend>
+          <label>
+            <input type="checkbox" name="privacyAcknowledgement" value="yes" />
+            我了解此 route 不會進入公開案件查詢；目前也不會真的送給教學團隊。*
+          </label>
+          <p
+            class="field-error"
+            data-field-error="privacyAcknowledgement"
+            hidden
+          >
+          </p>
+        </fieldset>
+
+        <div class="form-actions">
+          <button type="submit">建立 Private Support fixture</button>
+          <ButtonLink href={withBase("ask/")} variant="quiet"
+            >改問一般問題</ButtonLink
+          >
+        </div>
+      </form>
+
+      <section
+        class="fixture-confirmation"
+        data-fixture-confirmation
+        tabindex="-1"
+        hidden
+      >
+        <p class="fixture-marker">Private fixture confirmation · 未送出</p>
+        <h2 data-confirmation-title>Private Support fixture 已建立</h2>
+        <p>本機 Private 案號：<strong data-confirmation-reference></strong></p>
+        <dl data-confirmation-summary></dl>
+        <Alert title="沒有 Private Support 案件被建立" tone="warning">
+          <p>此參考不能公開查詢；內容沒有保存、傳送或加入教學分析。</p>
+        </Alert>
+        <button
+          type="button"
+          class="button button--secondary"
+          data-fixture-reset>返回並清除表單</button
+        >
+      </section>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import "../../scripts/fixture-forms";
+</script>

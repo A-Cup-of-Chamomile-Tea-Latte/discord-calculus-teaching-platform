@@ -1,0 +1,72 @@
+---
+type Kind = "loading" | "empty" | "error" | "success";
+
+interface Props {
+  kind: Kind;
+  title: string;
+}
+
+const { kind, title } = Astro.props;
+const symbols: Record<Kind, string> = {
+  loading: "…",
+  empty: "□",
+  error: "×",
+  success: "✓",
+};
+---
+
+<section
+  class="state-panel"
+  data-kind={kind}
+  aria-live={kind === "loading" ? "polite" : undefined}
+  aria-busy={kind === "loading" ? "true" : undefined}
+  role={kind === "error" ? "alert" : "status"}
+>
+  <span class="state-panel__symbol" aria-hidden="true">{symbols[kind]}</span>
+  <div>
+    <h2>{title}</h2>
+    <slot />
+    <div class="state-panel__action"><slot name="action" /></div>
+  </div>
+</section>
+
+<style>
+  .state-panel {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    border: var(--border-thin) dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .state-panel[data-kind="error"] {
+    border-style: solid;
+    border-color: var(--color-danger-border);
+    background: var(--color-danger-bg);
+  }
+
+  .state-panel[data-kind="success"] {
+    border-style: solid;
+    border-color: var(--color-success-border);
+    background: var(--color-success-bg);
+  }
+
+  .state-panel__symbol {
+    font-size: 1.5rem;
+    font-weight: 800;
+  }
+
+  h2 {
+    font-size: var(--font-size-lg);
+  }
+
+  .state-panel__action:empty {
+    display: none;
+  }
+
+  .state-panel__action:not(:empty) {
+    margin-top: var(--space-3);
+  }
+</style>

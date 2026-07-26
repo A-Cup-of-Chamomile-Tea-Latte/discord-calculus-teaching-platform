@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0",
+  "caseId": "case_invalid_status",
+  "caseNumber": "C01-R8N6WX-0702-1000",
+  "caseType": "GENERAL",
+  "status": "PENDING",
+  "visibility": "COURSE",
+  "authorDisplayMode": "COURSE_ALIAS",
+  "analysisPermission": "INCLUDED",
+  "createdByUserId": "usr_amber",
+  "classCode": "01",
+  "title": "Invalid status example",
+  "source": "PORTAL",
+  "discordMapping": null,
+  "createdAt": "2026-07-02T10:00:00+08:00",
+  "updatedAt": "2026-07-02T10:00:00+08:00"
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/audit-event.schema.json",
+  "title": "AuditEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "eventId",
+    "eventType",
+    "actorUserId",
+    "subjectType",
+    "subjectId",
+    "source",
+    "metadata",
+    "occurredAt"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "eventId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "CASE_CREATED",
+        "CASE_STATUS_CHANGED",
+        "ACTIVATION_CODE_CREATED",
+        "ACTIVATION_CODE_REDEEMED",
+        "CONSENT_UPDATED",
+        "EXPORT_CREATED"
+      ]
+    },
+    "actorUserId": {
+      "oneOf": [{ "$ref": "common.schema.json#/$defs/recordId" }, { "type": "null" }]
+    },
+    "subjectType": {
+      "type": "string",
+      "enum": ["CASE", "MESSAGE", "USER", "CONSENT", "ACTIVATION_CODE", "EXPORT"]
+    },
+    "subjectId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": { "type": "string", "maxLength": 500 },
+        "previousStatus": { "$ref": "common.schema.json#/$defs/caseStatus" },
+        "nextStatus": { "$ref": "common.schema.json#/$defs/caseStatus" }
+      }
+    },
+    "occurredAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  }
+}

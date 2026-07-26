@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/case-message.schema.json",
+  "title": "CaseMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "messageId",
+    "caseId",
+    "authorUserId",
+    "authorRole",
+    "authorDisplayMode",
+    "body",
+    "source",
+    "analysisPermission",
+    "parentMessageId",
+    "discordMessageId",
+    "editedAt",
+    "attachments",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "messageId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "caseId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "authorUserId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "authorRole": { "type": "string", "enum": ["STUDENT", "TA", "INSTRUCTOR", "BOT"] },
+    "authorDisplayMode": { "$ref": "common.schema.json#/$defs/authorDisplayMode" },
+    "body": { "type": "string", "minLength": 1, "maxLength": 8000 },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+    "analysisPermission": { "$ref": "common.schema.json#/$defs/analysisDecision" },
+    "parentMessageId": {
+      "oneOf": [{ "$ref": "common.schema.json#/$defs/recordId" }, { "type": "null" }]
+    },
+    "discordMessageId": {
+      "oneOf": [{ "$ref": "common.schema.json#/$defs/discordId" }, { "type": "null" }]
+    },
+    "editedAt": {
+      "oneOf": [{ "$ref": "common.schema.json#/$defs/timestamp" }, { "type": "null" }]
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["attachmentId", "filename", "mediaType", "sizeBytes"],
+        "properties": {
+          "attachmentId": { "$ref": "common.schema.json#/$defs/recordId" },
+          "filename": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "mediaType": { "type": "string", "minLength": 3, "maxLength": 100 },
+          "sizeBytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    },
+    "createdAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  }
+}

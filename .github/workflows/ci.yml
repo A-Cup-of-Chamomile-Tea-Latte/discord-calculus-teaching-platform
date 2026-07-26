@@ -1,0 +1,128 @@
+name: Non-deploying quality gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  code-quality:
+    name: Formatter, lint, types, and secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install locked Node dependencies
+        run: npm ci
+      - name: Install Python development dependencies
+        run: python -m pip install --disable-pip-version-check -e ".[dev]"
+      - name: Check secret patterns
+        run: npm run secrets
+      - name: Check formatting
+        run: npm run format:check
+      - name: Lint Python
+        run: npm run lint
+      - name: Type-check every workspace
+        run: npm run typecheck
+
+  contracts-and-fixtures:
+    name: Contracts and fictional fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install Python development dependencies
+        run: python -m pip install --disable-pip-version-check -e ".[dev]"
+      - name: Validate contracts, fixtures, real-data guard, and CI policy
+        run: python -m pytest -q tests/contract tests/quality
+
+  python-tests:
+    name: Complete Python test suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install Python development dependencies
+        run: python -m pip install --disable-pip-version-check -e ".[dev]"
+      - name: Run the complete Python suite
+        run: python -m pytest -q
+
+  generated-exports:
+    name: Generated export and import validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install Python development dependencies
+        run: python -m pip install --disable-pip-version-check -e ".[dev]"
+      - name: Generate and validate fixture-only export packages
+        run: python -m pytest -q tests/tools
+
+  portal:
+    name: Portal tests and project-site build
+    runs-on: ubuntu-latest
+    env:
+      ASTRO_BASE_PATH: /discord-calculus-teaching-platform
+      ASTRO_SITE_URL: https://example.github.io
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install locked Node dependencies
+        run: npm ci
+      - name: Type-check portal
+        run: npm run check --workspace @calculus/portal
+      - name: Test portal pure logic
+        run: npm run test --workspace @calculus/portal
+      - name: Build static project-site portal
+        run: npm run build --workspace @calculus/portal
+      - name: Verify generated pages and base-safe local links
+        run: npm run verify:dist --workspace @calculus/portal -- /discord-calculus-teaching-platform/
+
+  gas:
+    name: GAS pure logic and bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install locked Node dependencies
+        run: npm ci
+      - name: Type-check GAS
+        run: npm run typecheck --workspace @calculus/gas
+      - name: Test GAS pure logic
+        run: npm run test --workspace @calculus/gas
+      - name: Build local GAS bundle
+        run: npm run build --workspace @calculus/gas

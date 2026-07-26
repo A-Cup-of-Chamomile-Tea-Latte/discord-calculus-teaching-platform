@@ -1,0 +1,44 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "consentId": "consent_amber_analysis",
+    "userId": "usr_amber",
+    "scope": "TEACHING_QUALITY_ANALYSIS",
+    "accountDefault": "INCLUDED",
+    "perPostOverrides": [
+      {
+        "messageId": "msg_000421_c",
+        "permission": "EXCLUDED",
+        "setAt": "2026-07-02T10:08:00+08:00"
+      }
+    ],
+    "updatedAt": "2026-07-02T10:08:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "consentId": "consent_basil_analysis",
+    "userId": "usr_basil",
+    "scope": "TEACHING_QUALITY_ANALYSIS",
+    "accountDefault": "EXCLUDED",
+    "perPostOverrides": [],
+    "updatedAt": "2026-07-01T09:25:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "consentId": "consent_coral_analysis",
+    "userId": "usr_coral",
+    "scope": "TEACHING_QUALITY_ANALYSIS",
+    "accountDefault": "INCLUDED",
+    "perPostOverrides": [],
+    "updatedAt": "2026-07-01T09:35:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "consentId": "consent_staff_analysis",
+    "userId": "usr_staff_example",
+    "scope": "TEACHING_QUALITY_ANALYSIS",
+    "accountDefault": "INCLUDED",
+    "perPostOverrides": [],
+    "updatedAt": "2026-07-01T08:05:00+08:00"
+  }
+]

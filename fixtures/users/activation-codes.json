@@ -1,0 +1,88 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "activationCodeId": "activation_unused",
+    "verifierHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "status": "UNUSED",
+    "createdByUserId": "usr_staff_example",
+    "redeemedByUserId": null,
+    "binding": { "kind": "NONE", "valueHash": null },
+    "permissionProfile": {
+      "role": "STUDENT",
+      "courseId": "calculus_1151",
+      "classCode": "01",
+      "permissions": ["JOIN_COURSE", "ACCESS_DISCORD", "ASK_QUESTIONS"]
+    },
+    "createdAt": "2026-07-01T08:00:00+08:00",
+    "expiresAt": "2026-07-08T08:00:00+08:00",
+    "redeemedAt": null,
+    "revokedAt": null,
+    "redemptionRequestHash": null
+  },
+  {
+    "schemaVersion": "1.0",
+    "activationCodeId": "activation_used",
+    "verifierHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "status": "USED",
+    "createdByUserId": "usr_staff_example",
+    "redeemedByUserId": "usr_basil",
+    "binding": {
+      "kind": "EMAIL",
+      "valueHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    "permissionProfile": {
+      "role": "STUDENT",
+      "courseId": "calculus_1151",
+      "classCode": "01",
+      "permissions": ["JOIN_COURSE", "ACCESS_DISCORD", "ASK_QUESTIONS"]
+    },
+    "createdAt": "2026-06-20T08:00:00+08:00",
+    "expiresAt": "2026-06-27T08:00:00+08:00",
+    "redeemedAt": "2026-06-21T09:00:00+08:00",
+    "revokedAt": null,
+    "redemptionRequestHash": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+  },
+  {
+    "schemaVersion": "1.0",
+    "activationCodeId": "activation_expired",
+    "verifierHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "status": "EXPIRED",
+    "createdByUserId": "usr_staff_example",
+    "redeemedByUserId": null,
+    "binding": {
+      "kind": "DISCORD_USER",
+      "valueHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    },
+    "permissionProfile": {
+      "role": "OBSERVER",
+      "courseId": "calculus_1151",
+      "classCode": null,
+      "permissions": ["VIEW_ARCHIVE"]
+    },
+    "createdAt": "2026-06-01T08:00:00+08:00",
+    "expiresAt": "2026-06-08T08:00:00+08:00",
+    "redeemedAt": null,
+    "revokedAt": null,
+    "redemptionRequestHash": null
+  },
+  {
+    "schemaVersion": "1.0",
+    "activationCodeId": "activation_revoked",
+    "verifierHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "status": "REVOKED",
+    "createdByUserId": "usr_staff_example",
+    "redeemedByUserId": null,
+    "binding": { "kind": "NONE", "valueHash": null },
+    "permissionProfile": {
+      "role": "STUDENT",
+      "courseId": "calculus_1151",
+      "classCode": "02",
+      "permissions": ["JOIN_COURSE", "ASK_QUESTIONS"]
+    },
+    "createdAt": "2026-06-10T08:00:00+08:00",
+    "expiresAt": "2026-06-17T08:00:00+08:00",
+    "redeemedAt": null,
+    "revokedAt": "2026-06-11T10:00:00+08:00",
+    "redemptionRequestHash": null
+  }
+]

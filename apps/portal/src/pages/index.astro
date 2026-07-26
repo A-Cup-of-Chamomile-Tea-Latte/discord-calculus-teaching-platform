@@ -1,0 +1,99 @@
+---
+import Alert from "../components/Alert.astro";
+import ButtonLink from "../components/ButtonLink.astro";
+import Card from "../components/Card.astro";
+import CaseSearch from "../components/CaseSearch.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { fixtureCaseLookupAdapter } from "../lib/fixture-case-adapter";
+import { withBase } from "../lib/paths";
+
+const publicCases = await fixtureCaseLookupAdapter.listPublicCases();
+---
+
+<BaseLayout
+  title="首頁"
+  description="查詢一般案件進度、選擇提問方式，並了解 Discord 與 NTU COOL 的平台分工。"
+>
+  <div class="shell stack section" style="--stack-gap: var(--space-6)">
+    <Alert title="正式課務請以 NTU COOL 為準" tone="warning">
+      <p>教材、作業、成績、期限、正式公告與課程政策不由此原型取代。</p>
+    </Alert>
+
+    <header class="reading-width">
+      <p class="eyebrow">Fixture-first prototype</p>
+      <h1>提問、追蹤與隱私選擇，放在同一個入口</h1>
+      <p>
+        你可以直接在 Discord 討論，也可以選擇透過網站代送；Private Support
+        另有獨立保護。
+      </p>
+    </header>
+
+    <CaseSearch cases={publicCases} inputId="home-case-number" />
+
+    <section class="stack" aria-labelledby="ask-title">
+      <div class="reading-width">
+        <h2 id="ask-title">選擇適合你的提問方式</h2>
+        <p>三條路徑用途不同；網站代送是替代方案，不是加入課程的必經步驟。</p>
+      </div>
+      <div class="grid grid--auto">
+        <Card eyebrow="一般討論" title="直接在 Discord 發問">
+          <p>
+            適合一般課程討論。正式 server link 尚未設定，請先閱讀全域帳號與 DM
+            隱私提醒。
+          </p>
+          <ButtonLink
+            slot="footer"
+            href={withBase("guide/")}
+            variant="secondary">先看隱私指南</ButtonLink
+          >
+        </Card>
+        <Card eyebrow="替代方案" title="透過網站代送">
+          <p>
+            若不想開啟 Discord 發文，可先用完全離線的 fixture 表單體驗流程。
+          </p>
+          <ButtonLink slot="footer" href={withBase("ask/")}
+            >前往替代提問表單</ButtonLink
+          >
+        </Card>
+        <Card eyebrow="獨立保護" title="Private Support">
+          <p>只有授權教學團隊可見，不會進入公開案件查詢，預設排除教學分析。</p>
+          <ButtonLink
+            slot="footer"
+            href={withBase("private-support/")}
+            variant="secondary">了解 Private Support</ButtonLink
+          >
+        </Card>
+      </div>
+    </section>
+
+    <section class="grid grid--auto" aria-label="設定與狀態">
+      <Card title="加入與設定">
+        <p>
+          查看 Discord 連結、course alias 與 DM privacy 的 fixture onboarding。
+        </p>
+        <ButtonLink slot="footer" href={withBase("join/")} variant="quiet"
+          >開始設定</ButtonLink
+        >
+      </Card>
+      <Card title="目前系統狀態">
+        <p>
+          Portal 使用本機 fixtures；Discord、email、GAS/Sheets 均未連正式服務。
+        </p>
+        <ButtonLink slot="footer" href={withBase("status/")} variant="quiet"
+          >查看狀態</ButtonLink
+        >
+      </Card>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .eyebrow {
+    margin: 0 0 var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+</style>

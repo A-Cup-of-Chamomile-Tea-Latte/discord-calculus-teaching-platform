@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "membershipId": "membership_amber_01",
+  "userId": "usr_amber",
+  "courseId": "course_calc_1151",
+  "classCode": "01",
+  "joiningOrder": 7,
+  "courseAlias": "01007",
+  "verificationMethod": "EMAIL",
+  "status": "ACTIVE",
+  "joinedAt": "2026-07-01T09:10:00+08:00",
+  "updatedAt": "2026-07-01T09:10:00+08:00"
+}

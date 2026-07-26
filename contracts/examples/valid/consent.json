@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "consentId": "consent_amber_analysis",
+  "userId": "usr_amber",
+  "scope": "TEACHING_QUALITY_ANALYSIS",
+  "accountDefault": "INCLUDED",
+  "perPostOverrides": [
+    {
+      "messageId": "msg_000421_a",
+      "permission": "EXCLUDED",
+      "setAt": "2026-07-02T10:02:00+08:00"
+    }
+  ],
+  "updatedAt": "2026-07-02T10:02:00+08:00"
+}

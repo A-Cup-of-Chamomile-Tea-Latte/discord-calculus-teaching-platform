@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/sync-state.schema.json",
+  "title": "SyncState",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "syncKey",
+    "source",
+    "cursor",
+    "lastSyncedAt",
+    "status"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "syncKey": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{3,128}$" },
+    "source": { "enum": ["FIXTURE_DISCORD", "FIXTURE_WEB", "FIXTURE_GAS"] },
+    "cursor": { "type": ["string", "null"], "maxLength": 256 },
+    "lastSyncedAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "status": { "enum": ["READY", "RUNNING", "FAILED"] },
+    "errorCode": { "type": ["string", "null"], "maxLength": 64 }
+  }
+}

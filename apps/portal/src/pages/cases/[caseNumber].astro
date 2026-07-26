@@ -1,0 +1,454 @@
+---
+import Alert from "../../components/Alert.astro";
+import ButtonLink from "../../components/ButtonLink.astro";
+import MetaLabel from "../../components/MetaLabel.astro";
+import StatePanel from "../../components/StatePanel.astro";
+import StatusBadge from "../../components/StatusBadge.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import type { PublicCaseView } from "../../lib/case-adapter";
+import { fixtureCaseLookupAdapter } from "../../lib/fixture-case-adapter";
+import { withBase } from "../../lib/paths";
+
+export async function getStaticPaths() {
+  const cases = await fixtureCaseLookupAdapter.listPublicCases();
+  return cases.map((item) => ({
+    params: { caseNumber: item.caseNumber },
+    props: { caseView: item },
+  }));
+}
+
+interface Props {
+  caseView: PublicCaseView;
+}
+
+const { caseView } = Astro.props;
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat("zh-TW", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+const formatOptionalDate = (value: string | null) =>
+  value ? formatDate(value) : "尚無可靠資料";
+---
+
+<BaseLayout
+  title={caseView.caseNumber}
+  description={`一般案件 ${caseView.caseNumber} 的 fixture 公開詳情。`}
+  currentPath="cases"
+>
+  <div class="shell stack section" style="--stack-gap: var(--space-6)">
+    <header class="stack reading-width">
+      <p><a href={withBase("cases/")}>案件查詢</a> / {caseView.caseNumber}</p>
+      <div class="cluster">
+        <StatusBadge status={caseView.status} />
+        <span>{caseView.caseNumber}</span>
+      </div>
+      <h1>{caseView.title}</h1>
+      <p>
+        最後更新：<time datetime={caseView.updatedAt}
+          >{formatDate(caseView.updatedAt)}</time
+        >
+      </p>
+      <div class="cluster">
+        <MetaLabel kind="visibility" value={caseView.visibility} />
+        <MetaLabel kind="author" value={caseView.authorDisplayMode} />
+      </div>
+    </header>
+
+    <Alert title="正式課務請以 NTU COOL 為準" tone="warning">
+      <p>此頁只顯示虛構一般案件的討論狀態，不取代課程公告、期限或政策。</p>
+    </Alert>
+
+    <section class="reduced-summary" aria-labelledby="summary-title">
+      <div class="summary-heading">
+        <p class="eyebrow">Desktop review · reduced projection</p>
+        <h2 id="summary-title">案件摘要</h2>
+        <p>
+          此頁只讀 working projection，不在查詢時重新演算整段 Discord 歷史。
+        </p>
+      </div>
+      <dl class="summary-grid">
+        <div>
+          <dt>Case</dt>
+          <dd>{caseView.caseNumber}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd><StatusBadge status={caseView.status} /></dd>
+        </div>
+        <div>
+          <dt>Last Update</dt>
+          <dd>
+            <time datetime={caseView.lastUpdateAt}
+              >{formatDate(caseView.lastUpdateAt)}</time
+            >
+          </dd>
+        </div>
+        <div>
+          <dt>Last Response</dt>
+          <dd>
+            {
+              caseView.lastTeachingResponseAt ? (
+                <time datetime={caseView.lastTeachingResponseAt}>
+                  {formatDate(caseView.lastTeachingResponseAt)}
+                </time>
+              ) : (
+                "尚無教學團隊回覆"
+              )
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Last Student Activity</dt>
+          <dd>{formatOptionalDate(caseView.lastStudentActivityAt)}</dd>
+        </div>
+        <div>
+          <dt>Last Read</dt>
+          <dd>{formatOptionalDate(caseView.lastReadAt)}</dd>
+          <small
+            >只有 VERIFIED_VIEW fixture evidence 才會填入；頁面開啟不算已讀。</small
+          >
+        </div>
+        <div>
+          <dt>Last Synced</dt>
+          <dd>
+            <time datetime={caseView.lastSyncedAt}
+              >{formatDate(caseView.lastSyncedAt)}</time
+            >
+          </dd>
+        </div>
+        <div>
+          <dt>Attachments</dt>
+          <dd>
+            {
+              caseView.hasAttachments
+                ? `${caseView.attachmentCount} 個 marker`
+                : "無"
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>AI eligibility</dt>
+          <dd>
+            {
+              caseView.analysisEligibility === "ELIGIBLE"
+                ? "AI✓ Eligible"
+                : "AI× Excluded"
+            }
+          </dd>
+          <small>Database fixture 是 source of truth。</small>
+        </div>
+        <div>
+          <dt>Closure</dt>
+          <dd>{caseView.closureSource ?? "尚未結案"}</dd>
+          {caseView.closedAt && <small>{formatDate(caseView.closedAt)}</small>}
+        </div>
+      </dl>
+    </section>
+
+    {
+      caseView.latestTeachingResponseExcerpt ? (
+        <section class="latest" aria-labelledby="latest-title">
+          <p class="latest__label">最新教學團隊回覆</p>
+          <h2 id="latest-title">Teaching team</h2>
+          <p>{caseView.latestTeachingResponseExcerpt}</p>
+          {caseView.lastTeachingResponseAt && (
+            <time datetime={caseView.lastTeachingResponseAt}>
+              {formatDate(caseView.lastTeachingResponseAt)}
+            </time>
+          )}
+        </section>
+      ) : (
+        <StatePanel kind="empty" title="尚無教學團隊回覆">
+          <p>案件仍可由明確重新整理動作取得最新狀態；本頁不會自動 polling。</p>
+        </StatePanel>
+      )
+    }
+
+    <section class="timeline-panel" aria-labelledby="timeline-title">
+      <h2 id="timeline-title">Timeline</h2>
+      <ol class="timeline">
+        {
+          caseView.timelineEvents.map((event) => (
+            <li>
+              <time datetime={event.occurredAt}>
+                {formatDate(event.occurredAt)}
+              </time>
+              <strong>{event.label}</strong>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <section aria-labelledby="conversation-title">
+      <h2 id="conversation-title">公開對話紀錄</h2>
+      {
+        caseView.messages.length ? (
+          <ol class="conversation">
+            {caseView.messages.map((message) => (
+              <li>
+                <article>
+                  <header class="message__header">
+                    <strong>{message.authorLabel}</strong>
+                    <span>
+                      {message.authorRole === "STUDENT" ? "學生" : "教學團隊"}
+                    </span>
+                    <time datetime={message.createdAt}>
+                      {formatDate(message.createdAt)}
+                    </time>
+                  </header>
+                  {message.replyToSequence && (
+                    <p class="message__reply">
+                      回覆第 {message.replyToSequence} 則
+                    </p>
+                  )}
+                  <p>{message.body}</p>
+                  {message.editedAt && (
+                    <p class="message__edited">
+                      已編輯：{formatDate(message.editedAt)}
+                    </p>
+                  )}
+                  {message.attachments.length > 0 && (
+                    <p class="attachment-marker">
+                      📎 此訊息包含 {message.attachments.length} 個附件，請至
+                      Discord 查看
+                    </p>
+                  )}
+                </article>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <StatePanel kind="empty" title="目前沒有公開 conversation fixture">
+            <p>這不表示案件不存在；只有允許公開的內容會出現在這裡。</p>
+          </StatePanel>
+        )
+      }
+    </section>
+
+    <section class="stack reading-width" aria-labelledby="actions-title">
+      <h2 id="actions-title">下一步</h2>
+      <div class="cluster">
+        <ButtonLink href={withBase(`cases/${caseView.caseNumber}/`)}
+          >明確重新整理此案件（不會自動更新）</ButtonLink
+        >
+        {
+          caseView.discordDeepLink ? (
+            <a
+              class="button button--secondary"
+              href={caseView.discordDeepLink}
+              target="_blank"
+              rel="noreferrer"
+            >
+              在 Discord 開啟
+            </a>
+          ) : (
+            <ButtonLink href="#" variant="secondary" disabled>
+              Discord link 尚未設定
+            </ButtonLink>
+          )
+        }
+      </div>
+      <p>
+        匿名 follow-up 必須透過網站或 Discord modal 由 bot
+        代貼，不能直接用本人帳號回覆後再刪除。
+      </p>
+    </section>
+
+    <section
+      class="lifecycle-review stack reading-width"
+      aria-labelledby="lifecycle-title"
+      data-lifecycle-review
+    >
+      <h2 id="lifecycle-title">Case actions（fixture preview）</h2>
+      <p>
+        3／7 日門檻由 closure policy 設定，不寫死在 UI。這些按鈕只預覽狀態文字，
+        不保存、不送網路，也不代表 Discord auto-archive。
+      </p>
+      <div class="cluster">
+        <button type="button" data-preview-transition="TEMPORARILY_CLOSED"
+          >Temporary close 預覽</button
+        >
+        <button type="button" data-preview-transition="CLOSED"
+          >Close Case 預覽</button
+        >
+        <button
+          type="button"
+          data-preview-transition="REOPENED"
+          class="button--secondary">Reopen 預覽</button
+        >
+      </div>
+      <p class="preview-result" data-transition-result role="status">
+        目前未套用 fixture preview。
+      </p>
+    </section>
+
+    <section class="stack reading-width" aria-labelledby="follow-up-title">
+      <h2 id="follow-up-title">Follow-up placeholder</h2>
+      <p>
+        這個 scaffold 不會送出內容。Task 13 才會加入 fixture
+        confirmation；正式匿名 follow-up 必須由網站或 modal 轉交 bot 代貼。
+      </p>
+      <form>
+        <fieldset disabled>
+          <legend>尚未啟用的 follow-up form</legend>
+          <label for="follow-up-message">補充內容</label>
+          <textarea
+            id="follow-up-message"
+            name="followUp"
+            placeholder="此欄位目前停用"></textarea>
+          <button type="button">送出補充（尚未啟用）</button>
+        </fieldset>
+      </form>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .eyebrow {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .reduced-summary {
+    display: grid;
+    padding: var(--space-5);
+    border: var(--border-strong) solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    gap: var(--space-5);
+    background: var(--color-surface);
+  }
+
+  .summary-grid {
+    display: grid;
+    margin: 0;
+    gap: var(--space-3);
+  }
+
+  .summary-grid > div {
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-muted);
+  }
+
+  .summary-grid dt {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .summary-grid dd {
+    margin: var(--space-1) 0 0;
+    font-weight: 700;
+  }
+
+  .summary-grid small {
+    display: block;
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+  }
+
+  .timeline-panel {
+    max-width: var(--reading-width);
+  }
+
+  .timeline {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--space-2);
+    list-style: none;
+  }
+
+  .timeline li {
+    display: grid;
+    grid-template-columns: minmax(10rem, 13rem) 1fr;
+    padding: var(--space-3);
+    border-inline-start: 0.25rem solid var(--color-info-border);
+    background: var(--color-surface-muted);
+  }
+  .latest {
+    max-width: var(--reading-width);
+    padding: var(--space-5);
+    border-inline-start: 0.35rem solid var(--color-success-border);
+    border-radius: var(--radius-md);
+    background: var(--color-success-bg);
+  }
+
+  .latest__label,
+  .message__reply,
+  .message__edited {
+    margin-bottom: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .conversation {
+    display: grid;
+    max-width: var(--reading-width);
+    margin: 0;
+    padding-inline-start: 1.5rem;
+    gap: var(--space-4);
+  }
+
+  .conversation article {
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .message__header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    align-items: baseline;
+    margin-bottom: var(--space-3);
+  }
+
+  .message__header time {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .attachment-marker,
+  .preview-result {
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-muted);
+    font-weight: 700;
+  }
+
+  fieldset {
+    display: grid;
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    gap: var(--space-3);
+  }
+
+  legend,
+  label {
+    font-weight: 800;
+  }
+
+  @media (min-width: 64rem) {
+    .reduced-summary {
+      grid-template-columns: minmax(14rem, 0.7fr) minmax(32rem, 2fr);
+    }
+
+    .summary-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>
+
+<script>
+  import "../../scripts/case-review";
+</script>

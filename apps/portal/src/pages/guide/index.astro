@@ -1,0 +1,81 @@
+---
+import Alert from "../../components/Alert.astro";
+import Card from "../../components/Card.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { withBase } from "../../lib/paths";
+---
+
+<BaseLayout
+  title="使用與隱私指南"
+  description="了解 NTU COOL、Discord、Portal、作者顯示、可見範圍與分析同意。"
+  currentPath="guide"
+>
+  <div class="shell stack section" style="--stack-gap: var(--space-6)">
+    <header class="reading-width">
+      <p><a href={withBase("")}>首頁</a> / 使用與隱私指南</p>
+      <h1>使用與隱私指南</h1>
+      <p>先了解每個選項真正改變什麼，再決定如何發問。</p>
+    </header>
+    <Alert title="NTU COOL 是正式課務依據" tone="warning">
+      <p>
+        教材、作業、成績、期限、正式公告與政策以 NTU COOL 為準；Discord 與
+        Portal 只補充。
+      </p>
+    </Alert>
+    <section class="grid grid--auto" aria-label="平台分工">
+      <Card title="NTU COOL"><p>正式課務與政策。</p></Card>
+      <Card title="Discord"
+        ><p>提問、討論、助教回覆與社群互動；第一版不錄音或轉錄。</p></Card
+      >
+      <Card title="Portal"
+        ><p>
+          Onboarding、隱私指引、替代代送、一般案件查詢與 Private Support 入口。
+        </p></Card
+      >
+    </section>
+    <section class="reading-width">
+      <h2>三個必須分開的選擇</h2>
+      <dl>
+        <dt>作者顯示方式</dt><dd>真實姓名、course alias、對一般成員匿名。</dd>
+        <dt>可見範圍</dt><dd>班級、全課程、或只限教學團隊。</dd>
+        <dt>教學分析同意</dt><dd>
+          能否進入明確匯出後的教學品質檢視，不等於公開、模型訓練或評分。
+        </dd>
+      </dl>
+    </section>
+    <section class="reading-width">
+      <h2>Discord 暱稱與 DM</h2>
+      <p>
+        `nnmmm` 暱稱不會隱藏全域 username、display name、avatar 或
+        profile。建議在 Discord privacy settings 停用 shared-server members 的
+        unsolicited DMs。
+      </p>
+      <p>
+        完全匿名 follow-up 必須透過網站或 modal 由 bot
+        代貼，不能先以本人發文再刪除。
+      </p>
+    </section>
+    <section class="reading-width">
+      <h2>Private Support</h2>
+      <p>
+        Private Support
+        不等於一般匿名案件；它使用獨立路徑、不公開查詢、預設排除教學分析。
+      </p>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  dl {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  dt {
+    font-weight: 800;
+  }
+
+  dd {
+    margin: 0 0 var(--space-3);
+  }
+</style>

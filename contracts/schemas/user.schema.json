@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/user.schema.json",
+  "title": "User",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "userId",
+    "displayLabel",
+    "defaultAuthorDisplayMode",
+    "analysisPermissionDefault",
+    "verifiedEmailIds",
+    "discordAccountIds",
+    "membershipIds",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "userId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "displayLabel": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "defaultAuthorDisplayMode": { "$ref": "common.schema.json#/$defs/authorDisplayMode" },
+    "analysisPermissionDefault": { "$ref": "common.schema.json#/$defs/analysisPermission" },
+    "verifiedEmailIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "common.schema.json#/$defs/recordId" }
+    },
+    "discordAccountIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "common.schema.json#/$defs/recordId" }
+    },
+    "membershipIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "common.schema.json#/$defs/recordId" }
+    },
+    "createdAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "updatedAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  }
+}

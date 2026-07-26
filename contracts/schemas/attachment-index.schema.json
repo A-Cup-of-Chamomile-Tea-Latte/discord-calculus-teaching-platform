@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/attachment-index.schema.json",
+  "title": "AttachmentIndex",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "exportId",
+    "caseId",
+    "caseNumber",
+    "checkpoint",
+    "attachments"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "exportId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "caseId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "caseNumber": { "$ref": "common.schema.json#/$defs/caseNumber" },
+    "checkpoint": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/discordId" },
+        { "type": "null" }
+      ]
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "messageId",
+          "attachmentId",
+          "filename",
+          "mediaType",
+          "sizeBytes"
+        ],
+        "properties": {
+          "messageId": { "$ref": "common.schema.json#/$defs/recordId" },
+          "attachmentId": { "$ref": "common.schema.json#/$defs/recordId" },
+          "filename": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "mediaType": { "type": "string", "minLength": 3, "maxLength": 100 },
+          "sizeBytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    }
+  }
+}

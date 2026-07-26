@@ -1,0 +1,58 @@
+:root {
+  color-scheme: light;
+
+  /* Neutral prototype palette; replace values without changing component contracts. */
+  --color-canvas: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-surface-muted: #efefeb;
+  --color-text: #1f2523;
+  --color-text-muted: #56605d;
+  --color-border: #b7bfbc;
+  --color-border-strong: #67726e;
+  --color-action: #174f46;
+  --color-action-hover: #0f3d36;
+  --color-action-text: #ffffff;
+  --color-focus: #7a3cff;
+
+  --color-info-bg: #edf4ff;
+  --color-info-border: #4169a1;
+  --color-success-bg: #ecf8ef;
+  --color-success-border: #287c3f;
+  --color-warning-bg: #fff6df;
+  --color-warning-border: #9a6814;
+  --color-danger-bg: #fff0ef;
+  --color-danger-border: #a33a32;
+  --color-neutral-bg: #f0f1f0;
+  --color-neutral-border: #69716e;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --font-size-xs: 0.78rem;
+  --font-size-sm: 0.9rem;
+  --font-size-md: 1rem;
+  --font-size-lg: clamp(1.15rem, 2vw, 1.35rem);
+  --font-size-xl: clamp(1.55rem, 4vw, 2.25rem);
+  --line-height-body: 1.65;
+  --line-height-heading: 1.25;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.55rem;
+  --radius-lg: 0.85rem;
+  --border-thin: 1px;
+  --border-strong: 2px;
+  --focus-width: 3px;
+  --content-width: 70rem;
+  --reading-width: 45rem;
+  --touch-target: 2.75rem;
+  --shadow-low: 0 1px 2px rgb(31 37 35 / 12%);
+}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "queueId": "queue_fixture_001",
+  "caseId": "case_working_001",
+  "changeVersion": 3,
+  "reason": "STATUS_CHANGED",
+  "enqueuedAt": "2026-07-23T10:00:30+08:00",
+  "state": "PENDING",
+  "idempotencyKey": "case_working_001:3"
+}

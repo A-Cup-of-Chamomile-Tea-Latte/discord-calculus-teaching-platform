@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "1.0",
+  "inventoryId": "inventory_fixture_2026w30",
+  "capturedAt": "2026-07-23T09:00:00+08:00",
+  "fixtureOnly": true,
+  "server": {
+    "serverId": "fixture_server_001",
+    "name": "Synthetic Calculus Test Server",
+    "description": "Fictional structure for offline contract tests.",
+    "preferredLocale": "zh-TW"
+  },
+  "categories": [
+    {
+      "id": "cat_fixture_questions",
+      "name": "QUESTIONS",
+      "type": "CATEGORY",
+      "position": 0,
+      "parentId": null
+    }
+  ],
+  "channels": [
+    {
+      "id": "forum_fixture_course",
+      "name": "course-questions",
+      "type": "FORUM",
+      "position": 0,
+      "parentId": "cat_fixture_questions"
+    }
+  ],
+  "roles": [
+    {
+      "roleId": "role_fixture_student",
+      "name": "Synthetic Student",
+      "position": 1,
+      "managed": false
+    },
+    {
+      "roleId": "role_fixture_dump_bot",
+      "name": "dump_bot",
+      "position": 2,
+      "managed": true
+    }
+  ],
+  "permissionOverwrites": [
+    {
+      "channelId": "forum_fixture_course",
+      "targetId": "role_fixture_dump_bot",
+      "targetType": "ROLE",
+      "allow": ["VIEW_CHANNEL", "READ_MESSAGE_HISTORY"],
+      "deny": ["SEND_MESSAGES", "MANAGE_CHANNELS"]
+    }
+  ],
+  "forumTags": [
+    {
+      "channelId": "forum_fixture_course",
+      "tagId": "tag_fixture_open",
+      "name": "Open",
+      "moderated": false
+    }
+  ],
+  "threadCounts": { "active": 2, "archived": 1 },
+  "bots": [{ "applicationId": "app_fixture_dump_bot", "name": "dump_bot" }]
+}

@@ -1,0 +1,45 @@
+---
+type Kind = "visibility" | "author";
+type Value =
+  | "CLASS"
+  | "COURSE"
+  | "TEACHING_STAFF"
+  | "REAL_NAME"
+  | "COURSE_ALIAS"
+  | "ANONYMOUS";
+
+interface Props {
+  kind: Kind;
+  value: Value;
+}
+
+const { kind, value } = Astro.props;
+const labels: Record<Value, string> = {
+  CLASS: "班級可見",
+  COURSE: "全課程可見",
+  TEACHING_STAFF: "僅教學團隊",
+  REAL_NAME: "顯示真實姓名",
+  COURSE_ALIAS: "顯示課程代號",
+  ANONYMOUS: "對一般成員匿名",
+};
+const prefixes: Record<Kind, string> = {
+  visibility: "可見範圍",
+  author: "作者顯示",
+};
+---
+
+<span class="meta-label">
+  <strong>{prefixes[kind]}：</strong>{labels[value]}
+</span>
+
+<style>
+  .meta-label {
+    display: inline-flex;
+    padding: var(--space-1) var(--space-2);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-muted);
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+  }
+</style>

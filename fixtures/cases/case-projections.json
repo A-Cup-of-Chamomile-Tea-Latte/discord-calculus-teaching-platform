@@ -1,0 +1,182 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "caseId": "case_000421",
+    "caseNumber": "C01-7K4M2Q-0702-1000",
+    "status": "OPEN",
+    "lastUpdateAt": "2026-07-02T10:12:00+08:00",
+    "lastTeachingResponseAt": "2026-07-02T10:12:00+08:00",
+    "lastStudentActivityAt": "2026-07-02T10:08:00+08:00",
+    "lastReadAt": "2026-07-02T10:16:00+08:00",
+    "lastSyncedAt": "2026-07-02T10:15:00+08:00",
+    "latestTeachingResponseExcerpt": "This fictional response shows how the shared factor cancels before evaluation.",
+    "attachmentCount": 1,
+    "hasAttachments": true,
+    "timelineEvents": [
+      {
+        "eventType": "SUBMITTED",
+        "occurredAt": "2026-07-02T10:01:00+08:00",
+        "label": "Submitted"
+      },
+      {
+        "eventType": "TEACHING_RESPONSE",
+        "occurredAt": "2026-07-02T10:05:00+08:00",
+        "label": "TA responded"
+      },
+      {
+        "eventType": "STUDENT_FOLLOW_UP",
+        "occurredAt": "2026-07-02T10:08:00+08:00",
+        "label": "Student follow-up"
+      },
+      {
+        "eventType": "TEACHING_RESPONSE",
+        "occurredAt": "2026-07-02T10:12:00+08:00",
+        "label": "TA responded"
+      }
+    ],
+    "discordDeepLink": "https://discord.com/channels/111111111111111111/222222222222222221",
+    "closureSource": null,
+    "closedAt": null,
+    "reopenedAt": null,
+    "analysisEligibility": "ELIGIBLE",
+    "analysisDecisionSource": "DATABASE"
+  },
+  {
+    "schemaVersion": "1.0",
+    "caseId": "case_000422",
+    "caseNumber": "C02-R8N6WX-0702-1100",
+    "status": "WAITING_FOR_STUDENT",
+    "lastUpdateAt": "2026-07-02T11:30:00+08:00",
+    "lastTeachingResponseAt": "2026-07-02T11:30:00+08:00",
+    "lastStudentActivityAt": "2026-07-02T11:00:00+08:00",
+    "lastReadAt": null,
+    "lastSyncedAt": "2026-07-02T11:35:00+08:00",
+    "latestTeachingResponseExcerpt": "Fixture teaching team requested one additional step.",
+    "attachmentCount": 0,
+    "hasAttachments": false,
+    "timelineEvents": [
+      {
+        "eventType": "SUBMITTED",
+        "occurredAt": "2026-07-02T11:00:00+08:00",
+        "label": "Submitted"
+      },
+      {
+        "eventType": "TEACHING_RESPONSE",
+        "occurredAt": "2026-07-02T11:30:00+08:00",
+        "label": "TA requested follow-up"
+      }
+    ],
+    "discordDeepLink": "https://discord.com/channels/111111111111111111/222222222222222222",
+    "closureSource": null,
+    "closedAt": null,
+    "reopenedAt": null,
+    "analysisEligibility": "ELIGIBLE",
+    "analysisDecisionSource": "DATABASE"
+  },
+  {
+    "schemaVersion": "1.0",
+    "caseId": "case_000423",
+    "caseNumber": "C01-P3T7V9-0702-1200",
+    "status": "ANSWERED",
+    "lastUpdateAt": "2026-07-02T12:20:00+08:00",
+    "lastTeachingResponseAt": "2026-07-02T12:20:00+08:00",
+    "lastStudentActivityAt": "2026-07-02T12:00:00+08:00",
+    "lastReadAt": "2026-07-02T12:25:00+08:00",
+    "lastSyncedAt": "2026-07-02T12:30:00+08:00",
+    "latestTeachingResponseExcerpt": "Fixture response clarifies the derivative notation.",
+    "attachmentCount": 0,
+    "hasAttachments": false,
+    "timelineEvents": [
+      {
+        "eventType": "SUBMITTED",
+        "occurredAt": "2026-07-02T12:00:00+08:00",
+        "label": "Submitted"
+      },
+      {
+        "eventType": "ANSWERED",
+        "occurredAt": "2026-07-02T12:20:00+08:00",
+        "label": "Answered"
+      },
+      {
+        "eventType": "VERIFIED_VIEW",
+        "occurredAt": "2026-07-02T12:25:00+08:00",
+        "label": "Latest response viewed (fixture evidence)"
+      }
+    ],
+    "discordDeepLink": "https://discord.com/channels/111111111111111111/222222222222222223",
+    "closureSource": null,
+    "closedAt": null,
+    "reopenedAt": null,
+    "analysisEligibility": "EXCLUDED",
+    "analysisDecisionSource": "DATABASE"
+  },
+  {
+    "schemaVersion": "1.0",
+    "caseId": "case_000424",
+    "caseNumber": "C01-H5J8Q4-0702-1300",
+    "status": "ESCALATED",
+    "lastUpdateAt": "2026-07-02T13:45:00+08:00",
+    "lastTeachingResponseAt": "2026-07-02T13:45:00+08:00",
+    "lastStudentActivityAt": "2026-07-02T13:00:00+08:00",
+    "lastReadAt": null,
+    "lastSyncedAt": "2026-07-02T13:50:00+08:00",
+    "latestTeachingResponseExcerpt": "Fixture question has been escalated to the instructor.",
+    "attachmentCount": 2,
+    "hasAttachments": true,
+    "timelineEvents": [
+      {
+        "eventType": "SUBMITTED",
+        "occurredAt": "2026-07-02T13:00:00+08:00",
+        "label": "Submitted"
+      },
+      {
+        "eventType": "ESCALATED",
+        "occurredAt": "2026-07-02T13:45:00+08:00",
+        "label": "Escalated to instructor"
+      }
+    ],
+    "discordDeepLink": "https://discord.com/channels/111111111111111111/222222222222222224",
+    "closureSource": null,
+    "closedAt": null,
+    "reopenedAt": null,
+    "analysisEligibility": "ELIGIBLE",
+    "analysisDecisionSource": "DATABASE"
+  },
+  {
+    "schemaVersion": "1.0",
+    "caseId": "case_000425",
+    "caseNumber": "C02-M6X2C7-0702-1400",
+    "status": "CLOSED",
+    "lastUpdateAt": "2026-07-02T14:30:00+08:00",
+    "lastTeachingResponseAt": "2026-07-02T14:20:00+08:00",
+    "lastStudentActivityAt": "2026-07-02T14:00:00+08:00",
+    "lastReadAt": "2026-07-02T14:25:00+08:00",
+    "lastSyncedAt": "2026-07-02T14:35:00+08:00",
+    "latestTeachingResponseExcerpt": "Fixture response completes the integral setup.",
+    "attachmentCount": 0,
+    "hasAttachments": false,
+    "timelineEvents": [
+      {
+        "eventType": "SUBMITTED",
+        "occurredAt": "2026-07-02T14:00:00+08:00",
+        "label": "Submitted"
+      },
+      {
+        "eventType": "ANSWERED",
+        "occurredAt": "2026-07-02T14:20:00+08:00",
+        "label": "Answered"
+      },
+      {
+        "eventType": "CLOSED",
+        "occurredAt": "2026-07-02T14:30:00+08:00",
+        "label": "Closed manually"
+      }
+    ],
+    "discordDeepLink": null,
+    "closureSource": "MANUAL",
+    "closedAt": "2026-07-02T14:30:00+08:00",
+    "reopenedAt": null,
+    "analysisEligibility": "ELIGIBLE",
+    "analysisDecisionSource": "DATABASE"
+  }
+]

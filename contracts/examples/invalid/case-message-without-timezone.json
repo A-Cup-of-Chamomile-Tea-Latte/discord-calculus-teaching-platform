@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0",
+  "messageId": "msg_invalid_time",
+  "caseId": "case_000421",
+  "authorUserId": "usr_amber",
+  "authorRole": "STUDENT",
+  "authorDisplayMode": "COURSE_ALIAS",
+  "body": "Invalid timestamp example.",
+  "source": "DISCORD",
+  "analysisPermission": "INHERIT",
+  "parentMessageId": null,
+  "discordMessageId": null,
+  "editedAt": null,
+  "attachments": [],
+  "createdAt": "2026-07-02T10:01:00"
+}

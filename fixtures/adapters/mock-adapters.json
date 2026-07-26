@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "1.0",
+  "adapters": {
+    "caseLookup": {
+      "operation": "lookupCase(caseNumber) -> CaseLookupResponse",
+      "sourceFile": "fixtures/adapters/case-lookup-responses.json",
+      "scenarios": [
+        { "input": "C01-7K4M2Q-0702-1000", "responseIndex": 0 },
+        { "input": "C01-Z9Y8X7-0702-2359", "responseIndex": 1 }
+      ]
+    },
+    "discordThreadFetch": {
+      "operation": "fetchThread(threadId) -> CaseMessage[]",
+      "threadId": "223456789012345678",
+      "caseId": "case_000421",
+      "sourceFile": "fixtures/messages/case-000421-thread.json",
+      "messageIds": [
+        "msg_000421_a",
+        "msg_000421_b",
+        "msg_000421_c",
+        "msg_000421_d"
+      ]
+    },
+    "sheetsStorage": {
+      "operation": "seed(recordSets) -> worksheet row counts",
+      "worksheets": [
+        { "name": "Users", "sourceFile": "fixtures/users/users.json" },
+        { "name": "Cases", "sourceFile": "fixtures/cases/cases.json" },
+        {
+          "name": "Messages",
+          "sourceFile": "fixtures/messages/case-000421-thread.json"
+        },
+        { "name": "Consents", "sourceFile": "fixtures/users/consents.json" }
+      ]
+    },
+    "emailDelivery": {
+      "operation": "sendVerificationCode(destination, kind, code) -> mock delivery result",
+      "deliveries": [
+        {
+          "deliveryId": "delivery_mock_amber",
+          "recipient": "amber.student@example.com",
+          "kind": "CONTACT",
+          "templateKey": "VERIFY_EMAIL_FIXTURE",
+          "result": "ACCEPTED_BY_MOCK",
+          "trackingEnabled": false,
+          "deliveredAt": "2026-07-01T09:04:00+08:00"
+        }
+      ]
+    },
+    "activationCodeValidation": {
+      "operation": "validateActivationCode(presentedNonce, at) -> status without echoing nonce",
+      "sourceFile": "fixtures/users/activation-codes.json",
+      "scenarios": [
+        {
+          "activationCodeId": "activation_unused",
+          "at": "2026-07-02T08:00:00+08:00",
+          "valid": true
+        },
+        {
+          "activationCodeId": "activation_used",
+          "at": "2026-07-02T08:00:00+08:00",
+          "valid": false
+        },
+        {
+          "activationCodeId": "activation_expired",
+          "at": "2026-07-02T08:00:00+08:00",
+          "valid": false
+        },
+        {
+          "activationCodeId": "activation_revoked",
+          "at": "2026-07-02T08:00:00+08:00",
+          "valid": false
+        }
+      ]
+    }
+  }
+}

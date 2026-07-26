@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/case-lookup-response.schema.json",
+  "title": "CaseLookupResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestedCaseNumber", "outcome", "case", "lookedUpAt"],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "requestedCaseNumber": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "outcome": { "type": "string", "enum": ["FOUND", "NOT_FOUND", "NOT_PUBLIC", "INVALID"] },
+    "case": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["caseNumber", "caseType", "status", "visibility", "publicSummary", "updatedAt"],
+          "properties": {
+            "caseNumber": { "$ref": "common.schema.json#/$defs/caseNumber" },
+            "caseType": { "const": "GENERAL" },
+            "status": { "$ref": "common.schema.json#/$defs/caseStatus" },
+            "visibility": { "type": "string", "enum": ["CLASS", "COURSE"] },
+            "publicSummary": { "type": "string", "minLength": 1, "maxLength": 280 },
+            "updatedAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+          }
+        }
+      ]
+    },
+    "lookedUpAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "const": "FOUND" } }, "required": ["outcome"] },
+      "then": { "properties": { "case": { "type": "object" } } },
+      "else": { "properties": { "case": { "type": "null" } } }
+    }
+  ]
+}

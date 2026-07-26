@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0",
+  "caseId": "case_private_invalid",
+  "caseNumber": "C99-H3D7VP-0702-1500-P",
+  "caseType": "PRIVATE_SUPPORT",
+  "status": "OPEN",
+  "visibility": "COURSE",
+  "authorDisplayMode": "ANONYMOUS",
+  "analysisPermission": "INCLUDED",
+  "createdByUserId": "usr_amber",
+  "classCode": null,
+  "title": "Invalid private-support exposure",
+  "source": "PORTAL",
+  "discordMapping": null,
+  "createdAt": "2026-07-02T10:00:00+08:00",
+  "updatedAt": "2026-07-02T10:00:00+08:00"
+}

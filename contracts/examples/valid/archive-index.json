@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "archiveId": "archive_fixture_001",
+  "caseId": "case_working_001",
+  "period": "2026-W30",
+  "manifestId": "manifest_fixture_001",
+  "sanitizedPackageId": "package_fixture_001",
+  "archivedAt": "2026-07-26T02:00:00+08:00",
+  "state": "SANITIZED"
+}

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "eventId": "audit_case_000421_open",
+  "eventType": "CASE_STATUS_CHANGED",
+  "actorUserId": "usr_staff_example",
+  "subjectType": "CASE",
+  "subjectId": "case_000421",
+  "source": "BOT",
+  "metadata": {
+    "reason": "Fictional acknowledgement",
+    "previousStatus": "OPEN",
+    "nextStatus": "WAITING_FOR_STUDENT"
+  },
+  "occurredAt": "2026-07-03T12:00:00+08:00"
+}

@@ -1,0 +1,160 @@
+---
+import Alert from "./Alert.astro";
+import ButtonLink from "./ButtonLink.astro";
+import Card from "./Card.astro";
+import FormField from "./FormField.astro";
+import MetaLabel from "./MetaLabel.astro";
+import SiteFooter from "./SiteFooter.astro";
+import SiteHeader from "./SiteHeader.astro";
+import StatePanel from "./StatePanel.astro";
+import StatusBadge from "./StatusBadge.astro";
+
+const statuses = [
+  "OPEN",
+  "WAITING_FOR_STUDENT",
+  "ANSWERED",
+  "ESCALATED",
+  "CLOSED",
+] as const;
+---
+
+<div class="gallery">
+  <SiteHeader
+    homeHref="#navigation"
+    modeLabel="Gallery fixture"
+    navItems={[
+      { href: "#status", label: "狀態" },
+      { href: "#forms", label: "表單" },
+      { href: "#states", label: "介面狀態" },
+    ]}
+  />
+
+  <div class="shell stack section" style="--stack-gap: var(--space-7)">
+    <header id="navigation" class="reading-width">
+      <p class="gallery__eyebrow">Local fixture gallery</p>
+      <h1>低擬真元件</h1>
+      <p>只驗證層級、可讀性、鍵盤操作與狀態語意；顏色、字型與品牌皆未定案。</p>
+    </header>
+
+    <section id="status" class="stack" aria-labelledby="status-title">
+      <h2 id="status-title">案件狀態與 metadata</h2>
+      <div class="cluster">
+        {statuses.map((status) => <StatusBadge status={status} />)}
+      </div>
+      <div class="cluster">
+        <MetaLabel kind="visibility" value="CLASS" />
+        <MetaLabel kind="visibility" value="COURSE" />
+        <MetaLabel kind="visibility" value="TEACHING_STAFF" />
+        <MetaLabel kind="author" value="REAL_NAME" />
+        <MetaLabel kind="author" value="COURSE_ALIAS" />
+        <MetaLabel kind="author" value="ANONYMOUS" />
+      </div>
+    </section>
+
+    <section class="stack" aria-labelledby="alerts-title">
+      <h2 id="alerts-title">Alerts</h2>
+      <Alert title="一般提示">這是 fixture mode，不會連接正式服務。</Alert>
+      <Alert title="成功" tone="success"
+        >案件 fixture 已建立；沒有實際送出。</Alert
+      >
+      <Alert title="請先確認" tone="warning"
+        >正式課務資訊仍以 NTU COOL 為準。</Alert
+      >
+      <Alert title="無法完成" tone="danger"
+        >請修正標示欄位；已填內容仍保留在畫面上。</Alert
+      >
+    </section>
+
+    <section class="stack" aria-labelledby="cards-title">
+      <h2 id="cards-title">Cards and actions</h2>
+      <div class="grid grid--auto">
+        <Card eyebrow="一般討論" title="直接在 Discord 發問">
+          <p>適合一般課程討論；請先閱讀全域帳號與 DM 隱私提醒。</p>
+          <ButtonLink slot="footer" href="#forms">查看設定</ButtonLink>
+        </Card>
+        <Card eyebrow="替代方案" title="透過網站代送">
+          <p>不想開啟 Discord 發文時，可使用 fixture 表單代送。</p>
+          <ButtonLink slot="footer" href="#forms" variant="secondary"
+            >查看表單</ButtonLink
+          >
+        </Card>
+        <Card eyebrow="獨立保護" title="Private Support">
+          <p>不會出現在公開案件查詢，預設排除教學分析。</p>
+          <ButtonLink slot="footer" href="#states" variant="quiet"
+            >了解 fallback</ButtonLink
+          >
+        </Card>
+      </div>
+    </section>
+
+    <section
+      id="forms"
+      class="stack reading-width"
+      aria-labelledby="forms-title"
+    >
+      <h2 id="forms-title">Accessible form controls</h2>
+      <FormField
+        forId="gallery-case-number"
+        label="一般案件編號"
+        hint="例如 C01-7K4M2Q-0702-1000；前後空白會被忽略。"
+        required
+      >
+        <input
+          id="gallery-case-number"
+          name="caseNumber"
+          autocomplete="off"
+          aria-describedby="gallery-case-number-hint"
+          value="C01-7K4M2Q-0702-1000"
+        />
+      </FormField>
+      <FormField
+        forId="gallery-question"
+        label="問題內容"
+        hint="請勿填入真實個資。"
+        required
+      >
+        <textarea
+          id="gallery-question"
+          name="question"
+          aria-describedby="gallery-question-hint">這是一段虛構問題。</textarea
+        >
+      </FormField>
+      <div class="cluster">
+        <button type="button">建立 fixture 確認</button>
+        <ButtonLink href="#states" variant="secondary">次要動作</ButtonLink>
+        <ButtonLink href="#states" variant="quiet">安靜動作</ButtonLink>
+        <ButtonLink href="#states" disabled>停用動作</ButtonLink>
+      </div>
+    </section>
+
+    <section id="states" class="stack" aria-labelledby="states-title">
+      <h2 id="states-title">Loading, empty, error, success</h2>
+      <StatePanel kind="loading" title="正在查詢單一案件">
+        <p>只執行這次明確查詢，不會在背景持續更新。</p>
+      </StatePanel>
+      <StatePanel kind="empty" title="尚未輸入案件編號">
+        <p>輸入一般案件編號後即可開始。</p>
+      </StatePanel>
+      <StatePanel kind="error" title="找不到可公開的一般案件">
+        <p>請檢查格式或稍後再試；這個訊息不會確認 Private Support 是否存在。</p>
+        <button slot="action" type="button">重新輸入</button>
+      </StatePanel>
+      <StatePanel kind="success" title="Fixture 查詢完成">
+        <p>已找到 C01-7K4M2Q-0702-1000；資料只來自本機 fixtures。</p>
+      </StatePanel>
+    </section>
+  </div>
+
+  <SiteFooter guideHref="#navigation" statusHref="#states" />
+</div>
+
+<style>
+  .gallery__eyebrow {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+</style>

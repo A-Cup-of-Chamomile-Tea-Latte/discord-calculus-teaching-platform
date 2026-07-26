@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/reduced-case-projection.schema.json",
+  "title": "ReducedCaseProjection",
+  "description": "Small working-data projection for one-case-at-a-time Portal reads. It is not an archive and carries no attachment body.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "caseId",
+    "caseNumber",
+    "status",
+    "lastUpdateAt",
+    "lastTeachingResponseAt",
+    "lastStudentActivityAt",
+    "lastReadAt",
+    "lastSyncedAt",
+    "latestTeachingResponseExcerpt",
+    "attachmentCount",
+    "hasAttachments",
+    "timelineEvents",
+    "discordDeepLink",
+    "closureSource",
+    "closedAt",
+    "reopenedAt",
+    "analysisEligibility",
+    "analysisDecisionSource"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "caseId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "caseNumber": { "$ref": "common.schema.json#/$defs/caseNumber" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "OPEN",
+        "WAITING_FOR_STUDENT",
+        "ANSWERED",
+        "ESCALATED",
+        "TEMPORARILY_CLOSED",
+        "CLOSED",
+        "REOPENED"
+      ]
+    },
+    "lastUpdateAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "lastTeachingResponseAt": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "lastStudentActivityAt": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "lastReadAt": {
+      "description": "Only populated from an approved view-verification provider; a page load is not proof.",
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "lastSyncedAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "latestTeachingResponseExcerpt": {
+      "type": ["string", "null"],
+      "maxLength": 500
+    },
+    "attachmentCount": { "type": "integer", "minimum": 0 },
+    "hasAttachments": { "type": "boolean" },
+    "timelineEvents": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["eventType", "occurredAt", "label"],
+        "properties": {
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "SUBMITTED",
+              "TEACHING_RESPONSE",
+              "STUDENT_FOLLOW_UP",
+              "ANSWERED",
+              "ESCALATED",
+              "VERIFIED_VIEW",
+              "TEMPORARILY_CLOSED",
+              "CLOSED",
+              "REOPENED"
+            ]
+          },
+          "occurredAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+          "label": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      }
+    },
+    "discordDeepLink": {
+      "description": "Optional deep link only; raw Discord mapping records are not projected.",
+      "type": ["string", "null"],
+      "format": "uri",
+      "pattern": "^https://discord\\.com/channels/"
+    },
+    "closureSource": {
+      "type": ["string", "null"],
+      "enum": ["MANUAL", "AUTO", null]
+    },
+    "closedAt": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "reopenedAt": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "analysisEligibility": {
+      "type": "string",
+      "enum": ["ELIGIBLE", "EXCLUDED"]
+    },
+    "analysisDecisionSource": { "const": "DATABASE" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "hasAttachments": { "const": false } } },
+      "then": { "properties": { "attachmentCount": { "const": 0 } } }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["TEMPORARILY_CLOSED", "CLOSED"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "closureSource": { "enum": ["MANUAL", "AUTO"] },
+          "closedAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+        }
+      }
+    }
+  ]
+}

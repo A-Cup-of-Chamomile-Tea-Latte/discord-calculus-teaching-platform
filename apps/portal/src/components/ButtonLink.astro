@@ -1,0 +1,30 @@
+---
+type Variant = "primary" | "secondary" | "quiet";
+
+interface Props {
+  href: string;
+  variant?: Variant;
+  external?: boolean;
+  disabled?: boolean;
+}
+
+const {
+  href,
+  variant = "primary",
+  external = false,
+  disabled = false,
+} = Astro.props;
+const variantClass = variant === "primary" ? "" : `button--${variant}`;
+---
+
+<a
+  class:list={["button", variantClass]}
+  href={disabled ? undefined : href}
+  aria-disabled={disabled ? "true" : undefined}
+  tabindex={disabled ? -1 : undefined}
+  target={external && !disabled ? "_blank" : undefined}
+  rel={external && !disabled ? "noreferrer" : undefined}
+>
+  <slot />
+  {external && <span class="visually-hidden">（另開新分頁）</span>}
+</a>

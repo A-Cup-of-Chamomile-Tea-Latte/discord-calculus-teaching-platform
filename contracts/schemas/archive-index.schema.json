@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/archive-index.schema.json",
+  "title": "ArchiveIndex",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "archiveId",
+    "caseId",
+    "period",
+    "manifestId",
+    "archivedAt",
+    "state"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "archiveId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "caseId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "period": { "type": "string", "pattern": "^[0-9]{4}-W[0-9]{2}$" },
+    "manifestId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "sanitizedPackageId": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{2,127}$"
+    },
+    "archivedAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "state": { "enum": ["MANIFEST_ONLY", "SANITIZED", "RETIRED"] }
+  }
+}

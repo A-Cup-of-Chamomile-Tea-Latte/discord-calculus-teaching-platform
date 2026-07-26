@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "verifiedEmailId": "email_amber_contact",
+  "userId": "usr_amber",
+  "email": "amber.student@example.com",
+  "kind": "CONTACT",
+  "verifiedAt": "2026-07-01T09:05:00+08:00",
+  "isPrimary": true,
+  "createdAt": "2026-07-01T09:00:00+08:00"
+}

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/thread-export.schema.json",
+  "title": "ThreadExport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "exportId",
+    "caseId",
+    "caseNumber",
+    "threadId",
+    "caseSource",
+    "caseAnalysisPermission",
+    "checkpoint",
+    "messages"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "exportId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "caseId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "caseNumber": { "$ref": "common.schema.json#/$defs/caseNumber" },
+    "threadId": { "$ref": "common.schema.json#/$defs/discordId" },
+    "caseSource": { "$ref": "common.schema.json#/$defs/source" },
+    "caseAnalysisPermission": {
+      "$ref": "common.schema.json#/$defs/analysisPermission"
+    },
+    "checkpoint": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/discordId" },
+        { "type": "null" }
+      ]
+    },
+    "messages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/exportMessage" }
+    }
+  },
+  "$defs": {
+    "exportMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "messageId",
+        "authorUserId",
+        "authorLabel",
+        "authorRole",
+        "authorDisplayMode",
+        "body",
+        "source",
+        "analysisPermission",
+        "analysisPermissionSource",
+        "parentMessageId",
+        "discordMessageId",
+        "editedAt",
+        "attachments",
+        "createdAt"
+      ],
+      "properties": {
+        "messageId": { "$ref": "common.schema.json#/$defs/recordId" },
+        "authorUserId": { "$ref": "common.schema.json#/$defs/recordId" },
+        "authorLabel": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "authorRole": {
+          "type": "string",
+          "enum": ["STUDENT", "TA", "INSTRUCTOR", "BOT"]
+        },
+        "authorDisplayMode": {
+          "$ref": "common.schema.json#/$defs/authorDisplayMode"
+        },
+        "body": { "type": "string", "minLength": 1, "maxLength": 8000 },
+        "source": { "$ref": "common.schema.json#/$defs/source" },
+        "analysisPermission": {
+          "$ref": "common.schema.json#/$defs/analysisPermission"
+        },
+        "analysisPermissionSource": {
+          "type": "string",
+          "enum": ["ACCOUNT_DEFAULT", "MESSAGE_OVERRIDE"]
+        },
+        "parentMessageId": {
+          "oneOf": [
+            { "$ref": "common.schema.json#/$defs/recordId" },
+            { "type": "null" }
+          ]
+        },
+        "discordMessageId": {
+          "oneOf": [
+            { "$ref": "common.schema.json#/$defs/discordId" },
+            { "type": "null" }
+          ]
+        },
+        "editedAt": {
+          "oneOf": [
+            { "$ref": "common.schema.json#/$defs/timestamp" },
+            { "type": "null" }
+          ]
+        },
+        "attachments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/attachment" }
+        },
+        "createdAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+      }
+    },
+    "attachment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attachmentId", "filename", "mediaType", "sizeBytes"],
+      "properties": {
+        "attachmentId": { "$ref": "common.schema.json#/$defs/recordId" },
+        "filename": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "mediaType": { "type": "string", "minLength": 3, "maxLength": 100 },
+        "sizeBytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

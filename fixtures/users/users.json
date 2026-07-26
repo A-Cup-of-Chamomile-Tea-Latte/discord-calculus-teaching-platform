@@ -1,0 +1,50 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "userId": "usr_amber",
+    "displayLabel": "Amber Example",
+    "defaultAuthorDisplayMode": "COURSE_ALIAS",
+    "analysisPermissionDefault": "INCLUDED",
+    "verifiedEmailIds": ["email_amber_institutional", "email_amber_contact"],
+    "discordAccountIds": ["discord_amber"],
+    "membershipIds": ["membership_amber_01"],
+    "createdAt": "2026-07-01T09:00:00+08:00",
+    "updatedAt": "2026-07-01T09:10:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "userId": "usr_basil",
+    "displayLabel": "Basil Example",
+    "defaultAuthorDisplayMode": "REAL_NAME",
+    "analysisPermissionDefault": "EXCLUDED",
+    "verifiedEmailIds": ["email_basil_contact"],
+    "discordAccountIds": ["discord_basil"],
+    "membershipIds": ["membership_basil_01"],
+    "createdAt": "2026-07-01T09:20:00+08:00",
+    "updatedAt": "2026-07-01T09:25:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "userId": "usr_coral",
+    "displayLabel": "Coral Example",
+    "defaultAuthorDisplayMode": "ANONYMOUS",
+    "analysisPermissionDefault": "INCLUDED",
+    "verifiedEmailIds": ["email_coral_contact"],
+    "discordAccountIds": ["discord_coral"],
+    "membershipIds": ["membership_coral_02"],
+    "createdAt": "2026-07-01T09:30:00+08:00",
+    "updatedAt": "2026-07-01T09:35:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "userId": "usr_staff_example",
+    "displayLabel": "Taylor Teaching Example",
+    "defaultAuthorDisplayMode": "REAL_NAME",
+    "analysisPermissionDefault": "INCLUDED",
+    "verifiedEmailIds": ["email_staff_contact"],
+    "discordAccountIds": ["discord_staff_example"],
+    "membershipIds": [],
+    "createdAt": "2026-07-01T08:00:00+08:00",
+    "updatedAt": "2026-07-01T08:05:00+08:00"
+  }
+]

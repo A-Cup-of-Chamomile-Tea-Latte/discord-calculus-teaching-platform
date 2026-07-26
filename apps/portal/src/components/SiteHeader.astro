@@ -1,0 +1,95 @@
+---
+interface NavItem {
+  href: string;
+  label: string;
+  current?: boolean;
+}
+
+interface Props {
+  homeHref: string;
+  navItems: NavItem[];
+  modeLabel?: string;
+}
+
+const { homeHref, navItems, modeLabel = "Fixture 原型" } = Astro.props;
+---
+
+<header class="site-header">
+  <div class="shell site-header__inner">
+    <a class="site-header__brand" href={homeHref}>微積分教學支援</a>
+    <span class="site-header__mode">{modeLabel}</span>
+    <nav aria-label="主要導覽">
+      <ul>
+        {
+          navItems.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                aria-current={item.current ? "page" : undefined}
+              >
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    border-bottom: var(--border-thin) solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .site-header__inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3) var(--space-4);
+    align-items: center;
+    padding-block: var(--space-4);
+  }
+
+  .site-header__brand {
+    color: var(--color-text);
+    font-size: var(--font-size-lg);
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .site-header__mode {
+    padding: var(--space-1) var(--space-2);
+    border: var(--border-thin) solid var(--color-warning-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-warning-bg);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+  }
+
+  nav {
+    flex-basis: 100%;
+  }
+
+  ul {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    gap: var(--space-2) var(--space-4);
+    flex-wrap: wrap;
+    list-style: none;
+  }
+
+  a[aria-current="page"] {
+    color: var(--color-text);
+    font-weight: 800;
+    text-decoration-thickness: 0.18em;
+  }
+
+  @media (min-width: 50rem) {
+    nav {
+      flex-basis: auto;
+      margin-inline-start: auto;
+    }
+  }
+</style>

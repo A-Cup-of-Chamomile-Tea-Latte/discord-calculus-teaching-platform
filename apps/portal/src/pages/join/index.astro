@@ -1,0 +1,225 @@
+---
+import Alert from "../../components/Alert.astro";
+import ButtonLink from "../../components/ButtonLink.astro";
+import Card from "../../components/Card.astro";
+import FormField from "../../components/FormField.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { withBase } from "../../lib/paths";
+---
+
+<BaseLayout
+  title="加入與設定"
+  description="用不送出的 fixture form 預覽 Discord、course alias、email 與隱私設定。"
+  currentPath="join"
+>
+  <div class="shell stack section">
+    <header class="reading-width">
+      <p><a href={withBase("")}>首頁</a> / 加入與設定</p>
+      <h1>加入與設定</h1>
+      <p>
+        這是 fixture-only onboarding：不連
+        Discord、不寄驗證信，也不保存你輸入的資料。
+      </p>
+    </header>
+
+    <Alert title="Discord 連結不等於課程身分">
+      <p>
+        Email 驗證、Discord account 與 course membership
+        是三件不同的事。正式課務與成員資格仍以課程指定系統為準。
+      </p>
+    </Alert>
+
+    <div class="grid grid--auto">
+      <Card title="1. Discord connection">
+        <p>目前只有 placeholder，不會加入 server、開啟 OAuth 或要求 token。</p>
+        <ButtonLink href="" disabled>Discord connection 尚未啟用</ButtonLink>
+      </Card>
+      <Card title="2. Email 與班別">
+        <p>使用你當下輸入的資料，在頁面上預覽 `nnmmm` course alias。</p>
+      </Card>
+      <Card title="3. 隱私設定">
+        <p>
+          Server 暱稱不會隱藏全域 username/avatar；建議停用 shared-server 陌生
+          DM。
+        </p>
+      </Card>
+    </div>
+
+    <section
+      class="prototype-panel"
+      data-fixture-form
+      data-form-kind="join"
+      aria-labelledby="join-form-title"
+    >
+      <div class="reading-width">
+        <p class="fixture-marker">Fixture mode · 不會送出</p>
+        <h2 id="join-form-title">建立加入與設定預覽</h2>
+        <p>
+          資料只存在目前頁面的表單與 confirmation DOM；重新整理即消失，不寫入
+          browser storage。
+        </p>
+      </div>
+
+      <form class="prototype-form" novalidate>
+        <div
+          class="form-error-summary"
+          data-form-errors
+          role="alert"
+          tabindex="-1"
+          hidden
+        >
+          <h3>有幾個欄位需要再確認</h3>
+          <p>已輸入的內容都還在，可以直接修改：</p>
+          <ul></ul>
+        </div>
+
+        <FormField
+          forId="join-ntu-email"
+          label="NTU email"
+          hint="僅檢查格式；不會寄驗證信。"
+          required
+        >
+          <input
+            id="join-ntu-email"
+            name="ntuEmail"
+            type="email"
+            inputmode="email"
+            autocomplete="email"
+            placeholder="fixture.student@ntu.edu.tw"
+            aria-describedby="join-ntu-email-hint join-ntu-email-error"
+          />
+          <p
+            id="join-ntu-email-error"
+            class="field-error"
+            data-field-error="ntuEmail"
+            hidden
+          >
+          </p>
+        </FormField>
+
+        <FormField
+          forId="join-contact-gmail"
+          label="聯絡 Gmail"
+          hint="選填；fixture mode 不會寄信。"
+        >
+          <input
+            id="join-contact-gmail"
+            name="contactGmail"
+            type="email"
+            inputmode="email"
+            autocomplete="email"
+            placeholder="fixture.contact@gmail.com"
+            aria-describedby="join-contact-gmail-hint join-contact-gmail-error"
+          />
+          <p
+            id="join-contact-gmail-error"
+            class="field-error"
+            data-field-error="contactGmail"
+            hidden
+          >
+          </p>
+        </FormField>
+
+        <FormField
+          forId="join-class-code"
+          label="班別"
+          hint="選擇後只產生 fixture alias 預覽。"
+          required
+        >
+          <select
+            id="join-class-code"
+            name="classCode"
+            aria-describedby="join-class-code-hint join-class-code-error"
+          >
+            <option value="">請選擇</option>
+            <option value="01">01 班</option>
+            <option value="02">02 班</option>
+          </select>
+          <p
+            id="join-class-code-error"
+            class="field-error"
+            data-field-error="classCode"
+            hidden
+          >
+          </p>
+        </FormField>
+
+        <div class="alias-preview" aria-live="polite">
+          <strong>assigned `nnmmm` 預覽：</strong>
+          <output data-alias-preview for="join-class-code">尚未選擇班別</output>
+          <p>固定使用 fixture joining order `042`；這不是正式指派。</p>
+        </div>
+
+        <fieldset class="choice-group">
+          <legend>教學分析預設 *</legend>
+          <p>這與作者顯示、是否能獲得回覆分開設定，之後仍可更改。</p>
+          <label
+            ><input
+              type="radio"
+              name="analysisPermission"
+              value="INCLUDED"
+              checked
+            /> 允許教學分析</label
+          >
+          <label
+            ><input type="radio" name="analysisPermission" value="EXCLUDED" /> 排除教學分析</label
+          >
+          <p class="field-error" data-field-error="analysisPermission" hidden>
+          </p>
+        </fieldset>
+
+        <fieldset class="choice-group">
+          <legend>安全與隱私確認</legend>
+          <label>
+            <input
+              type="checkbox"
+              name="dmRecommendation"
+              value="yes"
+              checked
+            />
+            我會檢查「允許來自同一伺服器成員的私人訊息」設定；建議關閉陌生 DM。
+          </label>
+          <label>
+            <input type="checkbox" name="rulesPrivacy" value="yes" />
+            我已閱讀規則與隱私說明，了解 server nickname 不會隱藏全域帳號資訊。*
+          </label>
+          <p class="field-error" data-field-error="rulesPrivacy" hidden></p>
+        </fieldset>
+
+        <div class="form-actions">
+          <button type="submit">建立 fixture confirmation</button>
+          <ButtonLink href={withBase("guide/")} variant="secondary"
+            >閱讀完整隱私指南</ButtonLink
+          >
+        </div>
+      </form>
+
+      <section
+        class="fixture-confirmation"
+        data-fixture-confirmation
+        tabindex="-1"
+        hidden
+      >
+        <p class="fixture-marker">Fixture confirmation · 未送出</p>
+        <h2 data-confirmation-title>加入與設定 fixture 已建立</h2>
+        <p>參考編號：<strong data-confirmation-reference></strong></p>
+        <dl data-confirmation-summary></dl>
+        <Alert title="沒有帳號或個人資料被建立">
+          <p>
+            沒有資料寫入 browser storage，也沒有連 Discord、email 或 membership
+            backend。
+          </p>
+        </Alert>
+        <button
+          type="button"
+          class="button button--secondary"
+          data-fixture-reset>返回並清除表單</button
+        >
+      </section>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import "../../scripts/fixture-forms";
+</script>

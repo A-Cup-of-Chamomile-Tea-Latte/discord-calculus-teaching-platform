@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/changed-case-queue.schema.json",
+  "title": "ChangedCaseQueue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "queueId",
+    "caseId",
+    "changeVersion",
+    "reason",
+    "enqueuedAt",
+    "state",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "queueId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "caseId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "changeVersion": { "type": "integer", "minimum": 1 },
+    "reason": {
+      "enum": [
+        "CREATED",
+        "CONTENT_CHANGED",
+        "STATUS_CHANGED",
+        "CONSENT_CHANGED",
+        "RECONCILIATION"
+      ]
+    },
+    "enqueuedAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "state": { "enum": ["PENDING", "PROCESSING", "APPLIED", "FAILED"] },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128 }
+  }
+}

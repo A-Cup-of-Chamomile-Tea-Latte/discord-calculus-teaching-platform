@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "messageId": "msg_000421_a",
+  "caseId": "case_000421",
+  "authorUserId": "usr_amber",
+  "authorRole": "STUDENT",
+  "authorDisplayMode": "COURSE_ALIAS",
+  "body": "This is fictional fixture-style content about a limit step.",
+  "source": "DISCORD",
+  "analysisPermission": "INHERIT",
+  "parentMessageId": null,
+  "discordMessageId": "423456789012345678",
+  "editedAt": "2026-07-02T10:03:00+08:00",
+  "attachments": [
+    {
+      "attachmentId": "attachment_graph_a",
+      "filename": "fictional-graph.png",
+      "mediaType": "image/png",
+      "sizeBytes": 2048,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "createdAt": "2026-07-02T10:01:00+08:00"
+}

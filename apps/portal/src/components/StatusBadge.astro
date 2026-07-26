@@ -1,0 +1,80 @@
+---
+type Status =
+  | "OPEN"
+  | "WAITING_FOR_STUDENT"
+  | "ANSWERED"
+  | "ESCALATED"
+  | "TEMPORARILY_CLOSED"
+  | "CLOSED"
+  | "REOPENED";
+
+interface Props {
+  status: Status;
+}
+
+const { status } = Astro.props;
+const labels: Record<Status, { symbol: string; label: string; tone: string }> =
+  {
+    OPEN: { symbol: "○", label: "待處理", tone: "info" },
+    WAITING_FOR_STUDENT: {
+      symbol: "↩",
+      label: "等待學生補充",
+      tone: "warning",
+    },
+    ANSWERED: { symbol: "✓", label: "已回覆", tone: "success" },
+    ESCALATED: { symbol: "↑", label: "已升級處理", tone: "danger" },
+    TEMPORARILY_CLOSED: {
+      symbol: "◐",
+      label: "暫時結案",
+      tone: "warning",
+    },
+    CLOSED: { symbol: "■", label: "已結案", tone: "neutral" },
+    REOPENED: { symbol: "↻", label: "已重新開啟", tone: "info" },
+  };
+const value = labels[status];
+---
+
+<span class="badge" data-tone={value.tone} title={status}>
+  <span aria-hidden="true">{value.symbol}</span>
+  <span>{value.label}</span>
+</span>
+
+<style>
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border: var(--border-thin) solid var(--state-border);
+    border-radius: 999px;
+    background: var(--state-bg);
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+  }
+
+  [data-tone="info"] {
+    --state-bg: var(--color-info-bg);
+    --state-border: var(--color-info-border);
+  }
+
+  [data-tone="warning"] {
+    --state-bg: var(--color-warning-bg);
+    --state-border: var(--color-warning-border);
+  }
+
+  [data-tone="success"] {
+    --state-bg: var(--color-success-bg);
+    --state-border: var(--color-success-border);
+  }
+
+  [data-tone="danger"] {
+    --state-bg: var(--color-danger-bg);
+    --state-border: var(--color-danger-border);
+  }
+
+  [data-tone="neutral"] {
+    --state-bg: var(--color-neutral-bg);
+    --state-border: var(--color-neutral-border);
+  }
+</style>

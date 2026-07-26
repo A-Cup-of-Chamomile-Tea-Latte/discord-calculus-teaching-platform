@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/discord-structure-inventory.schema.json",
+  "title": "DiscordStructureInventory",
+  "description": "Structure-only fixture inventory; message bodies and member lists are forbidden.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "inventoryId",
+    "capturedAt",
+    "fixtureOnly",
+    "server",
+    "categories",
+    "channels",
+    "roles",
+    "permissionOverwrites",
+    "forumTags",
+    "threadCounts",
+    "bots"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "inventoryId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*fixture[a-z0-9_-]*$"
+    },
+    "capturedAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "fixtureOnly": { "const": true },
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serverId", "name", "description", "preferredLocale"],
+      "properties": {
+        "serverId": { "$ref": "#/$defs/fixtureId" },
+        "name": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "preferredLocale": { "type": ["string", "null"] }
+      }
+    },
+    "categories": { "type": "array", "items": { "$ref": "#/$defs/treeNode" } },
+    "channels": { "type": "array", "items": { "$ref": "#/$defs/treeNode" } },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["roleId", "name", "position", "managed"],
+        "properties": {
+          "roleId": { "$ref": "#/$defs/fixtureId" },
+          "name": { "type": "string" },
+          "position": { "type": "integer", "minimum": 0 },
+          "managed": { "type": "boolean" }
+        }
+      }
+    },
+    "permissionOverwrites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["channelId", "targetId", "targetType", "allow", "deny"],
+        "properties": {
+          "channelId": { "$ref": "#/$defs/fixtureId" },
+          "targetId": { "$ref": "#/$defs/fixtureId" },
+          "targetType": { "const": "ROLE" },
+          "allow": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "deny": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "forumTags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["channelId", "tagId", "name", "moderated"],
+        "properties": {
+          "channelId": { "$ref": "#/$defs/fixtureId" },
+          "tagId": { "$ref": "#/$defs/fixtureId" },
+          "name": { "type": "string" },
+          "moderated": { "type": "boolean" }
+        }
+      }
+    },
+    "threadCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active", "archived"],
+      "properties": {
+        "active": { "type": "integer", "minimum": 0 },
+        "archived": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "bots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["applicationId", "name"],
+        "properties": {
+          "applicationId": { "$ref": "#/$defs/fixtureId" },
+          "name": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "fixtureId": {
+      "type": "string",
+      "pattern": "^(?=[A-Za-z0-9_:-]*fixture)[A-Za-z][A-Za-z0-9_:-]*$"
+    },
+    "treeNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "type", "position", "parentId"],
+      "properties": {
+        "id": { "$ref": "#/$defs/fixtureId" },
+        "name": { "type": "string" },
+        "type": { "enum": ["CATEGORY", "TEXT", "FORUM", "VOICE", "STAGE"] },
+        "position": { "type": "integer", "minimum": 0 },
+        "parentId": {
+          "anyOf": [{ "$ref": "#/$defs/fixtureId" }, { "type": "null" }]
+        }
+      }
+    }
+  }
+}

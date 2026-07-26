@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/weekly-maintenance-run.schema.json",
+  "title": "WeeklyMaintenanceRun",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "scheduledFor",
+    "state",
+    "plannedActions",
+    "dryRun",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "runId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "scheduledFor": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "state": {
+      "enum": ["PLANNED", "RUNNING", "COMPLETED", "FAILED", "ROLLED_BACK"]
+    },
+    "plannedActions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "FLUSH_CHANGED_CASES",
+          "REFRESH_PROJECTIONS",
+          "ROLLOVER_CLOSED_CASES",
+          "UPDATE_ARCHIVE_INDEX"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "dryRun": { "const": true },
+    "createdAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "completedAt": {
+      "anyOf": [
+        { "$ref": "common.schema.json#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "estimatedWrites": { "type": "integer", "minimum": 0 }
+  }
+}

@@ -1,0 +1,67 @@
+---
+interface Props {
+  forId: string;
+  label: string;
+  hint?: string;
+  error?: string;
+  required?: boolean;
+}
+
+const { forId, label, hint, error, required = false } = Astro.props;
+---
+
+<div class="field" data-invalid={error ? "true" : undefined}>
+  <label for={forId}>
+    {label}
+    {
+      required ? (
+        <span aria-hidden="true"> *</span>
+      ) : (
+        <span class="field__optional">（選填）</span>
+      )
+    }
+  </label>
+  {
+    hint && (
+      <p class="field__hint" id={`${forId}-hint`}>
+        {hint}
+      </p>
+    )
+  }
+  <slot />
+  {
+    error && (
+      <p class="field__error" id={`${forId}-error`} role="alert">
+        {error}
+      </p>
+    )
+  }
+</div>
+
+<style>
+  .field {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  label {
+    font-weight: 750;
+  }
+
+  .field__optional,
+  .field__hint {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+  }
+
+  .field__hint,
+  .field__error {
+    margin: 0;
+  }
+
+  .field__error {
+    color: var(--color-danger-border);
+    font-weight: 700;
+  }
+</style>

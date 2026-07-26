@@ -1,0 +1,56 @@
+---
+interface Props {
+  guideHref: string;
+  statusHref: string;
+  coolHref?: string;
+}
+
+const { guideHref, statusHref, coolHref } = Astro.props;
+---
+
+<footer class="site-footer">
+  <div class="shell site-footer__inner">
+    <p><strong>正式課務請以 NTU COOL 為準。</strong></p>
+    <nav aria-label="頁尾導覽">
+      <a href={guideHref}>使用與隱私指南</a>
+      <a href={statusHref}>系統狀態</a>
+      {
+        coolHref ? (
+          <a href={coolHref} target="_blank" rel="noreferrer">
+            前往 NTU COOL<span class="visually-hidden">（另開新分頁）</span>
+          </a>
+        ) : (
+          <span>NTU COOL 連結尚未設定</span>
+        )
+      }
+    </nav>
+    <p class="site-footer__note">
+      本頁是 fixture-first 原型，尚未連接正式 Discord、email 或 Google 服務。
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: var(--space-7);
+    border-top: var(--border-thin) solid var(--color-border);
+    background: var(--color-surface-muted);
+  }
+
+  .site-footer__inner {
+    padding-block: var(--space-6);
+  }
+
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3) var(--space-5);
+  }
+
+  .site-footer__note {
+    max-width: var(--reading-width);
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+</style>

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "caseId": "case_working_001",
+  "caseNumber": "C01-7K4M2Q-0723-1000",
+  "status": "REOPENED",
+  "lastUpdateAt": "2026-07-23T10:00:00+08:00",
+  "lastTeachingResponseAt": "2026-07-23T09:30:00+08:00",
+  "lastStudentActivityAt": "2026-07-23T10:00:00+08:00",
+  "lastReadAt": null,
+  "lastSyncedAt": "2026-07-23T10:01:00+08:00",
+  "latestTeachingResponseExcerpt": "Synthetic teaching response.",
+  "attachmentCount": 0,
+  "hasAttachments": false,
+  "timelineEvents": [
+    {
+      "eventType": "REOPENED",
+      "occurredAt": "2026-07-23T10:00:00+08:00",
+      "label": "Reopened by fixture activity"
+    }
+  ],
+  "discordDeepLink": null,
+  "closureSource": null,
+  "closedAt": null,
+  "reopenedAt": "2026-07-23T10:00:00+08:00",
+  "analysisEligibility": "ELIGIBLE",
+  "analysisDecisionSource": "DATABASE"
+}

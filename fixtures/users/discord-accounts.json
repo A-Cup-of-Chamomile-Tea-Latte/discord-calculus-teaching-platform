@@ -1,0 +1,42 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "discordAccountId": "discord_amber",
+    "userId": "usr_amber",
+    "discordUserId": "123456789012345678",
+    "globalUsername": "amber.example",
+    "globalDisplayName": "Amber E.",
+    "linkedAt": "2026-07-01T09:06:00+08:00",
+    "updatedAt": "2026-07-01T09:06:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "discordAccountId": "discord_basil",
+    "userId": "usr_basil",
+    "discordUserId": "123456789012345679",
+    "globalUsername": "basil.example",
+    "globalDisplayName": "Basil E.",
+    "linkedAt": "2026-07-01T09:25:00+08:00",
+    "updatedAt": "2026-07-01T09:25:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "discordAccountId": "discord_coral",
+    "userId": "usr_coral",
+    "discordUserId": "123456789012345680",
+    "globalUsername": "coral.example",
+    "globalDisplayName": "Coral E.",
+    "linkedAt": "2026-07-01T09:35:00+08:00",
+    "updatedAt": "2026-07-01T09:35:00+08:00"
+  },
+  {
+    "schemaVersion": "1.0",
+    "discordAccountId": "discord_staff_example",
+    "userId": "usr_staff_example",
+    "discordUserId": "123456789012345681",
+    "globalUsername": "taylor.teaching.example",
+    "globalDisplayName": "Taylor T.",
+    "linkedAt": "2026-07-01T08:05:00+08:00",
+    "updatedAt": "2026-07-01T08:05:00+08:00"
+  }
+]

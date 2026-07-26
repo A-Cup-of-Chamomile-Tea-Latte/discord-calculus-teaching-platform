@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/consent.schema.json",
+  "title": "Consent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "consentId",
+    "userId",
+    "scope",
+    "accountDefault",
+    "perPostOverrides",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "consentId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "userId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "scope": { "type": "string", "const": "TEACHING_QUALITY_ANALYSIS" },
+    "accountDefault": { "$ref": "common.schema.json#/$defs/analysisPermission" },
+    "perPostOverrides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["messageId", "permission", "setAt"],
+        "properties": {
+          "messageId": { "$ref": "common.schema.json#/$defs/recordId" },
+          "permission": { "$ref": "common.schema.json#/$defs/analysisPermission" },
+          "setAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+        }
+      }
+    },
+    "updatedAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  }
+}

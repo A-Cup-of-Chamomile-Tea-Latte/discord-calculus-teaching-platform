@@ -1,0 +1,58 @@
+---
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import { withBase } from "../lib/paths";
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description: string;
+  currentPath?: string;
+}
+
+const { title, description, currentPath = "" } = Astro.props;
+const pageTitle = `${title}｜微積分教學支援`;
+const navItems = [
+  {
+    href: withBase("join/"),
+    label: "加入與設定",
+    current: currentPath === "join",
+  },
+  { href: withBase("ask/"), label: "提問", current: currentPath === "ask" },
+  {
+    href: withBase("cases/"),
+    label: "查案件",
+    current: currentPath === "cases",
+  },
+  {
+    href: withBase("guide/"),
+    label: "使用與隱私",
+    current: currentPath === "guide",
+  },
+  {
+    href: withBase("status/"),
+    label: "系統狀態",
+    current: currentPath === "status",
+  },
+];
+---
+
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主要內容</a>
+    <SiteHeader homeHref={withBase("")} navItems={navItems} />
+    <main id="main-content" tabindex="-1"><slot /></main>
+    <SiteFooter
+      guideHref={withBase("guide/")}
+      statusHref={withBase("status/")}
+    />
+  </body>
+</html>
