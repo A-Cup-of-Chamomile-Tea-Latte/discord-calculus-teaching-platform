@@ -1,0 +1,65 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { withBase } from "../../lib/paths";
+
+const scenarios = [
+  ["新案件", "Open；尚未由教學團隊接手。", "info"],
+  ["尚未回覆", "已建立案號，但沒有 teaching response。", "info"],
+  ["TA 已回覆", "Tracked；顯示 Last Response。", "success"],
+  ["等待學生", "等待追問或補充，不做語意推測。", "warning"],
+  ["含附件", "只顯示 metadata marker 與 Discord 連結。", "info"],
+  ["AI 允許", "OP 明確選 Yes；仍需逐作者過濾。", "success"],
+  ["AI 不允許", "保存服務紀錄，但排除分析。", "neutral"],
+  ["Idle", "TA 最後留言後 48 小時無學生回覆。", "warning"],
+  ["手動結案", "由 Staff 操作；標題前綴 ✅。", "neutral"],
+  ["自動結案", "Idle 後再 48 小時；前綴 („• ֊ •„)。", "neutral"],
+  ["重新開啟", "新追問建立下一個 Case Cycle。", "success"],
+  ["Private Support", "不進公開查詢，只顯示受保護流程。", "danger"],
+  ["同步落後", "Last Synced 超過展示門檻。", "warning"],
+  ["系統離線", "查詢保留輸入並顯示備援管道。", "danger"],
+  ["不存在案號", "不揭露相似案件或 Private Support。", "neutral"],
+  ["未完成文章屬性", "Bot 提示補齊 main tag、Module 與 AI 選擇。", "warning"],
+];
+
+const colors: Record<string, string> = {
+  info: "var(--color-info-border)",
+  success: "var(--color-success-border)",
+  warning: "var(--color-warning-border)",
+  danger: "var(--color-danger-border)",
+  neutral: "var(--color-neutral-border)",
+};
+---
+
+<BaseLayout
+  title="情境庫"
+  description="用虛構資料比較案件、附件、AI、結案、離線與同步狀態。"
+>
+  <div class="shell stack section" style="--stack-gap: var(--space-6)">
+    <header class="reading-width">
+      <p><a href={withBase("")}>首頁</a> / 情境庫</p>
+      <p class="eyebrow">Fixture scenario library</p>
+      <h1>一次檢查所有重要狀態</h1>
+      <p>
+        這是設計與操作測試用的完整狀態表；所有文字、案號與人物都是虛構資料。
+      </p>
+    </header>
+
+    <div class="scenario-grid">
+      {
+        scenarios.map(([title, description, tone]) => (
+          <article
+            class="scenario-card"
+            style={`--scenario-color: ${colors[tone]}`}
+          >
+            <h2>{title}</h2>
+            <p>{description}</p>
+          </article>
+        ))
+      }
+    </div>
+
+    <p class="review-only">
+      外觀切換可用頁首的「課程正式／學生友善」。狀態不得只靠顏色判斷；每張卡片都有文字名稱與說明。
+    </p>
+  </div>
+</BaseLayout>

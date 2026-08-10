@@ -263,20 +263,26 @@ const formatOptionalDate = (value: string | null) =>
     >
       <h2 id="lifecycle-title">Case actions（fixture preview）</h2>
       <p>
-        3／7 日門檻由 closure policy 設定，不寫死在 UI。這些按鈕只預覽狀態文字，
+        最新提案使用 48 小時提醒＋再 48 小時自動結案。這些按鈕只預覽狀態文字，
         不保存、不送網路，也不代表 Discord auto-archive。
       </p>
       <div class="cluster">
-        <button type="button" data-preview-transition="TEMPORARILY_CLOSED"
-          >Temporary close 預覽</button
+        <button type="button" data-preview-transition="TRACKED"
+          >Tracked 預覽</button
         >
+        <button type="button" data-preview-transition="IDLE">Idle 預覽</button>
         <button type="button" data-preview-transition="CLOSED"
-          >Close Case 預覽</button
+          >手動結案預覽</button
         >
         <button
           type="button"
-          data-preview-transition="REOPENED"
-          class="button--secondary">Reopen 預覽</button
+          data-preview-transition="AUTO_CLOSED"
+          class="button--secondary">自動結案預覽</button
+        >
+        <button
+          type="button"
+          data-preview-transition="REOPEN_CYCLE"
+          class="button--secondary">新 Cycle 預覽</button
         >
       </div>
       <p class="preview-result" data-transition-result role="status">

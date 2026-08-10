@@ -16,8 +16,8 @@ import { withBase } from "../../lib/paths";
       <p><a href={withBase("")}>首頁</a> / 提問</p>
       <h1>透過網站代送（替代方案）</h1>
       <p>
-        你仍可直接在 Discord 發問；此頁只在本機建立
-        confirmation，不會上傳或送出內容。
+        你仍可直接在 Discord 發問；此頁用完整欄位整理 Forum、Module 與 main
+        tag，只在本機建立 confirmation。
       </p>
     </header>
 
@@ -28,11 +28,13 @@ import { withBase } from "../../lib/paths";
     <div class="route-choice" role="note">
       <div>
         <h2>這是一般問題</h2>
-        <p>可選班級、全課程或僅教學團隊可見；依設定可能產生一般案件。</p>
+        <p>公開 Forum 對課程社群可見；Module 只做分類，不限制可見性。</p>
       </div>
       <div>
         <h2>需要 Private Support？</h2>
-        <p>私密支援走獨立路徑，不進入公開案件查詢，預設排除教學分析。</p>
+        <p>
+          私密支援走獨立路徑、不進公開查詢，也會要求明確選擇 AI 分析 Yes／No。
+        </p>
         <ButtonLink href={withBase("private-support/")} variant="secondary"
           >改用 Private Support</ButtonLink
         >
@@ -65,6 +67,102 @@ import { withBase } from "../../lib/paths";
           <h3>還有幾個地方可以補充</h3>
           <p>不會清除已輸入內容：</p>
           <ul></ul>
+        </div>
+
+        <div class="grid grid--auto">
+          <FormField
+            forId="question-forum"
+            label="Forum"
+            hint="選擇問題的公開討論區。"
+            required
+          >
+            <select
+              id="question-forum"
+              name="forum"
+              aria-describedby="question-forum-hint question-forum-error"
+            >
+              <option value="">請選擇</option>
+              <option value="MATH">Math Questions</option>
+              <option value="COURSEWORK">Coursework / Systems</option>
+              <option value="OTHER">Other Problem / Free Talk</option>
+            </select>
+            <p
+              id="question-forum-error"
+              class="field-error"
+              data-field-error="forum"
+              hidden
+            >
+            </p>
+          </FormField>
+
+          <FormField
+            forId="question-problem-type"
+            label="問題類型"
+            hint="例如：微積分觀念、WeBWorK、教材勘誤。"
+            required
+          >
+            <input
+              id="question-problem-type"
+              name="problemType"
+              maxlength="40"
+              value="微積分觀念"
+              aria-describedby="question-problem-type-hint question-problem-type-error"
+            />
+            <p
+              id="question-problem-type-error"
+              class="field-error"
+              data-field-error="problemType"
+              hidden
+            >
+            </p>
+          </FormField>
+
+          <FormField
+            forId="question-module"
+            label="Module"
+            hint="本機展示由 fixture Class 對照；正式表單不讓學生任意指定。"
+            required
+          >
+            <select
+              id="question-module"
+              name="module"
+              aria-describedby="question-module-hint question-module-error"
+            >
+              <option value="M1">M1（fixture Class 12）</option>
+              <option value="M2">M2（fixture）</option>
+              <option value="M3">M3（fixture）</option>
+              <option value="M4">M4（fixture）</option>
+            </select>
+            <p
+              id="question-module-error"
+              class="field-error"
+              data-field-error="module"
+              hidden
+            >
+            </p>
+          </FormField>
+
+          <FormField
+            forId="question-main-tag"
+            label="Main tag"
+            hint="只會有一個 main tag 進入標題。"
+            required
+          >
+            <input
+              id="question-main-tag"
+              name="mainTag"
+              maxlength="20"
+              value="觀念"
+              aria-describedby="question-main-tag-hint question-main-tag-error"
+            />
+            <p
+              id="question-main-tag-error"
+              class="field-error"
+              data-field-error="mainTag"
+              hidden
+            >
+            </p>
+          </FormField>
         </div>
 
         <FormField
@@ -113,21 +211,17 @@ import { withBase } from "../../lib/paths";
         <fieldset class="choice-group">
           <legend>可見範圍 *</legend>
           <label
-            ><input type="radio" name="visibility" value="CLASS" checked /> 班級可見</label
+            ><input type="radio" name="visibility" value="COURSE" checked /> 公開課程社群可見</label
           >
-          <label
-            ><input type="radio" name="visibility" value="COURSE" /> 全課程可見</label
-          >
-          <label
-            ><input type="radio" name="visibility" value="TEACHING_STAFF" /> 僅教學團隊可見</label
-          >
+          <p>Module 只做分類，不限制公開 Forum 的可見性。</p>
           <p class="field-error" data-field-error="visibility" hidden></p>
         </fieldset>
 
         <fieldset class="choice-group">
           <legend>作者顯示 *</legend>
           <label
-            ><input type="radio" name="authorDisplayMode" value="REAL_NAME" /> 真實姓名</label
+            ><input type="radio" name="authorDisplayMode" value="REAL_NAME" />
+            目前 Discord 身份</label
           >
           <label
             ><input

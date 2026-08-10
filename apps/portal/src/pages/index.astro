@@ -1,7 +1,6 @@
 ---
 import Alert from "../components/Alert.astro";
 import ButtonLink from "../components/ButtonLink.astro";
-import Card from "../components/Card.astro";
 import CaseSearch from "../components/CaseSearch.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { fixtureCaseLookupAdapter } from "../lib/fixture-case-adapter";
@@ -12,88 +11,116 @@ const publicCases = await fixtureCaseLookupAdapter.listPublicCases();
 
 <BaseLayout
   title="首頁"
-  description="查詢一般案件進度、選擇提問方式，並了解 Discord 與 NTU COOL 的平台分工。"
+  description="加入課程社群、選擇提問方式、查詢案件，並了解 Discord 與 NTU COOL 的分工。"
 >
-  <div class="shell stack section" style="--stack-gap: var(--space-6)">
+  <section class="hero">
+    <div class="shell stack" style="--stack-gap: var(--space-5)">
+      <p class="eyebrow">Calculus learning support</p>
+      <h1>有問題時，知道從哪裡開始。</h1>
+      <p>
+        在 Discord 直接討論、透過網站整理問題，或使用 Private
+        Support。每一條路徑都會清楚告訴你可見範圍與下一步。
+      </p>
+      <div class="cluster">
+        <ButtonLink href={withBase("discord-guide/")}
+          >先看 Discord 提問方式</ButtonLink
+        >
+        <ButtonLink href={withBase("ask/")} variant="secondary"
+          >使用網站代為提問</ButtonLink
+        >
+      </div>
+    </div>
+  </section>
+
+  <div class="shell stack section" style="--stack-gap: var(--space-7)">
     <Alert title="正式課務請以 NTU COOL 為準" tone="warning">
-      <p>教材、作業、成績、期限、正式公告與課程政策不由此原型取代。</p>
+      <p>
+        教材、作業、成績、期限、正式公告與課程政策仍由 NTU COOL
+        提供；這裡負責提問、討論與支援流程。
+      </p>
     </Alert>
 
-    <header class="reading-width">
-      <p class="eyebrow">Fixture-first prototype</p>
-      <h1>提問、追蹤與隱私選擇，放在同一個入口</h1>
-      <p>
-        你可以直接在 Discord 討論，也可以選擇透過網站代送；Private Support
-        另有獨立保護。
-      </p>
-    </header>
-
-    <CaseSearch cases={publicCases} inputId="home-case-number" />
-
-    <section class="stack" aria-labelledby="ask-title">
-      <div class="reading-width">
-        <h2 id="ask-title">選擇適合你的提問方式</h2>
-        <p>三條路徑用途不同；網站代送是替代方案，不是加入課程的必經步驟。</p>
+    <section class="stack" aria-labelledby="start-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Start here</p>
+          <h2 id="start-title">你現在想做什麼？</h2>
+          <p>所有入口目前都使用虛構資料展示，不會送出內容。</p>
+        </div>
       </div>
-      <div class="grid grid--auto">
-        <Card eyebrow="一般討論" title="直接在 Discord 發問">
-          <p>
-            適合一般課程討論。正式 server link 尚未設定，請先閱讀全域帳號與 DM
-            隱私提醒。
-          </p>
-          <ButtonLink
-            slot="footer"
-            href={withBase("guide/")}
-            variant="secondary">先看隱私指南</ButtonLink
-          >
-        </Card>
-        <Card eyebrow="替代方案" title="透過網站代送">
-          <p>
-            若不想開啟 Discord 發文，可先用完全離線的 fixture 表單體驗流程。
-          </p>
-          <ButtonLink slot="footer" href={withBase("ask/")}
-            >前往替代提問表單</ButtonLink
-          >
-        </Card>
-        <Card eyebrow="獨立保護" title="Private Support">
-          <p>只有授權教學團隊可見，不會進入公開案件查詢，預設排除教學分析。</p>
-          <ButtonLink
-            slot="footer"
-            href={withBase("private-support/")}
-            variant="secondary">了解 Private Support</ButtonLink
-          >
-        </Card>
+      <div class="action-grid">
+        <a class="action-tile" href={withBase("join/")}>
+          <span class="action-tile__number">01 · 加入</span>
+          <h3>加入課程社群</h3>
+          <p>預覽 Email 驗證、班級／Module、顯示名稱與隱私步驟。</p>
+        </a>
+        <a class="action-tile" href={withBase("discord-guide/")}>
+          <span class="action-tile__number">02 · 直接提問</span>
+          <h3>在 Discord 發問</h3>
+          <p>本人發文，再由 Bot 協助補欄位、整理標題與標籤。</p>
+        </a>
+        <a class="action-tile" href={withBase("ask/")}>
+          <span class="action-tile__number">03 · 網站入口</span>
+          <h3>透過網站代為提問</h3>
+          <p>用完整表單一次整理 Forum、Module、main tag 與 AI 選擇。</p>
+        </a>
+        <a class="action-tile" href={withBase("cases/")}>
+          <span class="action-tile__number">04 · 追蹤</span>
+          <h3>使用案號查詢</h3>
+          <p>一次輸入一個完整案號；Private Support 不會出現在公開查詢。</p>
+        </a>
+        <a class="action-tile" href={withBase("private-support/")}>
+          <span class="action-tile__number">05 · 私密支援</span>
+          <h3>Private Support</h3>
+          <p>只讓案件建立者與授權教學團隊看見，與公開問題分流。</p>
+        </a>
+        <a class="action-tile" href={withBase("guide/")}>
+          <span class="action-tile__number">06 · 指南</span>
+          <h3>了解使用與隱私</h3>
+          <p>Forum、聊天與語音的差別，以及陌生人私訊與 AI 選項。</p>
+        </a>
       </div>
     </section>
 
-    <section class="grid grid--auto" aria-label="設定與狀態">
-      <Card title="加入與設定">
-        <p>
-          查看 Discord 連結、course alias 與 DM privacy 的 fixture onboarding。
-        </p>
-        <ButtonLink slot="footer" href={withBase("join/")} variant="quiet"
-          >開始設定</ButtonLink
+    <section class="stack" aria-labelledby="lookup-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Case lookup</p>
+          <h2 id="lookup-title">已有案號？查看最新進度</h2>
+          <p>輸入完整案號。這個展示只讀取虛構案件，不會連線或持續輪詢。</p>
+        </div>
+      </div>
+      <CaseSearch cases={publicCases} inputId="home-case-number" />
+    </section>
+
+    <section class="platform-strip" aria-labelledby="platform-title">
+      <h2 id="platform-title">三個平台，各自負責一件事</h2>
+      <div class="grid grid--auto">
+        <p><strong>NTU COOL</strong><br />正式課務、作業、成績與政策。</p>
+        <p><strong>Discord</strong><br />提問、回覆、討論與社群互動。</p>
+        <p><strong>本入口</strong><br />加入設定、結構化提問與案件追蹤。</p>
+      </div>
+    </section>
+
+    <section class="grid grid--auto" aria-label="系統與審查入口">
+      <div class="prototype-panel">
+        <p class="eyebrow">System status</p>
+        <h2>確認目前可用狀態</h2>
+        <p>查看 Portal、Discord Bot、Email 與案件同步的展示狀態及備援管道。</p>
+        <ButtonLink href={withBase("status/")} variant="secondary"
+          >查看系統狀態</ButtonLink
         >
-      </Card>
-      <Card title="目前系統狀態">
+      </div>
+      <div class="prototype-panel">
+        <p class="eyebrow">Review library</p>
+        <h2>檢查所有假資料情境</h2>
         <p>
-          Portal 使用本機 fixtures；Discord、email、GAS/Sheets 均未連正式服務。
+          新案件、附件、Idle、自動結案、重新開啟、離線與同步落後都可目視比較。
         </p>
-        <ButtonLink slot="footer" href={withBase("status/")} variant="quiet"
-          >查看狀態</ButtonLink
+        <ButtonLink href={withBase("scenarios/")} variant="secondary"
+          >開啟情境庫</ButtonLink
         >
-      </Card>
+      </div>
     </section>
   </div>
 </BaseLayout>
-
-<style>
-  .eyebrow {
-    margin: 0 0 var(--space-1);
-    color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-</style>

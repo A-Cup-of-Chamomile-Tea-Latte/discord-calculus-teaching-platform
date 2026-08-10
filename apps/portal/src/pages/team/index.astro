@@ -1,0 +1,133 @@
+---
+import StatusBadge from "../../components/StatusBadge.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { withBase } from "../../lib/paths";
+
+const queues = [
+  {
+    title: "[M1][觀念] 極限的 ε–δ 要怎麼看",
+    caseNumber: "C01-7K4M2Q-0702-1000",
+    status: "OPEN" as const,
+    owner: "尚未指派",
+    sync: "剛剛",
+  },
+  {
+    title: "[M2][WebWork] 答案格式問題",
+    caseNumber: "C02-R8N6WX-0702-1100",
+    status: "ANSWERED" as const,
+    owner: "TA fixture",
+    sync: "3 分鐘前",
+  },
+  {
+    title: "[M3][計算] 分部積分追問",
+    caseNumber: "C01-P3T7V9-0702-1200",
+    status: "WAITING_FOR_STUDENT" as const,
+    owner: "TA fixture",
+    sync: "同步落後 12 分鐘",
+  },
+  {
+    title: "[M4][討論] 級數收斂的直觀",
+    caseNumber: "C01-H5J8Q4-0702-1300",
+    status: "CLOSED" as const,
+    owner: "TA fixture",
+    sync: "5 分鐘前",
+  },
+];
+---
+
+<BaseLayout
+  title="教學團隊展示"
+  description="只使用虛構案件顯示待回答、等待學生、Idle、結案與同步狀態。"
+>
+  <div class="shell stack section" style="--stack-gap: var(--space-6)">
+    <header class="reading-width">
+      <p><a href={withBase("")}>首頁</a> / 教學團隊展示</p>
+      <p class="eyebrow">Staff fixture dashboard</p>
+      <h1>教學團隊案件看板</h1>
+      <p>此頁沒有真實管理能力、學生資料、Email 或 Discord 操作。</p>
+    </header>
+
+    <div class="cards grid grid--auto">
+      <article class="prototype-panel">
+        <p class="eyebrow">待回答</p>
+        <h2>1</h2>
+        <p>尚未由教學團隊接手。</p>
+      </article>
+      <article class="prototype-panel">
+        <p class="eyebrow">等待學生／Idle</p>
+        <h2>1</h2>
+        <p>已提醒；不代表正在監控真實 Email。</p>
+      </article>
+      <article class="prototype-panel">
+        <p class="eyebrow">已結案</p>
+        <h2>1</h2>
+        <p>手動與自動結案應分開統計。</p>
+      </article>
+      <article class="prototype-panel">
+        <p class="eyebrow">同步警示</p>
+        <h2>1</h2>
+        <p>超過本機展示門檻。</p>
+      </article>
+    </div>
+
+    <section aria-labelledby="queue-title">
+      <h2 id="queue-title">案件佇列</h2>
+      <div class="matrix-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">案件</th>
+              <th scope="col">狀態</th>
+              <th scope="col">負責人</th>
+              <th scope="col">同步</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              queues.map((item) => (
+                <tr>
+                  <td>
+                    <strong>{item.title}</strong>
+                    <br />
+                    <small>{item.caseNumber}</small>
+                  </td>
+                  <td>
+                    <StatusBadge status={item.status} />
+                  </td>
+                  <td>{item.owner}</td>
+                  <td>{item.sync}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <p class="review-only">
+      真實負責人、轉交、工作量與每週摘要尚未接線；三年彙總只用來指出負載集中風險，不評估個人績效。
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .matrix-wrap {
+    overflow-x: auto;
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: var(--space-3);
+    border-bottom: var(--border-thin) solid var(--color-border);
+    text-align: left;
+    vertical-align: top;
+  }
+</style>

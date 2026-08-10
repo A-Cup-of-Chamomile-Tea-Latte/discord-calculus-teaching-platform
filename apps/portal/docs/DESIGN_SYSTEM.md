@@ -1,20 +1,20 @@
-# Low-fidelity portal design system
+# Portal review design system
 
 ## Intent
 
-這是一套刻意低擬真的 UI foundation：先建立資訊層級、可存取性、mobile layout 與 semantic states，再由後續品牌決策替換 tokens。沒有採用 Tailwind、component library、大型 template、logo 或 custom illustration。
+這是一套供課程團隊審查的 UI foundation：先建立資訊層級、可存取性、mobile layout 與 semantic states，再由後續品牌決策調整 tokens。頁首可在「課程正式／學生友善」兩組色彩 token 間切換；沒有採用 Tailwind、component library、大型 template、logo 或 custom illustration。
 
 ## Token layers
 
-| Layer | Examples | Rule |
-|---|---|---|
-| Canvas/surfaces | `--color-canvas`, `--color-surface` | 元件不寫死背景色 |
-| Text/borders | `--color-text`, `--color-border-strong` | 保持高辨識對比，品牌調整需重新驗證 |
-| Action/focus | `--color-action`, `--color-focus`, `--focus-width` | Focus 不與 hover 共用，3px outline + offset |
-| Semantic states | info/success/warning/danger/neutral bg+border | 顏色只作輔助；每個狀態都有文字與符號 |
-| Typography | system stack、五級 sizes、body/heading line heights | 不下載 webfont，避免品牌過早定案 |
-| Space/radius | `--space-1`…`--space-7`、三種 radius | Mobile-first，間距比裝飾更重要 |
-| Layout | content/reading width、touch target | 互動目標至少 2.75rem；內容最大寬可換 token |
+| Layer           | Examples                                            | Rule                                        |
+| --------------- | --------------------------------------------------- | ------------------------------------------- |
+| Canvas/surfaces | `--color-canvas`, `--color-surface`                 | 元件不寫死背景色                            |
+| Text/borders    | `--color-text`, `--color-border-strong`             | 保持高辨識對比，品牌調整需重新驗證          |
+| Action/focus    | `--color-action`, `--color-focus`, `--focus-width`  | Focus 不與 hover 共用，3px outline + offset |
+| Semantic states | info/success/warning/danger/neutral bg+border       | 顏色只作輔助；每個狀態都有文字與符號        |
+| Typography      | system stack、五級 sizes、body/heading line heights | 不下載 webfont，避免品牌過早定案            |
+| Space/radius    | `--space-1`…`--space-7`、三種 radius                | Mobile-first，間距比裝飾更重要              |
+| Layout          | content/reading width、touch target                 | 互動目標至少 2.75rem；內容最大寬可換 token  |
 
 ## Components
 
@@ -44,13 +44,13 @@
 
 ## State communication
 
-| State | Symbol/word | Color role |
-|---|---|---|
-| Open | `○ 待處理` | info border/background only assists |
-| Waiting | `↩ 等待學生補充` | warning assists |
-| Answered | `✓ 已回覆` | success assists |
-| Escalated | `↑ 已升級處理` | danger assists |
-| Closed | `■ 已結案` | neutral assists |
+| State     | Symbol/word          | Color role                          |
+| --------- | -------------------- | ----------------------------------- |
+| Open      | `○ Open · 待接手`    | info border/background only assists |
+| Idle      | `↩ Idle · 等待學生`  | warning assists                     |
+| Tracked   | `✓ Tracked · 已接手` | success assists                     |
+| Escalated | `↑ Tracked · 已升級` | danger assists                      |
+| Closed    | `■ Closed · 已結案`  | neutral assists                     |
 
 Loading、empty、error、success 也都有 heading、symbol 及具體下一步，不能只用 spinner／綠紅色。
 

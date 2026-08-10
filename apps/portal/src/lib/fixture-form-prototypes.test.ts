@@ -44,6 +44,10 @@ describe("fixture form prototypes", () => {
       visibility: "CLASS",
       authorDisplayMode: "ANONYMOUS",
       analysisPermission: "EXCLUDED",
+      forum: "MATH",
+      module: "M1",
+      mainTag: "觀念",
+      problemType: "微積分觀念",
       coolAcknowledgement: "yes",
       attachmentName: "diagram-fixture.png (120 KB)",
     };
@@ -84,6 +88,10 @@ describe("fixture form prototypes", () => {
       visibility: "CLASS",
       authorDisplayMode: "COURSE_ALIAS",
       analysisPermission: "",
+      forum: "MATH",
+      module: "M1",
+      mainTag: "觀念",
+      problemType: "微積分觀念",
       coolAcknowledgement: "yes",
     };
     expect(validateFixtureSubmission("question", values)).toHaveProperty(

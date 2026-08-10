@@ -1,18 +1,21 @@
 :root {
   color-scheme: light;
 
-  /* Neutral prototype palette; replace values without changing component contracts. */
-  --color-canvas: #f7f7f5;
-  --color-surface: #ffffff;
-  --color-surface-muted: #efefeb;
-  --color-text: #1f2523;
-  --color-text-muted: #56605d;
-  --color-border: #b7bfbc;
-  --color-border-strong: #67726e;
+  --color-canvas: #f3f1e9;
+  --color-surface: #fffdf8;
+  --color-surface-muted: #e9ece7;
+  --color-text: #19211e;
+  --color-text-muted: #52605a;
+  --color-border: #c5c4ba;
+  --color-border-strong: #758078;
   --color-action: #174f46;
-  --color-action-hover: #0f3d36;
+  --color-action-hover: #103c35;
   --color-action-text: #ffffff;
-  --color-focus: #7a3cff;
+  --color-focus: #7d4de8;
+  --color-accent: #a26912;
+  --color-accent-soft: #f8ecd3;
+  --color-hero: #20394a;
+  --color-hero-text: #fffdf8;
 
   --color-info-bg: #edf4ff;
   --color-info-border: #4169a1;
@@ -54,5 +57,21 @@
   --content-width: 70rem;
   --reading-width: 45rem;
   --touch-target: 2.75rem;
-  --shadow-low: 0 1px 2px rgb(31 37 35 / 12%);
+  --shadow-low: 0 2px 8px rgb(31 37 35 / 10%);
+  --shadow-card: 0 14px 35px rgb(31 37 35 / 8%);
+}
+
+:root[data-theme="student"] {
+  --color-canvas: #f8f4ec;
+  --color-surface: #fffefa;
+  --color-surface-muted: #f2eadf;
+  --color-text: #25201d;
+  --color-text-muted: #695f58;
+  --color-border: #d8c8b9;
+  --color-border-strong: #8d7867;
+  --color-action: #8d3f35;
+  --color-action-hover: #6e3028;
+  --color-accent: #386a73;
+  --color-accent-soft: #e2f0ef;
+  --color-hero: #7f3a33;
 }

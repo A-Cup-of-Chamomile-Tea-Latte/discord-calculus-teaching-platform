@@ -20,14 +20,24 @@ const navItems = [
   },
   { href: withBase("ask/"), label: "提問", current: currentPath === "ask" },
   {
+    href: withBase("discord-guide/"),
+    label: "Discord 指南",
+    current: currentPath === "discord-guide",
+  },
+  {
     href: withBase("cases/"),
     label: "查案件",
     current: currentPath === "cases",
   },
   {
     href: withBase("guide/"),
-    label: "使用與隱私",
+    label: "使用指南",
     current: currentPath === "guide",
+  },
+  {
+    href: withBase("settings/"),
+    label: "我的設定",
+    current: currentPath === "settings",
   },
   {
     href: withBase("status/"),
@@ -45,6 +55,17 @@ const navItems = [
     <meta name="description" content={description} />
     <meta name="generator" content={Astro.generator} />
     <title>{pageTitle}</title>
+    <script is:inline>
+      (() => {
+        try {
+          const saved = localStorage.getItem("calculus-portal-theme");
+          document.documentElement.dataset.theme =
+            saved === "student" ? "student" : "formal";
+        } catch {
+          document.documentElement.dataset.theme = "formal";
+        }
+      })();
+    </script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳到主要內容</a>

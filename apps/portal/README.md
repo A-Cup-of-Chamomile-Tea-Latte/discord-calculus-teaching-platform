@@ -1,6 +1,6 @@
 # Portal
 
-Astro + TypeScript 靜態入口網站，負責 onboarding、隱私說明、網站代送問題與按需案件查詢。它不持有 Discord token、不直接存取正式 Sheets，也不取代 NTU COOL。
+Astro + TypeScript 靜態入口網站，負責 onboarding、隱私說明、網站代送問題與按需案件查詢。內建「課程正式／學生友善」兩套 token-based 外觀，以及標示人工驗證日期的系統狀態頁。它不持有 Discord token、不直接存取正式 Sheets，也不取代 NTU COOL。
 
 ## Local commands
 

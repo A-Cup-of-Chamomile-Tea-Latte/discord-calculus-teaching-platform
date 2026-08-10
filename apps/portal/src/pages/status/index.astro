@@ -6,32 +6,70 @@ import { withBase } from "../../lib/paths";
 
 <BaseLayout
   title="系統狀態"
-  description="Fixture-first Portal 與尚未連接外部服務的狀態。"
+  description="Portal、Discord 測試伺服器、資料層與外部整合的人工驗證狀態。"
   currentPath="status"
 >
-  <div class="shell stack section">
+  <div class="shell stack section" style="--stack-gap: var(--space-6)">
     <header class="reading-width">
       <p><a href={withBase("")}>首頁</a> / 系統狀態</p>
+      <p class="eyebrow">Human-verified snapshot</p>
       <h1>系統狀態</h1>
       <p>
-        最後人工更新：2026-07-19（Asia/Taipei）。這不是正式 SLA 或即時監控。
+        最後人工更新：2026-08-10（Asia/Taipei）。這是開發階段的人工快照，不是正式
+        SLA 或即時監控。
       </p>
     </header>
-    <StatePanel kind="success" title="Portal static build：可用">
-      <p>所有頁面由本機 fixtures 產生，不需要 backend。</p>
-    </StatePanel>
-    <StatePanel kind="success" title="Case adapter：Fixture mode">
+
+    <dl class="status-overview" aria-label="系統狀態摘要">
+      <div>
+        <dt>Portal</dt>
+        <dd><span class="status-dot status-dot--ready"></span>本機可審查</dd>
+        <p>18 個靜態頁面，使用虛構資料。</p>
+      </div>
+      <div>
+        <dt>Discord</dt>
+        <dd>
+          <span class="status-dot status-dot--review"></span>待再次人工確認
+        </dd>
+        <p>測試伺服器最後驗證於 2026-07-30。</p>
+      </div>
+      <div>
+        <dt>資料層</dt>
+        <dd><span class="status-dot status-dot--ready"></span>本機契約可用</dd>
+        <p>SQLite 已稽核；Sheets schema v1.3.0。</p>
+      </div>
+      <div>
+        <dt>外部整合</dt>
+        <dd><span class="status-dot status-dot--pending"></span>尚未啟用</dd>
+        <p>Google、Email 與雲端資料庫仍未連接。</p>
+      </div>
+    </dl>
+
+    <StatePanel kind="success" title="Portal static build：本機可用">
       <p>
-        只讀取 repository 中的虛構一般案件，沒有 network request 或 polling。
+        所有頁面由 repository fixtures 產生，不需要 backend；表單只建立本機
+        confirmation，不會送出內容。
       </p>
     </StatePanel>
-    <StatePanel kind="empty" title="Discord / GAS / Sheets / email：未連接">
+    <StatePanel kind="success" title="資料契約：本機驗證完成">
       <p>
-        這是預期的安全原型狀態，不是正式服務故障；表單不會寄信、發 Discord
-        訊息或寫入 Sheets。
+        目前 SQLite 實作已完成結構稽核；GAS／Sheets schema v1.3.0 已加入命令與
+        Email metadata 佇列。這不代表 Google 雲端已建立或資料已同步。
       </p>
     </StatePanel>
-    <StatePanel kind="empty" title="Fallback：請保留正確管道">
+    <StatePanel kind="empty" title="Discord：有既有測試成果，非即時監控">
+      <p>
+        頻道與 Bot 的最近一次測試伺服器驗證日期是 2026-07-30；本頁不會探測 Bot
+        在線狀態，也不把過去驗證誤標為即時可用。
+      </p>
+    </StatePanel>
+    <StatePanel kind="empty" title="Google / Sheets / Email：尚未連接">
+      <p>
+        Schema 與本機 adapter 可以審查，但沒有 clasp 部署、Drive adapter
+        或寄信動作。 這是預期的開發狀態，不是正式服務故障。
+      </p>
+    </StatePanel>
+    <StatePanel kind="empty" title="備援：請保留正確管道">
       <p>
         正式課務資訊以 NTU COOL 為準。若未來 Portal 或 Discord
         不可用，請改用課程已公告的備援管道；Private Support
@@ -40,3 +78,64 @@ import { withBase } from "../../lib/paths";
     </StatePanel>
   </div>
 </BaseLayout>
+
+<style>
+  .status-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+    margin: 0;
+    gap: var(--space-3);
+  }
+
+  .status-overview > div {
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-low);
+  }
+
+  .status-overview dt {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .status-overview dd {
+    display: flex;
+    margin: var(--space-2) 0;
+    gap: var(--space-2);
+    align-items: center;
+    font-weight: 800;
+  }
+
+  .status-overview p {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .status-dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+  }
+
+  .status-dot--ready {
+    background: var(--color-success-border);
+    color: var(--color-success-border);
+  }
+
+  .status-dot--review {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-border);
+  }
+
+  .status-dot--pending {
+    background: var(--color-neutral-bg);
+    color: var(--color-neutral-border);
+  }
+</style>

@@ -19,7 +19,7 @@ const visibilityLabels: Record<string, string> = {
 };
 
 const authorLabels: Record<string, string> = {
-  REAL_NAME: "真實姓名",
+  REAL_NAME: "目前 Discord 身份",
   COURSE_ALIAS: "course alias",
   ANONYMOUS: "對一般成員匿名",
 };
@@ -96,6 +96,28 @@ export function validateFixtureSubmission(
   validateLength(errors, "content", content, 20, 5000, "內容");
 
   if (kind === "question") {
+    if (!/^(MATH|COURSEWORK|OTHER)$/.test(trimmed(values, "forum"))) {
+      errors.forum = "請選擇問題要進入的 Forum。";
+    }
+    if (!/^(M1|M2|M3|M4)$/.test(trimmed(values, "module"))) {
+      errors.module = "Module 必須由 fixture Class 對照為 M1–M4。";
+    }
+    validateLength(
+      errors,
+      "mainTag",
+      trimmed(values, "mainTag"),
+      1,
+      20,
+      "Main tag",
+    );
+    validateLength(
+      errors,
+      "problemType",
+      trimmed(values, "problemType"),
+      1,
+      40,
+      "問題類型",
+    );
     if (!(trimmed(values, "visibility") in visibilityLabels)) {
       errors.visibility = "請選擇班級、全課程或僅教學團隊可見。";
     }
@@ -120,8 +142,9 @@ export function validateFixtureSubmission(
     errors.privacyAcknowledgement =
       "請確認了解 Private Support 不會進入公開查詢，才能建立 fixture confirmation。";
   }
-  if (trimmed(values, "analysisPermission") !== "EXCLUDED") {
-    errors.analysisPermission = "Private Support 必須預設排除教學分析。";
+  if (!(trimmed(values, "analysisPermission") in analysisLabels)) {
+    errors.analysisPermission =
+      "請明確選擇 Yes 或 No；Private Support 仍不會進入公開查詢。";
   }
   return errors;
 }
@@ -163,6 +186,11 @@ export function createFixtureConfirmation(
       persisted: false,
       summary: [
         { label: "標題", value: trimmed(values, "title") },
+        { label: "Forum", value: trimmed(values, "forum") },
+        {
+          label: "Canonical title 預覽",
+          value: `[${trimmed(values, "module")}][${trimmed(values, "mainTag")}] ${trimmed(values, "title")}`,
+        },
         {
           label: "可見範圍",
           value: visibilityLabels[trimmed(values, "visibility")],
@@ -195,7 +223,10 @@ export function createFixtureConfirmation(
         label: "Private 案號",
         value: "C99-F6Q2S8-0723-1031-P（不可公開查詢）",
       },
-      { label: "教學分析", value: "預設排除" },
+      {
+        label: "AI 輔助教學分析",
+        value: analysisLabels[trimmed(values, "analysisPermission")],
+      },
     ],
   };
 }

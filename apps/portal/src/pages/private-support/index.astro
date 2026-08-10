@@ -8,7 +8,7 @@ import { withBase } from "../../lib/paths";
 
 <BaseLayout
   title="Private Support"
-  description="不進入公開案件查詢、預設排除教學分析的私密支援 fixture form。"
+  description="不進入公開案件查詢、採明確 AI Yes／No 選擇的私密支援 fixture form。"
   currentPath="ask"
 >
   <div class="shell stack section">
@@ -24,7 +24,7 @@ import { withBase } from "../../lib/paths";
     <Alert title="不會出現在公開案件查詢" tone="warning">
       <p>
         正式內容只應由授權教學團隊處理。Private 案號使用 `-P`
-        尾碼但不能公開查詢，且教學分析預設排除。
+        尾碼但不能公開查詢；AI 選擇只影響後續分析用途。
       </p>
     </Alert>
     <Alert title="尚未連接受保護 backend">
@@ -37,7 +37,7 @@ import { withBase } from "../../lib/paths";
     <div class="route-choice" role="note">
       <div>
         <h2>Private Support 適合</h2>
-        <p>需要只讓授權教學團隊看見、且不進入教學分析的敏感支援。</p>
+        <p>需要只讓案件建立者與授權教學團隊看見的敏感支援。</p>
       </div>
       <div>
         <h2>一般課程問題</h2>
@@ -61,8 +61,6 @@ import { withBase } from "../../lib/paths";
       </div>
 
       <form class="prototype-form" novalidate>
-        <input type="hidden" name="analysisPermission" value="EXCLUDED" />
-
         <div
           class="form-error-summary"
           data-form-errors
@@ -118,18 +116,32 @@ import { withBase } from "../../lib/paths";
           </p>
         </FormField>
 
+        <fieldset class="choice-group">
+          <legend>是否允許 AI 輔助教學分析？*</legend>
+          <p>
+            選 Yes 才表示案件可在去識別化與人工複核後進入分析；選 No
+            仍可保存服務紀錄。兩者都不會讓案件進入公開查詢。
+          </p>
+          <label>
+            <input type="radio" name="analysisPermission" value="INCLUDED" />
+            Yes
+          </label>
+          <label>
+            <input type="radio" name="analysisPermission" value="EXCLUDED" />
+            No
+          </label>
+          <p class="field-error" data-field-error="analysisPermission" hidden>
+          </p>
+        </fieldset>
+
         <div class="privacy-fixed-settings" aria-label="固定隱私設定">
           <p><strong>可見範圍：</strong>僅授權教學團隊</p>
           <p>
             <strong>Private case number：</strong>fixture confirmation 會顯示
             `-P` 尾碼，但不開放 public lookup
           </p>
-          <p>
-            <strong>教學分析：</strong>預設排除，不能在此 prototype 改為
-            included
-          </p>
+          <p><strong>承載提案：</strong>每案一個受限暫時文字頻道</p>
         </div>
-        <p class="field-error" data-field-error="analysisPermission" hidden></p>
 
         <fieldset class="choice-group">
           <legend>Private Support 確認</legend>

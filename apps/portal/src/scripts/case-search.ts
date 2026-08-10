@@ -2,13 +2,13 @@ import type { PublicCaseView } from "../lib/case-adapter";
 import { lookupPublicCase } from "../lib/client-case-lookup";
 
 const statusLabels = {
-  OPEN: "○ 待處理",
-  WAITING_FOR_STUDENT: "↩ 等待學生補充",
-  ANSWERED: "✓ 已回覆",
-  ESCALATED: "↑ 已升級處理",
-  TEMPORARILY_CLOSED: "◐ 暫時結案",
-  CLOSED: "■ 已結案",
-  REOPENED: "↻ 已重新開啟",
+  OPEN: "○ Open · 待接手",
+  WAITING_FOR_STUDENT: "↩ Idle · 等待學生",
+  ANSWERED: "✓ Tracked · 已接手",
+  ESCALATED: "↑ Tracked · 已升級",
+  TEMPORARILY_CLOSED: "◐ Idle · 提醒中",
+  CLOSED: "■ Closed · 已結案",
+  REOPENED: "↻ Tracked · 新循環",
 } as const;
 
 function requiredElement<T extends Element>(

@@ -1,0 +1,63 @@
+---
+import Alert from "../../components/Alert.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { withBase } from "../../lib/paths";
+---
+
+<BaseLayout
+  title="我的設定"
+  description="使用虛構資料預覽顯示名稱、班級、AI 選擇、Email 與 Discord 連結狀態。"
+  currentPath="settings"
+>
+  <div class="shell stack section" style="--stack-gap: var(--space-6)">
+    <header class="reading-width">
+      <p><a href={withBase("")}>首頁</a> / 我的設定</p>
+      <p class="eyebrow">Fixture profile</p>
+      <h1>我的設定</h1>
+      <p>以下都是虛構資料；編輯欄位不會保存、寄信或修改 Discord。</p>
+    </header>
+
+    <Alert title="Module 由 Class 自動換算">
+      <p>
+        正式 Class → Module 對照要等八月資料；目前只顯示 fixture
+        值，不允許學生自行選 Module。
+      </p>
+    </Alert>
+
+    <form class="prototype-panel prototype-form" aria-label="我的設定展示">
+      <label for="display-mode"><strong>顯示模式</strong></label>
+      <select id="display-mode">
+        <option>Student_12003</option>
+        <option>沿用 Discord 身份顯示</option>
+      </select>
+
+      <label for="class-code"><strong>Class</strong></label>
+      <select id="class-code">
+        <option>12（fixture）</option>
+      </select>
+
+      <label for="module"><strong>Module</strong></label>
+      <input id="module" value="M1（由 Class 換算）" readonly />
+
+      <fieldset class="choice-group">
+        <legend>新案件 AI 分析預設</legend>
+        <label><input type="radio" name="ai-default" /> Yes</label>
+        <label><input type="radio" name="ai-default" checked /> No</label>
+        <p>每次建案仍須明確確認，不能只依賴預設值。</p>
+      </fieldset>
+
+      <label for="email"><strong>認證 Email</strong></label>
+      <input id="email" value="student.fixture@ntu.edu.tw" readonly />
+
+      <label for="discord"><strong>Discord 連結狀態</strong></label>
+      <input id="discord" value="未連結（展示）" readonly />
+
+      <button type="button" disabled>儲存設定（本機展示未啟用）</button>
+    </form>
+
+    <section class="review-only reading-width">
+      暱稱不會隱藏全域 username、顯示名稱、頭像或 profile。建議關閉
+      shared-server members 的陌生人私訊。
+    </section>
+  </div>
+</BaseLayout>
