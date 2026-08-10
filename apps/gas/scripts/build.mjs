@@ -11,20 +11,20 @@ const definitions = {
   standalone: {
     entryPoint: "src/standalone.ts",
     manifest: "appsscript.json",
-    globals: [
-      "doGet",
-      "doPost",
-      "bootstrapSheetsDryRun",
-      "bootstrapSheetsApply",
+    wrappers: [
+      { name: "doGet", parameters: "event", arguments: "event" },
+      { name: "doPost", parameters: "event", arguments: "event" },
+      { name: "bootstrapSheetsDryRun", parameters: "", arguments: "" },
+      { name: "bootstrapSheetsApply", parameters: "", arguments: "" },
     ],
   },
   bound: {
     entryPoint: "src/bound.ts",
     manifest: "appsscript.bound.json",
-    globals: [
-      "onOpen",
-      "boundBootstrapSheetsDryRun",
-      "boundBootstrapSheetsApply",
+    wrappers: [
+      { name: "onOpen", parameters: "", arguments: "" },
+      { name: "boundBootstrapSheetsDryRun", parameters: "", arguments: "" },
+      { name: "boundBootstrapSheetsApply", parameters: "", arguments: "" },
     ],
   },
 };
@@ -48,8 +48,11 @@ for (const target of targets) {
   mkdirSync(outputDirectory, { recursive: true });
   const globalName =
     target === "bound" ? "CalculusGasBound" : "CalculusGasStandalone";
-  const footer = definition.globals
-    .map((name) => `var ${name} = ${globalName}.${name};`)
+  const footer = definition.wrappers
+    .map(
+      ({ name, parameters, arguments: callArguments }) =>
+        `function ${name}(${parameters}) { return ${globalName}.${name}(${callArguments}); }`,
+    )
     .join("\n");
 
   await build({
@@ -69,8 +72,8 @@ for (const target of targets) {
   copyFileSync(manifestSource, manifestOutput);
 
   const bundledCode = readFileSync(codeOutput, "utf8");
-  for (const name of definition.globals) {
-    if (!bundledCode.includes(`var ${name} = ${globalName}.${name};`)) {
+  for (const { name, parameters } of definition.wrappers) {
+    if (!bundledCode.includes(`function ${name}(${parameters})`)) {
       throw new Error(`${target} Apps Script bundle does not expose ${name}`);
     }
   }
