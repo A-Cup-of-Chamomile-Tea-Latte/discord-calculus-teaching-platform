@@ -1,4 +1,4 @@
-# Product decisions accepted on 2026-07-23
+# Product decisions accepted through 2026-08-10
 
 Source: `project-exchange/Discord_Project_Next_Discussion_and_Codex_Package/01_PRODUCT_DECISIONS_UPDATE.md`.
 
@@ -51,3 +51,21 @@ The first Portal review screen is desktop-first and intentionally smaller than D
 ## Non-negotiable constraints
 
 No recording, automatic voice transcription, all-server continuous polling, automatic all-content LLM submission, real-case static publication, committed secrets, or unreviewed merging of Private Support with normal cases.
+
+## 2026-08-10 data authority and cloud operations
+
+- The local database is the primary operational authority. Google Sheets may accept managed writes,
+  but serves sharing, administrative projection and temporary restore rather than automatic
+  replacement of local state.
+- Any Sheet-to-local fetch or restore must validate the schema version, source revision, integrity
+  evidence, timestamps and expected dataset identity, then require an explicit human confirmation.
+  A conflict starts from the verified local version; cloud state never silently wins.
+- Drive archive structure may begin with a migration-friendly layout and be revised when operating
+  evidence reveals a better lifecycle. Folder naming is not an authority boundary.
+- Email status `SENT` means the approved sender call returned successfully and the local audit write
+  completed. It describes completion of this system's send responsibility, not inbox delivery or
+  recipient reading.
+- Student numbers, names and other identifying material are protected data. AI analysis requires
+  explicit student consent, appropriate de-identification and a teaching-improvement-only purpose.
+  Detailed retention, withdrawal and redaction procedures remain to be specified before real-data
+  analysis.
