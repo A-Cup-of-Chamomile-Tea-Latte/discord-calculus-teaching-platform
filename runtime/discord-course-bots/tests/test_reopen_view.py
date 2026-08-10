@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 import pytest
 
-from discord_course_bots.course_assistant.views import AIPermissionView, ReopenView
 from discord_course_bots.course_assistant.service import CaseAlreadyOpenError
+from discord_course_bots.course_assistant.views import AIPermissionView, ReopenView
 
 
 @pytest.mark.asyncio

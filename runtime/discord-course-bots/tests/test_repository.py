@@ -1,9 +1,62 @@
-from pathlib import Path
 import json
 import sqlite3
+from pathlib import Path
+
+import pytest
 
 from discord_course_bots.domain.titles import cycle_title
+from discord_course_bots.migrations import MIGRATIONS, MigrationError
 from discord_course_bots.repository import Repository
+
+
+def test_fresh_database_has_versioned_migration_ledger(tmp_path: Path) -> None:
+    database_path = tmp_path / "fresh.sqlite3"
+    repo = Repository(database_path)
+
+    assert repo.schema_version == MIGRATIONS[-1].version
+    history = repo.migration_history()
+    assert [row["version"] for row in history] == [1, 2]
+    assert all(len(str(row["checksum"])) == 64 for row in history)
+    table_names = {
+        str(row[0])
+        for row in repo._connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    assert table_names == {
+        "schema_migrations",
+        "runtime_config",
+        "drafts",
+        "cases",
+        "private_support",
+        "private_dump_jobs",
+    }
+
+
+def test_repeated_migration_is_idempotent(tmp_path: Path) -> None:
+    database_path = tmp_path / "repeat.sqlite3"
+    first = Repository(database_path)
+    first.set_config("sentinel", "preserved")
+    first_history = [tuple(row) for row in first.migration_history()]
+    first.close()
+
+    second = Repository(database_path)
+    assert second.get_config("sentinel") == "preserved"
+    assert [tuple(row) for row in second.migration_history()] == first_history
+    assert second.schema_version == MIGRATIONS[-1].version
+
+
+def test_migration_checksum_mismatch_fails_closed(tmp_path: Path) -> None:
+    database_path = tmp_path / "tampered.sqlite3"
+    repo = Repository(database_path)
+    repo.close()
+    connection = sqlite3.connect(database_path)
+    connection.execute("UPDATE schema_migrations SET checksum = 'tampered' WHERE version = 1")
+    connection.commit()
+    connection.close()
+
+    with pytest.raises(MigrationError, match="checksum or name does not match"):
+        Repository(database_path)
 
 
 def test_draft_to_case(tmp_path: Path) -> None:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from pathlib import Path
@@ -8,8 +7,9 @@ from pathlib import Path
 import discord
 from discord.ext import tasks
 
-from discord_course_bots.settings import DumpBotSettings
 from discord_course_bots.repository import Repository
+from discord_course_bots.settings import DumpBotSettings
+
 from .exporter import collect_messages, verify_export, write_export
 
 LOGGER = logging.getLogger(__name__)

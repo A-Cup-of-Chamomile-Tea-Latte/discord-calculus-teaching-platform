@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
 import re
+from datetime import UTC, datetime
 
 import pytest
 
@@ -9,7 +9,7 @@ from discord_course_bots.repository import Repository
 
 
 def test_public_and_private_case_number_formats() -> None:
-    moment = datetime(2026, 7, 29, 2, 15, tzinfo=timezone.utc)
+    moment = datetime(2026, 7, 29, 2, 15, tzinfo=UTC)
     public_number = generate_case_number(now=moment)
     private_number = generate_case_number(private_support=True, now=moment)
 

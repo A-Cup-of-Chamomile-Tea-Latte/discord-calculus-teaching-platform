@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import discord
 from typing import TYPE_CHECKING
+
+import discord
 
 from discord_course_bots.domain.keyword import KeywordValidationError
 
@@ -21,7 +22,7 @@ class KeywordModal(discord.ui.Modal, title="設定這篇文章"):
         max_length=30,
     )
 
-    def __init__(self, service: "CourseService", thread_id: int, author_id: int) -> None:
+    def __init__(self, service: CourseService, thread_id: int, author_id: int) -> None:
         super().__init__(timeout=300)
         self.service = service
         self.thread_id = thread_id
@@ -46,7 +47,7 @@ class KeywordModal(discord.ui.Modal, title="設定這篇文章"):
 class AIPermissionView(discord.ui.View):
     def __init__(
         self,
-        service: "CourseService",
+        service: CourseService,
         *,
         thread_id: int,
         author_id: int,
@@ -121,7 +122,7 @@ class AIPermissionView(discord.ui.View):
 
 
 class DraftSetupView(discord.ui.View):
-    def __init__(self, service: "CourseService") -> None:
+    def __init__(self, service: CourseService) -> None:
         super().__init__(timeout=None)
         self.service = service
 
@@ -183,7 +184,7 @@ class DraftSetupView(discord.ui.View):
 
 
 class ReopenView(discord.ui.View):
-    def __init__(self, service: "CourseService") -> None:
+    def __init__(self, service: CourseService) -> None:
         super().__init__(timeout=None)
         self.service = service
 
@@ -226,7 +227,7 @@ class ReopenView(discord.ui.View):
 
 
 class PrivateDumpView(discord.ui.View):
-    def __init__(self, service: "CourseService") -> None:
+    def __init__(self, service: CourseService) -> None:
         super().__init__(timeout=None)
         self.service = service
 
@@ -235,9 +236,13 @@ class PrivateDumpView(discord.ui.View):
         style=discord.ButtonStyle.danger,
         custom_id="course:private:dump:v1",
     )
-    async def confirm_dump(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+    async def confirm_dump(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
         channel = interaction.channel
-        if not isinstance(interaction.user, discord.Member) or not self.service.is_staff(interaction.user):
+        if not isinstance(interaction.user, discord.Member) or not self.service.is_staff(
+            interaction.user
+        ):
             await _ephemeral_error(interaction, "只有 TA／Professor／測試管理者可確認匯出。")
             return
         if not isinstance(channel, discord.TextChannel):

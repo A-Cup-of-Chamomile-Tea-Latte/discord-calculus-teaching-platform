@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
-from datetime import datetime, timezone
 import json
-from pathlib import Path
 import sqlite3
-from typing import Any, Iterator
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Any
 
 from discord_course_bots.domain.case_numbers import generate_case_number
-
+from discord_course_bots.migrations import apply_migrations
+from discord_course_bots.repository_time import utc_now_iso
 
 CASE_NUMBER_MAX_ATTEMPTS = 5
-
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 class Repository:
@@ -37,103 +34,21 @@ class Repository:
             raise
 
     def _migrate(self) -> None:
-        with self.transaction() as db:
-            db.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS runtime_config (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
+        apply_migrations(self._connection)
 
-                CREATE TABLE IF NOT EXISTS drafts (
-                    thread_id INTEGER PRIMARY KEY,
-                    forum_channel_id INTEGER NOT NULL,
-                    author_id INTEGER NOT NULL,
-                    original_title TEXT NOT NULL,
-                    starter_message_id INTEGER,
-                    setup_message_id INTEGER,
-                    created_at TEXT NOT NULL,
-                    reminded_at TEXT,
-                    deleted_at TEXT,
-                    delete_reason TEXT
-                );
+    @property
+    def schema_version(self) -> int:
+        return int(self._connection.execute("PRAGMA user_version").fetchone()[0])
 
-                CREATE TABLE IF NOT EXISTS cases (
-                    case_id TEXT PRIMARY KEY,
-                    case_number TEXT NOT NULL UNIQUE,
-                    thread_id INTEGER NOT NULL UNIQUE,
-                    author_id INTEGER NOT NULL,
-                    module_code TEXT NOT NULL,
-                    keyword TEXT NOT NULL,
-                    ai_content_permission INTEGER NOT NULL CHECK(ai_content_permission IN (0, 1)),
-                    canonical_title TEXT NOT NULL,
-                    base_title TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    reopen_count INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL,
-                    closed_at TEXT,
-                    last_staff_response_at TEXT,
-                    initial_snapshot_json TEXT NOT NULL,
-                    dump_version INTEGER NOT NULL DEFAULT 0
-                );
+    def migration_history(self) -> list[sqlite3.Row]:
+        return list(
+            self._connection.execute(
+                "SELECT version, name, checksum, applied_at FROM schema_migrations ORDER BY version"
+            ).fetchall()
+        )
 
-                CREATE TABLE IF NOT EXISTS private_support (
-                    channel_id INTEGER PRIMARY KEY,
-                    case_number TEXT UNIQUE,
-                    requester_id INTEGER NOT NULL,
-                    ai_content_permission INTEGER NOT NULL CHECK(ai_content_permission IN (0, 1)),
-                    status TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    closed_at TEXT
-                );
-
-                CREATE TABLE IF NOT EXISTS private_dump_jobs (
-                    channel_id INTEGER PRIMARY KEY,
-                    status TEXT NOT NULL,
-                    requested_by INTEGER NOT NULL,
-                    requested_at TEXT NOT NULL,
-                    completed_at TEXT,
-                    manifest_path TEXT,
-                    delete_completed_at TEXT,
-                    error TEXT
-                );
-                """
-            )
-            columns = {
-                str(row["name"])
-                for row in db.execute("PRAGMA table_info(cases)").fetchall()
-            }
-            if "base_title" not in columns:
-                db.execute("ALTER TABLE cases ADD COLUMN base_title TEXT NOT NULL DEFAULT ''")
-                rows = db.execute(
-                    "SELECT case_id, canonical_title, initial_snapshot_json FROM cases"
-                ).fetchall()
-                for row in rows:
-                    base_title = str(row["canonical_title"])
-                    try:
-                        snapshot = json.loads(str(row["initial_snapshot_json"]))
-                        snapshot_title = snapshot.get("title")
-                        if isinstance(snapshot_title, str) and snapshot_title.strip():
-                            base_title = snapshot_title
-                    except (TypeError, ValueError, json.JSONDecodeError):
-                        pass
-                    db.execute(
-                        "UPDATE cases SET base_title = ? WHERE case_id = ?",
-                        (base_title, str(row["case_id"])),
-                    )
-            private_columns = {
-                str(row["name"])
-                for row in db.execute("PRAGMA table_info(private_support)").fetchall()
-            }
-            if "case_number" not in private_columns:
-                db.execute("ALTER TABLE private_support ADD COLUMN case_number TEXT")
-            db.execute(
-                """
-                CREATE UNIQUE INDEX IF NOT EXISTS private_support_case_number_unique
-                ON private_support(case_number)
-                """
-            )
+    def close(self) -> None:
+        self._connection.close()
 
     def set_config(self, key: str, value: str | int) -> None:
         with self.transaction() as db:
@@ -308,9 +223,7 @@ class Repository:
             )
             if result.rowcount != 1:
                 return None
-            return db.execute(
-                "SELECT * FROM cases WHERE thread_id = ?", (thread_id,)
-            ).fetchone()
+            return db.execute("SELECT * FROM cases WHERE thread_id = ?", (thread_id,)).fetchone()
 
     def update_case_title(self, thread_id: int, title: str) -> None:
         with self.transaction() as db:
@@ -378,28 +291,35 @@ class Repository:
             return result.rowcount == 1
 
     def pending_private_dump_jobs(self) -> list[sqlite3.Row]:
-        return list(self._connection.execute(
-            """SELECT job.*, support.case_number FROM private_dump_jobs AS job
+        return list(
+            self._connection.execute(
+                """SELECT job.*, support.case_number FROM private_dump_jobs AS job
             JOIN private_support AS support USING(channel_id)
             WHERE job.status = 'PENDING' ORDER BY job.requested_at"""
-        ).fetchall())
+            ).fetchall()
+        )
 
     def complete_private_dump(self, channel_id: int, manifest_path: str) -> None:
         with self.transaction() as db:
             db.execute(
-                """UPDATE private_dump_jobs SET status = 'VERIFIED', completed_at = ?, manifest_path = ?
+                """UPDATE private_dump_jobs
+                SET status = 'VERIFIED', completed_at = ?, manifest_path = ?
                 WHERE channel_id = ? AND status = 'PENDING'""",
                 (utc_now_iso(), manifest_path, channel_id),
             )
 
     def pending_private_deletions(self) -> list[sqlite3.Row]:
-        return list(self._connection.execute(
-            "SELECT * FROM private_dump_jobs WHERE status = 'VERIFIED' ORDER BY completed_at"
-        ).fetchall())
+        return list(
+            self._connection.execute(
+                "SELECT * FROM private_dump_jobs WHERE status = 'VERIFIED' ORDER BY completed_at"
+            ).fetchall()
+        )
 
     def mark_private_deleted(self, channel_id: int) -> None:
         with self.transaction() as db:
-            db.execute("UPDATE private_support SET status = 'DELETED' WHERE channel_id = ?", (channel_id,))
+            db.execute(
+                "UPDATE private_support SET status = 'DELETED' WHERE channel_id = ?", (channel_id,)
+            )
             db.execute(
                 """UPDATE private_dump_jobs SET status = 'DELETED', delete_completed_at = ?
                 WHERE channel_id = ? AND status = 'VERIFIED'""",

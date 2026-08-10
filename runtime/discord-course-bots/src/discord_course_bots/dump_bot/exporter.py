@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
 import hashlib
 import json
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import discord
@@ -32,7 +32,7 @@ class ExportedMessage:
     attachments: list[ExportedAttachment]
 
 
-async def collect_messages(channel: "discord.abc.Messageable") -> list[ExportedMessage]:
+async def collect_messages(channel: discord.abc.Messageable) -> list[ExportedMessage]:
     messages: list[ExportedMessage] = []
     async for message in channel.history(limit=None, oldest_first=True):
         reference_id = None
@@ -67,7 +67,7 @@ def _markdown(channel_id: int, channel_name: str, messages: list[ExportedMessage
         f"# Discord export: {channel_name}",
         "",
         f"- Channel ID: `{channel_id}`",
-        f"- Exported at: `{datetime.now(timezone.utc).isoformat()}`",
+        f"- Exported at: `{datetime.now(UTC).isoformat()}`",
         f"- Message count: `{len(messages)}`",
         "",
     ]
@@ -83,9 +83,10 @@ def _markdown(channel_id: int, channel_name: str, messages: list[ExportedMessage
         if message.reference_message_id is not None:
             lines.append(f"Reply to: `{message.reference_message_id}`\n")
         for attachment in message.attachments:
-            lines.append(
-                f"- Attachment: `{attachment.filename}` ({attachment.size} bytes) — {attachment.url}"
+            attachment_summary = (
+                f"`{attachment.filename}` ({attachment.size} bytes) — {attachment.url}"
             )
+            lines.append(f"- Attachment: {attachment_summary}")
         if message.attachments:
             lines.append("")
     return "\n".join(lines)
@@ -114,7 +115,7 @@ def write_export(
         "channel_name": channel_name,
         "export_scope": export_scope,
         "case_number": case_number,
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "message_count": len(messages),
         "messages": [asdict(message) for message in messages],
     }

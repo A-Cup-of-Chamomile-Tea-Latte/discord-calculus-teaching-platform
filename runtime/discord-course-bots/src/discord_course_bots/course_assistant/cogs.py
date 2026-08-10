@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import logging
+from datetime import UTC, datetime
 
 import discord
 from discord import app_commands
@@ -52,9 +52,7 @@ class CaseCog(commands.Cog):
 
     @private.command(name="open", description="建立 Private Support 測試頻道")
     @app_commands.describe(ai_permission="是否允許 AI 分析文字正文")
-    async def private_open(
-        self, interaction: discord.Interaction, ai_permission: bool
-    ) -> None:
+    async def private_open(self, interaction: discord.Interaction, ai_permission: bool) -> None:
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
             await _reply(interaction, "只能在測試伺服器使用。")
             return
@@ -98,7 +96,9 @@ class CaseCog(commands.Cog):
 
     @private.command(name="close", description="由 Staff 結束 Private Support，準備匯出")
     async def private_close(self, interaction: discord.Interaction) -> None:
-        if not isinstance(interaction.user, discord.Member) or not _staff_allowed(interaction.user, self.service):
+        if not isinstance(interaction.user, discord.Member) or not _staff_allowed(
+            interaction.user, self.service
+        ):
             await _reply(interaction, "只有 TA／Professor／測試管理者可結案。")
             return
         if not isinstance(interaction.channel, discord.TextChannel):
@@ -145,7 +145,9 @@ class CaseCog(commands.Cog):
 
     @private.command(name="dump", description="確認匯出已結案的 Private Support")
     async def private_dump(self, interaction: discord.Interaction) -> None:
-        if not isinstance(interaction.user, discord.Member) or not _staff_allowed(interaction.user, self.service):
+        if not isinstance(interaction.user, discord.Member) or not _staff_allowed(
+            interaction.user, self.service
+        ):
             await _reply(interaction, "只有 TA／Professor／測試管理者可要求匯出。")
             return
         if not isinstance(interaction.channel, discord.TextChannel):
@@ -192,7 +194,7 @@ class DraftLifecycleCog(commands.Cog):
 
     @tasks.loop(seconds=30)
     async def draft_sweep(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for draft in self.service.repo.pending_drafts():
             try:
                 created = datetime.fromisoformat(str(draft["created_at"]))
@@ -229,7 +231,9 @@ class DraftLifecycleCog(commands.Cog):
                             )
                     self.service.repo.mark_draft_reminded(thread.id)
             except discord.HTTPException:
-                LOGGER.exception("Draft lifecycle operation failed for thread %s", draft["thread_id"])
+                LOGGER.exception(
+                    "Draft lifecycle operation failed for thread %s", draft["thread_id"]
+                )
 
     @draft_sweep.before_loop
     async def before_draft_sweep(self) -> None:

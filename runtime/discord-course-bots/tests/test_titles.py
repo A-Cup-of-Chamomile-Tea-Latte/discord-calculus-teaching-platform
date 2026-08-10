@@ -12,9 +12,10 @@ def test_first_cycle_title() -> None:
 
 
 def test_restores_prefix_without_duplication() -> None:
-    assert canonical_title(
-        "M1", "隱函數微分", "[M1] [隱函數微分] 還有其他解法嗎？"
-    ) == "[M1] [隱函數微分] 還有其他解法嗎？"
+    assert (
+        canonical_title("M1", "隱函數微分", "[M1] [隱函數微分] 還有其他解法嗎？")
+        == "[M1] [隱函數微分] 還有其他解法嗎？"
+    )
 
 
 def test_reopen_titles_always_derive_from_base_title() -> None:

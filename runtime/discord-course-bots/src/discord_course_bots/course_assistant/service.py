@@ -167,7 +167,9 @@ class CourseService:
             )
             dm_sent = True
         except (discord.Forbidden, discord.HTTPException):
-            LOGGER.info("DM failed for user %s; Email fallback is pending backend", interaction.user.id)
+            LOGGER.info(
+                "DM failed for user %s; Email fallback is pending backend", interaction.user.id
+            )
 
         if dm_sent:
             await channel.send("✅ 您的貼文已成立。案號已透過 Discord 私訊寄送。")

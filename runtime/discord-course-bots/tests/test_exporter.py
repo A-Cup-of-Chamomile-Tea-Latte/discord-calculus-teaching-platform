@@ -1,5 +1,5 @@
-from pathlib import Path
 import json
+from pathlib import Path
 
 from discord_course_bots.dump_bot.exporter import ExportedMessage, verify_export, write_export
 
