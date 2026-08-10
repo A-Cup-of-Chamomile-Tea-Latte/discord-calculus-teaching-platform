@@ -44,6 +44,8 @@
     "CaseProjection": [],
     "SyncState": [],
     "ChangedCaseQueue": [],
+    "CommandQueue": [],
+    "EmailQueue": [],
     "ArchiveIndex": [],
     "ExportManifest": [],
     "SanitizedPackage": [],

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/command-queue.schema.json",
+  "title": "CommandQueueRecord",
+  "description": "A durable GAS-to-bot command record. This contract contains no credentials and does not imply that an external Discord operation succeeded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "commandId",
+    "commandType",
+    "payload",
+    "targetUserId",
+    "targetCaseId",
+    "status",
+    "idempotencyKey",
+    "claimedBy",
+    "leaseExpiresAt",
+    "attemptCount",
+    "retryAt",
+    "result",
+    "errorCode",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "commandId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "commandType": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{2,63}$"
+    },
+    "payload": { "type": "object" },
+    "targetUserId": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/recordId" },
+        { "type": "null" }
+      ]
+    },
+    "targetCaseId": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/recordId" },
+        { "type": "null" }
+      ]
+    },
+    "status": {
+      "enum": ["PENDING", "CLAIMED", "RETRY_WAIT", "SUCCEEDED", "FAILED"]
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128
+    },
+    "claimedBy": { "type": ["string", "null"], "maxLength": 128 },
+    "leaseExpiresAt": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "attemptCount": { "type": "integer", "minimum": 0 },
+    "retryAt": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "result": { "type": ["object", "null"] },
+    "errorCode": { "type": ["string", "null"], "maxLength": 64 },
+    "createdAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "updatedAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "CLAIMED" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "claimedBy": { "type": "string", "minLength": 1 },
+          "leaseExpiresAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+        }
+      }
+    }
+  ]
+}

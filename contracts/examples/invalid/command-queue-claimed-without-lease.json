@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0",
+  "commandId": "cmd_fixture_002",
+  "commandType": "REFRESH_CASE",
+  "payload": {},
+  "targetUserId": null,
+  "targetCaseId": "case_fixture_general_001",
+  "status": "CLAIMED",
+  "idempotencyKey": "fixture-command-002",
+  "claimedBy": null,
+  "leaseExpiresAt": null,
+  "attemptCount": 1,
+  "retryAt": null,
+  "result": null,
+  "errorCode": null,
+  "createdAt": "2026-08-10T20:00:00+08:00",
+  "updatedAt": "2026-08-10T20:05:00+08:00"
+}

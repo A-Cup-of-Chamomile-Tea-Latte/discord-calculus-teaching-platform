@@ -23,6 +23,8 @@ const expectedSheets = [
   "CaseProjection",
   "SyncState",
   "ChangedCaseQueue",
+  "CommandQueue",
+  "EmailQueue",
   "ArchiveIndex",
   "ExportManifest",
   "SanitizedPackage",
@@ -61,6 +63,48 @@ describe("Sheets schema", () => {
     );
     expect(seedText).toContain('"verifierHash": "sha256:');
     expect(seedText).not.toMatch(/"(?:plaintextCode|nonce|secret|token)"\s*:/i);
+  });
+
+  it("defines a claimable and idempotent command queue without credential fields", () => {
+    const queue = SHEET_SCHEMAS.find((sheet) => sheet.name === "CommandQueue");
+    expect(queue).toBeDefined();
+    const headers = headersFor(queue!);
+    expect(headers).toEqual([
+      "schemaVersion",
+      "commandId",
+      "commandType",
+      "payloadJson",
+      "targetUserId",
+      "targetCaseId",
+      "status",
+      "idempotencyKey",
+      "claimedBy",
+      "leaseExpiresAt",
+      "attemptCount",
+      "retryAt",
+      "resultJson",
+      "errorCode",
+      "createdAt",
+      "updatedAt",
+    ]);
+    expect(queue!.indexes).toContain("idempotencyKey (unique)");
+    expect(queue!.indexes).toContain("claimedBy + leaseExpiresAt");
+    expect(headers).not.toContain("botToken");
+    expect(headers).not.toContain("oauthToken");
+  });
+
+  it("keeps the email queue metadata-only and distinguishes provider acceptance", () => {
+    const queue = SHEET_SCHEMAS.find((sheet) => sheet.name === "EmailQueue");
+    expect(queue).toBeDefined();
+    const headers = headersFor(queue!);
+    expect(headers).toContain("recipientEmailId");
+    expect(headers).toContain("contentReference");
+    expect(headers).toContain("providerAcceptedAt");
+    expect(headers).not.toContain("recipientEmail");
+    expect(headers).not.toContain("subject");
+    expect(headers).not.toContain("body");
+    expect(headers).not.toContain("verificationCode");
+    expect(headers).not.toContain("deliveredAt");
   });
 
   it("keeps every fixture seed key within its sheet header contract", () => {

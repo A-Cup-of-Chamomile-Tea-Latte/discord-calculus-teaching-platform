@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/email-queue.schema.json",
+  "title": "EmailQueueRecord",
+  "description": "Metadata for a durable email delivery attempt. PROVIDER_ACCEPTED means the provider call succeeded; it is not proof of inbox delivery. Message bodies, verification codes, and credentials are out of scope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "emailJobId",
+    "emailType",
+    "recipientEmailId",
+    "templateKey",
+    "contentReference",
+    "status",
+    "idempotencyKey",
+    "claimedBy",
+    "leaseExpiresAt",
+    "attemptCount",
+    "retryAt",
+    "providerAcceptedAt",
+    "providerReceipt",
+    "errorCode",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "emailJobId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "emailType": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,63}$" },
+    "recipientEmailId": { "$ref": "common.schema.json#/$defs/recordId" },
+    "templateKey": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{2,63}$" },
+    "contentReference": { "type": "string", "minLength": 8, "maxLength": 256 },
+    "status": {
+      "enum": [
+        "PENDING",
+        "CLAIMED",
+        "RETRY_WAIT",
+        "PROVIDER_ACCEPTED",
+        "FAILED"
+      ]
+    },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128 },
+    "claimedBy": { "type": ["string", "null"], "maxLength": 128 },
+    "leaseExpiresAt": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "attemptCount": { "type": "integer", "minimum": 0 },
+    "retryAt": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "providerAcceptedAt": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "providerReceipt": { "type": ["object", "null"] },
+    "errorCode": { "type": ["string", "null"], "maxLength": 64 },
+    "createdAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "updatedAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "CLAIMED" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "claimedBy": { "type": "string", "minLength": 1 },
+          "leaseExpiresAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "PROVIDER_ACCEPTED" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "providerAcceptedAt": {
+            "$ref": "common.schema.json#/$defs/timestamp"
+          }
+        }
+      }
+    }
+  ]
+}

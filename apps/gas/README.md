@@ -14,6 +14,10 @@ Build 使用 esbuild 將 `src/index.ts` bundle 為 `dist/Code.js`，公開 Apps 
 
 Task 16 另公開 `bootstrapSheetsDryRun` 與 `bootstrapSheetsApply` operator functions；fixture mode會在任何 `SpreadsheetApp.openById` 前拒絕執行。Schema catalog與non-storage boundary見 `docs/SHEETS_SCHEMA.md`。
 
+Sheets schema `1.3.0` 已新增本機 `CommandQueue` 與 metadata-only `EmailQueue`
+contracts。兩者都要求 idempotency key，並支援 claim/lease 與 retry metadata；
+`EmailQueue` 不保存收件內容、驗證碼或 credential。這些 schema 目前尚未套用至外部 Spreadsheet。
+
 ## Runtime configuration
 
 正式 runtime 只從 Apps Script `PropertiesService.getScriptProperties()` 讀取：

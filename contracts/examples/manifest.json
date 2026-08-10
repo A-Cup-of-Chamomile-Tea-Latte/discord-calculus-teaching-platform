@@ -65,6 +65,14 @@
       "instance": "valid/changed-case-queue.json"
     },
     {
+      "schema": "command-queue.schema.json",
+      "instance": "valid/command-queue.json"
+    },
+    {
+      "schema": "email-queue.schema.json",
+      "instance": "valid/email-queue.json"
+    },
+    {
       "schema": "archive-index.schema.json",
       "instance": "valid/archive-index.json"
     },
@@ -127,6 +135,16 @@
       "schema": "changed-case-queue.schema.json",
       "instance": "invalid/changed-case-queue-without-idempotency-key.json",
       "reason": "Every queued change must carry an idempotency key."
+    },
+    {
+      "schema": "command-queue.schema.json",
+      "instance": "invalid/command-queue-claimed-without-lease.json",
+      "reason": "A claimed command must identify its worker and lease expiry."
+    },
+    {
+      "schema": "email-queue.schema.json",
+      "instance": "invalid/email-queue-accepted-without-time.json",
+      "reason": "Provider-accepted email work must record when the provider accepted it."
     },
     {
       "schema": "sanitized-package.schema.json",

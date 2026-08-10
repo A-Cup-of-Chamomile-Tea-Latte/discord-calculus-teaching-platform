@@ -2,7 +2,7 @@
 
 這是一個以繁體中文為主要學生介面的「微積分模組教學支援」原型。專案把 Astro 入口網站、Discord bots、Google Apps Script 管理層與本機匯出工具放在同一個 monorepo，以共用 JSON Schema 與完全虛構的 fixtures 進行驗證。
 
-> 目前狀態：可在本機完整示範、測試與 build，但尚未連接正式 Discord、Google Sheets / Apps Script、email 或 OAuth，也尚未部署。任何正式整合都不應從本 README 推定已完成。
+> 目前狀態：Discord allowlisted 測試 Guild 的基建與兩隻 runtime bots 已於 2026-07-30 實機驗證；這不等於 production ready。Portal、Google Sheets / Apps Script、Email、OAuth 與 Drive archive 仍未完成外部串接或正式部署。目前 live bot runtime 與 tracked monorepo prototype 仍需受控整合，任何正式整合都不應從本 README 推定已完成。
 
 ## 先看平台責任
 

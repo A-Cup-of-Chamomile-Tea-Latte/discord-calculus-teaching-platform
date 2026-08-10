@@ -24,8 +24,8 @@ export interface SheetDefinition {
   sourceContracts: readonly string[];
 }
 
-export const SHEETS_SCHEMA_VERSION = "1.2.0";
-export const SHEETS_SCHEMA_RELEASED_AT = "2026-07-23T00:00:00+08:00";
+export const SHEETS_SCHEMA_VERSION = "1.3.0";
+export const SHEETS_SCHEMA_RELEASED_AT = "2026-08-10T00:00:00+08:00";
 
 const required = (
   name: string,
@@ -315,6 +315,87 @@ export const SHEET_SCHEMAS: readonly SheetDefinition[] = [
     sourceContracts: ["contracts/schemas/changed-case-queue.schema.json"],
   },
   {
+    name: "CommandQueue",
+    primaryKey: "commandId",
+    columns: [
+      required("schemaVersion", "string"),
+      required("commandId", "string", true),
+      required("commandType", "string"),
+      required("payloadJson", "json", true),
+      optional("targetUserId", "nullable-string", true),
+      optional("targetCaseId", "nullable-string", true),
+      required("status", "string"),
+      required("idempotencyKey", "string", true),
+      optional("claimedBy", "nullable-string", true),
+      optional("leaseExpiresAt", "nullable-timestamp"),
+      required("attemptCount", "integer"),
+      optional("retryAt", "nullable-timestamp"),
+      optional("resultJson", "json", true),
+      optional("errorCode", "nullable-string"),
+      required("createdAt", "timestamp"),
+      required("updatedAt", "timestamp"),
+    ],
+    indexes: [
+      "commandId (primary)",
+      "idempotencyKey (unique)",
+      "status + retryAt",
+      "claimedBy + leaseExpiresAt",
+    ],
+    sensitiveFields: [
+      "commandId",
+      "payloadJson",
+      "targetUserId",
+      "targetCaseId",
+      "idempotencyKey",
+      "claimedBy",
+      "resultJson",
+    ],
+    retention:
+      "Working command state plus an approved minimal audit window; never store credentials or bot tokens.",
+    sourceContracts: ["contracts/schemas/command-queue.schema.json"],
+  },
+  {
+    name: "EmailQueue",
+    primaryKey: "emailJobId",
+    columns: [
+      required("schemaVersion", "string"),
+      required("emailJobId", "string", true),
+      required("emailType", "string"),
+      required("recipientEmailId", "string", true),
+      required("templateKey", "string"),
+      required("contentReference", "string", true),
+      required("status", "string"),
+      required("idempotencyKey", "string", true),
+      optional("claimedBy", "nullable-string", true),
+      optional("leaseExpiresAt", "nullable-timestamp"),
+      required("attemptCount", "integer"),
+      optional("retryAt", "nullable-timestamp"),
+      optional("providerAcceptedAt", "nullable-timestamp"),
+      optional("providerReceiptJson", "json", true),
+      optional("errorCode", "nullable-string"),
+      required("createdAt", "timestamp"),
+      required("updatedAt", "timestamp"),
+    ],
+    indexes: [
+      "emailJobId (primary)",
+      "idempotencyKey (unique)",
+      "status + retryAt",
+      "claimedBy + leaseExpiresAt",
+      "recipientEmailId + createdAt",
+    ],
+    sensitiveFields: [
+      "emailJobId",
+      "recipientEmailId",
+      "contentReference",
+      "idempotencyKey",
+      "claimedBy",
+      "providerReceiptJson",
+    ],
+    retention:
+      "Working delivery metadata plus an approved minimal audit window; never store message bodies, verification codes, or credentials.",
+    sourceContracts: ["contracts/schemas/email-queue.schema.json"],
+  },
+  {
     name: "ArchiveIndex",
     primaryKey: "archiveId",
     columns: [
@@ -521,7 +602,7 @@ export const SCHEMA_METADATA_ROWS = [
   },
   {
     settingKey: "schema.migration.last",
-    settingValue: "0003-working-archive-fixture-model",
+    settingValue: "0004-command-email-queues",
     description: "Last idempotent migration applied by bootstrap",
     updatedAt: SHEETS_SCHEMA_RELEASED_AT,
   },

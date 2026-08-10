@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "emailJobId": "email_job_fixture_001",
+  "emailType": "CASE_NUMBER_FALLBACK",
+  "recipientEmailId": "verified_email_fixture_001",
+  "templateKey": "case-number-fallback.v1",
+  "contentReference": "content_ref_fixture_001",
+  "status": "PROVIDER_ACCEPTED",
+  "idempotencyKey": "fixture-email-001",
+  "claimedBy": null,
+  "leaseExpiresAt": null,
+  "attemptCount": 1,
+  "retryAt": null,
+  "providerAcceptedAt": "2026-08-10T20:10:00+08:00",
+  "providerReceipt": { "provider": "fixture" },
+  "errorCode": null,
+  "createdAt": "2026-08-10T20:00:00+08:00",
+  "updatedAt": "2026-08-10T20:10:00+08:00"
+}

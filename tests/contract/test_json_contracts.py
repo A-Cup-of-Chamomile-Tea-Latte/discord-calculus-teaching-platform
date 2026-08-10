@@ -64,6 +64,8 @@ def test_all_schemas_are_valid_draft_2020_12() -> None:
         "active-case.schema.json",
         "archive-index.schema.json",
         "changed-case-queue.schema.json",
+        "command-queue.schema.json",
+        "email-queue.schema.json",
         "discord-structure-inventory.schema.json",
         "sanitized-package.schema.json",
         "sync-state.schema.json",

@@ -1,65 +1,77 @@
 # Implementation status
 
-Last verified: 2026-07-26 (Asia/Taipei)  
+Last repository/data-layer verification: 2026-08-10 (Asia/Taipei)
+
+Last Discord live verification: 2026-07-30 20:18 (Asia/Taipei)
+
 Canonical root: `/Users/chamomiletea/Documents/Curricular/115-1/Calculus TA/Discord_微積分模組教學優化專案`
 
-## Executive status
+## Current status
 
-**Fixture/local review: GO. Production or real student data: NO-GO.**
+At the last Discord live verification, the allowlisted test Guild was connected and the two
+runtime bots were online:
 
-Tasks 02–34 and the Task 25A relocation/hardening pass are implemented locally. Task 34 adds the accepted random Case ID format, reduced desktop projection, attachment markers, configurable closure/verified-view interfaces, explicit AI Yes/No eligibility, separated working/archive models, canonical `dump_bot`, synthetic actors, GAS maintenance mocks, strict provisioning dry-run, and reproducible packaging. The complete fixture journey, static builds, contracts, secret guards, and non-deploying CI definitions pass locally.
+- `DC-Calculus-Manager` (`course_assistant`)
+- `DC-Calculus-Archive` (`dump_bot`)
 
-This is not an institutional integration or production deployment. No remote repository, commit baseline, GitHub Pages publication, Apps Script project/deployment/Spreadsheet, Discord application/guild connection, OAuth client, email delivery, Google API call, LLM call, or real student data was used.
+The former fixture-only Discord provisioning planner has been replaced by one allowlisted,
+rerunnable live CLI. The requested infrastructure is fully applied, live verify is green and a
+second apply produced zero mutations.
 
-## Implemented, mocked, and not started
+## Applied Discord infrastructure
 
-| Area                  | Implemented and verified locally                                                                                                                                                                           | Mocked / fail-closed boundary                                                                              | Not started / production blocker                                                                                                      |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Portal                | Astro static portal; 14 pages; strict `Cxx-token-MMDD-HHMM[-P]` parsing; reduced fixture screen/timeline/attachments; lifecycle preview; explicit AI radio; project-base verifier                          | Submit/lookup, verified-view and lifecycle providers use fixtures; generated case pages are fictional only | Course-session auth; authenticated one-case production projection; remove real-case list/prebuild from public output                  |
-| GAS / Sheets          | clasp-compatible local scaffold; 11-sheet schema/bootstrap; fixture case API; activation/email logic; changed-case batches/cache/schedule/weekly rollover/archive/quota mocks; local bundle              | In-memory repositories/providers; non-fixture cases return unavailable; deployment manifest stays `MYSELF` | Cloud project/deployment/Sheet; authenticated cross-origin transport; ACL/locks/quota/outbox; production email/activation providers   |
-| Course Assistant      | Multi-bot boundaries; common config/contracts/logging/idempotency; fixture writer; membership/status; anonymous modal/service; Private Support backend-only model                                          | Discord application starts fixture-safe with only health surface; all writes use test doubles              | Live writer adapter/app commands; actual roles/permissions/intents; durable stores/outbox/audit; Private Support live mechanism       |
-| `dump_bot`            | Canonical reader name; `archive_reader` compatibility alias; manager allowlist; bounded dump/follow; fixture structure inventory/reconciliation/manifest; no polling                                      | Fake Discord reader and in-memory index/checkpoint/sink/idempotency; fixture-only IDs                       | Live REST reader; durable checkpoint/handoff; manager identity provider; rate-limit/audit evidence                                    |
-| Raw export            | Case/thread CLI; deterministic pagination; full/edit refresh; explicit incremental checkpoint; no duplicates; 0600 atomic four-file output; JSON contracts and hashes                                      | Live adapter requires credential then rejects without network                                              | Live Discord REST implementation; durable `dump_bot`→export transaction; attachment-only policy                                   |
-| Consent/anonymization | Manifest hash verification; current consent resolution; Private/EXCLUDED fail closed; placeholders; PII category replacement; case-local pseudonyms; review artifacts; source export/thread digest binding | Consent/user/name sources are fixtures; regex redaction is intentionally imperfect                         | Durable versioned consent snapshot; withdrawal/reprocessing; approved release owner/destination; attachment-content review automation |
-| Batch import          | Schema validation; package binding check; export/message/summary keys; batches; bounded row retry; partial failures; dry-run; 0700/0600 CSV; mock endpoint                                                 | Future Sheets API adapter always not configured; default curated sheet names are abstract mapping          | Authenticated endpoint; atomic idempotency/locking/audit; approved curated storage and schema migration                               |
-| Provisioning          | Declarative fixture plan parser; strict shapes; least-privilege permission allowlist; recursive secret rejection; diff/print/rollback plan                                                                | Compares only against fixture server state and never applies a plan                                        | Approved role/channel/forum design; live permission matrix; human-reviewed test-guild provisioning adapter                            |
-| Security/privacy      | 20-finding threat model; user DM/privacy guide; incident/fallback runbook; no-real-data/secret guards                                                                                                      | Owners are role labels, not appointed people; live evidence absent                                         | Resolve production blockers, retention, consent, access, incident ownership and kill-switch drills                                    |
-| CI/testing            | 6-job read-only/non-deploying workflow; root Python suite; Portal/GAS jobs; contract/fixture/real-data guards; generated export lane                                                                       | Workflow only validated locally; no remote runner execution                                                | Create reviewed remote/baseline; optionally pin Actions by SHA; branch protection and hosted-runner evidence                          |
-| Documentation         | Reviewer README; architecture/local-dev/data model/demo/operator/student/TA/fallback/deployment-not-done guides; proposal preface                                                                          | Institution-specific wording remains draft                                                                 | Professor/institution/privacy review and linguistic polishing                                                                         |
-| Repository            | Canonical root fixed; `.git` preserved; no nested repo; active path docs corrected; ZIPs integrity/deep text scan evidence                                                                                 | Git is unborn `main`; all files untracked; no remote                                                       | Human-reviewed initial baseline; decision whether exchange ZIPs enter remote; Python dependency lock/hashes                           |
+- Roles created: `Admin`, `Staff / TA`, `Verified Member`, `Guest`.
+- Categories created: Information, Question, Community, Private Support, Voice Chat and Staff.
+- All 15 requested child channels created, including the three managed Question forums.
+- `welcome` fixed message and `伺服器使用總則 / Server Guidelines` forum post created.
+- BOT LAB, old test PRIVATE SUPPORT, old bootstrap roles/data and the approved old default
+  Information/Text/Voice categories were removed.
+- `dump_bot` is effectively read-only or hidden on all currently active managed channels.
+- `/lab bootstrap` is no longer registered by the runtime bot.
 
-## Final local verification
+The final role order is:
 
-- M3 documentation/configuration audit: `docs/README.md`, `docs/CONFIGURATION.md` and `CODEX_TASKS/README.md` now distinguish current configuration, historical task evidence and production blockers; all local Markdown targets resolve.
-- Root `npm run check`: passed.
-- Secret scan: 455 candidates, 0 findings in the final pre-package-rebuild gate.
-- Python: 155/155 passed; two existing discord.py/Python 3.14 deprecation warnings.
-- Portal: 43/43 tests; Astro 48 files with 0 errors/warnings/hints.
-- GAS: 48/48 tests; TypeScript typecheck passed.
-- Python type/lint/format: mypy 87 source files with 0 issues; Ruff and Prettier passed.
-- Builds: Portal 14 pages; 188 project-base-safe local references; GAS `Code.js` + manifest bundle.
-- Contracts: 24 Draft 2020-12 schemas plus valid/invalid instance examples.
-- Integration: one complete fixture journey passed.
+`Admin > Staff / TA > DC-Calculus-Manager > Verified Member > Guest > DC-Calculus-Archive`.
 
-## Environment and repository inventory
+`Staff / TA` has Manage Messages and voice-member moderation. Advisory: the `Admin` role itself
+does not carry those bits; this does not restrict the current Guild owner, but they should be
+added before assigning Admin to a non-owner.
 
-- Node 24.13.0; npm 11.6.2; Python 3.14.6.
-- Astro 7.1.1; TypeScript 5.9.3; Vitest 4.1.10; discord.py 2.7.1; jsonschema 4.26.0; pytest 9.1.1; mypy 1.20.2; Ruff 0.15.22.
-- Repository working copy: approximately 399 MB and 18,254 files before the final archive. Dependencies and caches dominate size and are excluded from handoff packaging.
-- Git: unborn `main`, 0 commits, 0 remotes; no nested `.git`.
-- Local `npm ls` reports five extraneous WASM packages; `npm ci` on a fresh checkout is the authoritative clean install path.
-- Node has a lockfile. Python uses constrained ranges but no hash-locked environment file.
+## Commands
 
-## Production go/no-go gates
+```bash
+.venv/bin/python -m tools.discord_provisioning inventory --guild-id <TEST_GUILD_ID>
+.venv/bin/python -m tools.discord_provisioning apply --guild-id <TEST_GUILD_ID> --reset-lab
+.venv/bin/python -m tools.discord_provisioning verify --guild-id <TEST_GUILD_ID>
+```
 
-Production remains **NO-GO** until all high-severity blockers in `docs/security/SECURITY-PRIVACY-THREAT-MODEL.md` are closed or explicitly accepted by named owners. At minimum:
+The live runtime currently uses the Python environment under
+`.local/discord-course-bots-runtime/.venv`; the repository `.venv` also contains the required
+dependencies.
 
-1. implement the accepted static-shell-only Pages boundary, authenticated one-case lookup, and no-real-case-prebuild verification;
-2. approve retention/deletion/backup and versioned-consent withdrawal rules;
-3. appoint privacy/security/data/system owners and exercise incident kill switches;
-4. validate separate least-privilege Discord reader/writer apps in an isolated test guild;
-5. validate authenticated backend/GAS transport, Sheet ACL/locking/quota and batch idempotency;
-6. approve Private Support storage/ACL mechanism;
-7. create a reviewed Git baseline without unapproved archives, credentials, or real data.
+## Verification
 
-The production spike order and rollback points are in `docs/architecture/PRODUCTION_INTEGRATION_PLAN.md`.
+- Live resource replay: zero mutations on the second completed apply.
+- Live verify: passed with zero errors and zero warnings.
+- Root Python suite: 164 tests expected after removal of obsolete provisioning tests.
+- Runtime bot suite: 25 passed; 28 known Python 3.14 / pytest-asyncio deprecation warnings.
+- Ruff and secret scan: passed.
+
+Detailed result:
+`docs/reports/DISCORD_INFRASTRUCTURE_PROVISIONING_REPORT_2026-07-30.md`
+
+## Data-layer evidence audit
+
+- The live runtime source is local-only under `.local/discord-course-bots-runtime/`; it is not
+  fully identified by the current Git HEAD.
+- Its executable SQLite initializer currently creates five tables: `runtime_config`, `drafts`,
+  `cases`, `private_support` and `private_dump_jobs`.
+- The live schema has no foreign keys, schema migration table, deadline, claim/lease, retry,
+  outbox or Google sync columns. `PRAGMA user_version` is `0`.
+- The tracked monorepo contains a broader fixture-first contract and GAS prototype. It must not
+  be described as the live bot database.
+- GAS Sheets schema `1.3.0` now includes local-only `CommandQueue` and metadata-only `EmailQueue`
+  contracts with idempotency and claim/lease fields. No Spreadsheet, Email or Drive mutation was
+  performed.
+- The evidence audit and implementation handoff is recorded in
+  `project-exchange/15_GAS_SQLITE_DRIVE_REPOSITORY_EVIDENCE_AUDIT_2026-08-10.md`.
