@@ -2,42 +2,57 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { bootstrapWorkbook } from "./bootstrap";
+import { bootstrapWorkbook, migrateToCompactWorkbook } from "./bootstrap";
+import type { InMemorySheetSeed } from "./in-memory-workbook";
 import { InMemoryWorkbook } from "./in-memory-workbook";
 import {
   headersFor,
+  HUMAN_VIEW_SHEETS,
+  LEGACY_FULL_SCHEMA_SHEETS,
+  MACHINE_VIEW_SHEETS,
   SCHEMA_METADATA_ROWS,
   SHEET_SCHEMAS,
   SHEETS_SCHEMA_VERSION,
 } from "./schema";
 
-const expectedSheets = [
-  "Users",
-  "Emails",
-  "DiscordAccounts",
-  "CourseMemberships",
-  "Cases",
-  "Posts",
-  "Consents",
-  "ActiveCases",
-  "CaseProjection",
-  "SyncState",
-  "ChangedCaseQueue",
-  "CommandQueue",
-  "EmailQueue",
-  "ArchiveIndex",
-  "ExportManifest",
-  "SanitizedPackage",
-  "WeeklyMaintenanceRun",
-  "ActivationCodes",
-  "Exports",
-  "AuditLog",
-  "Settings",
-];
+const expectedSheets = [...HUMAN_VIEW_SHEETS, ...MACHINE_VIEW_SHEETS];
 
-describe("Sheets schema", () => {
-  it("defines all required sheets with unique headers and primary keys", () => {
+function legacySeed(): Record<string, InMemorySheetSeed> {
+  return Object.fromEntries(
+    LEGACY_FULL_SCHEMA_SHEETS.map((name) => [
+      name,
+      name === "Settings"
+        ? {
+            headers: ["settingKey", "settingValue", "description", "updatedAt"],
+            rows: [
+              {
+                settingKey: "schema.version",
+                settingValue: "1.3.0",
+              },
+              {
+                settingKey: "schema.migration.last",
+                settingValue: "0004-command-email-queues",
+              },
+            ],
+          }
+        : { headers: ["legacyHeader"], rows: [] },
+    ]),
+  );
+}
+
+describe("compact Sheets schema", () => {
+  it("defines five human views and five machine views", () => {
     expect(SHEET_SCHEMAS.map((sheet) => sheet.name)).toEqual(expectedSheets);
+    expect(
+      SHEET_SCHEMAS.filter((sheet) => sheet.audience === "HUMAN").map(
+        (sheet) => sheet.name,
+      ),
+    ).toEqual(HUMAN_VIEW_SHEETS);
+    expect(
+      SHEET_SCHEMAS.filter((sheet) => sheet.audience === "MACHINE").map(
+        (sheet) => sheet.name,
+      ),
+    ).toEqual(MACHINE_VIEW_SHEETS);
     for (const sheet of SHEET_SCHEMAS) {
       const headers = headersFor(sheet);
       expect(new Set(headers).size).toBe(headers.length);
@@ -48,66 +63,59 @@ describe("Sheets schema", () => {
     }
   });
 
-  it("stores only an activation verifier hash, never a plaintext nonce", () => {
-    const activation = SHEET_SCHEMAS.find(
-      (sheet) => sheet.name === "ActivationCodes",
+  it("keeps Members useful without names, student IDs or email addresses", () => {
+    const members = SHEET_SCHEMAS.find((sheet) => sheet.name === "Members");
+    expect(members).toBeDefined();
+    const headers = headersFor(members!);
+    expect(headers).toContain("membershipStatus");
+    expect(headers).toContain("verificationStatus");
+    expect(headers).toContain("analysisDefault");
+    expect(headers).not.toContain("name");
+    expect(headers).not.toContain("studentId");
+    expect(headers).not.toContain("email");
+    expect(headers).not.toContain("discordUserId");
+  });
+
+  it("provides cloud-visible bot health without process details or logs", () => {
+    const operations = SHEET_SCHEMAS.find(
+      (sheet) => sheet.name === "Operations",
     );
-    expect(activation).toBeDefined();
-    expect(headersFor(activation!)).toContain("verifierHash");
-    expect(headersFor(activation!)).not.toContain("plaintextCode");
-    expect(headersFor(activation!)).not.toContain("nonce");
+    expect(operations).toBeDefined();
+    const headers = headersFor(operations!);
+    expect(headers).toContain("service");
+    expect(headers).toContain("status");
+    expect(headers).toContain("lastHeartbeatAt");
+    expect(headers).toContain("queueDepth");
+    expect(headers).toContain("safeErrorCode");
+    expect(headers).not.toContain("pid");
+    expect(headers).not.toContain("logBody");
+  });
 
-    const seedText = readFileSync(
-      new URL("../../fixtures/sheets-seed.json", import.meta.url),
-      "utf8",
+  it("keeps both queues metadata-only, claimable and idempotent", () => {
+    const commands = SHEET_SCHEMAS.find(
+      (sheet) => sheet.name === "_CommandInbox",
     );
-    expect(seedText).toContain('"verifierHash": "sha256:');
-    expect(seedText).not.toMatch(/"(?:plaintextCode|nonce|secret|token)"\s*:/i);
+    const email = SHEET_SCHEMAS.find((sheet) => sheet.name === "_EmailOutbox");
+    expect(commands).toBeDefined();
+    expect(email).toBeDefined();
+
+    const commandHeaders = headersFor(commands!);
+    expect(commandHeaders).toContain("payloadRef");
+    expect(commandHeaders).toContain("idempotencyKey");
+    expect(commandHeaders).toContain("leaseExpiresAt");
+    expect(commandHeaders).not.toContain("payloadJson");
+    expect(commandHeaders).not.toContain("botToken");
+
+    const emailHeaders = headersFor(email!);
+    expect(emailHeaders).toContain("recipientRef");
+    expect(emailHeaders).toContain("providerAcceptedAt");
+    expect(emailHeaders).not.toContain("recipientEmail");
+    expect(emailHeaders).not.toContain("subject");
+    expect(emailHeaders).not.toContain("body");
+    expect(emailHeaders).not.toContain("verificationCode");
   });
 
-  it("defines a claimable and idempotent command queue without credential fields", () => {
-    const queue = SHEET_SCHEMAS.find((sheet) => sheet.name === "CommandQueue");
-    expect(queue).toBeDefined();
-    const headers = headersFor(queue!);
-    expect(headers).toEqual([
-      "schemaVersion",
-      "commandId",
-      "commandType",
-      "payloadJson",
-      "targetUserId",
-      "targetCaseId",
-      "status",
-      "idempotencyKey",
-      "claimedBy",
-      "leaseExpiresAt",
-      "attemptCount",
-      "retryAt",
-      "resultJson",
-      "errorCode",
-      "createdAt",
-      "updatedAt",
-    ]);
-    expect(queue!.indexes).toContain("idempotencyKey (unique)");
-    expect(queue!.indexes).toContain("claimedBy + leaseExpiresAt");
-    expect(headers).not.toContain("botToken");
-    expect(headers).not.toContain("oauthToken");
-  });
-
-  it("keeps the email queue metadata-only and distinguishes provider acceptance", () => {
-    const queue = SHEET_SCHEMAS.find((sheet) => sheet.name === "EmailQueue");
-    expect(queue).toBeDefined();
-    const headers = headersFor(queue!);
-    expect(headers).toContain("recipientEmailId");
-    expect(headers).toContain("contentReference");
-    expect(headers).toContain("providerAcceptedAt");
-    expect(headers).not.toContain("recipientEmail");
-    expect(headers).not.toContain("subject");
-    expect(headers).not.toContain("body");
-    expect(headers).not.toContain("verificationCode");
-    expect(headers).not.toContain("deliveredAt");
-  });
-
-  it("keeps every fixture seed key within its sheet header contract", () => {
+  it("keeps every fixture seed key within its sheet contract", () => {
     const seed = JSON.parse(
       readFileSync(
         new URL("../../fixtures/sheets-seed.json", import.meta.url),
@@ -123,79 +131,95 @@ describe("Sheets schema", () => {
     }
   });
 
-  it("produces a dry-run plan without mutating the workbook", () => {
+  it("bootstraps the compact schema and is idempotent", () => {
     const workbook = new InMemoryWorkbook();
-    const result = bootstrapWorkbook(workbook, { dryRun: true });
-    expect(result.changed).toBe(true);
+    const dryRun = bootstrapWorkbook(workbook, { dryRun: true });
+    expect(dryRun.changed).toBe(true);
     expect(
-      result.actions.filter((action) => action.type === "CREATE_SHEET"),
+      dryRun.actions.filter((action) => action.type === "CREATE_SHEET"),
     ).toHaveLength(expectedSheets.length);
     expect(workbook.sheets.size).toBe(0);
-  });
 
-  it("applies the schema and becomes idempotent on the second run", () => {
-    const workbook = new InMemoryWorkbook();
     const first = bootstrapWorkbook(workbook, { dryRun: false });
     expect(first.changed).toBe(true);
     expect([...workbook.sheets.keys()]).toEqual(expectedSheets);
-    for (const definition of SHEET_SCHEMAS) {
-      expect(workbook.getSheet(definition.name)?.getHeaders()).toEqual(
-        headersFor(definition),
-      );
-    }
-    const settings = workbook.getSheet("Settings");
+    const settings = workbook.getSheet("_Settings");
     expect(settings?.rows).toHaveLength(SCHEMA_METADATA_ROWS.length);
     expect(settings?.rows[0]).toMatchObject({
       settingKey: "schema.version",
       settingValue: SHEETS_SCHEMA_VERSION,
     });
 
-    const second = bootstrapWorkbook(workbook, { dryRun: false });
-    expect(second).toEqual({ dryRun: false, actions: [], changed: false });
+    expect(bootstrapWorkbook(workbook, { dryRun: false })).toEqual({
+      dryRun: false,
+      actions: [],
+      changed: false,
+    });
   });
 
-  it("appends missing headers without deleting extra headers or rows", () => {
+  it("previews and applies the exact empty legacy migration", () => {
     const workbook = new InMemoryWorkbook({
-      Users: {
-        headers: ["legacyNote", "userId"],
-        rows: [{ legacyNote: "keep me", userId: "usr_fixture" }],
+      ...legacySeed(),
+      OperatorNotes: {
+        headers: ["note"],
+        rows: [{ note: "must survive" }],
       },
     });
-    bootstrapWorkbook(workbook, { dryRun: false });
-    const users = workbook.getSheet("Users");
-    expect(users?.headers.slice(0, 2)).toEqual(["legacyNote", "userId"]);
-    expect(users?.headers).toContain("schemaVersion");
-    expect(users?.rows).toEqual([
-      { legacyNote: "keep me", userId: "usr_fixture" },
-    ]);
-  });
-
-  it("upgrades only managed schema metadata when its value is stale", () => {
-    const workbook = new InMemoryWorkbook({
-      Settings: {
-        headers: ["settingKey", "settingValue", "description", "updatedAt"],
-        rows: [
-          {
-            settingKey: "schema.version",
-            settingValue: "0.9.0",
-            description: "old",
-            updatedAt: "2026-01-01T00:00:00+08:00",
-          },
-          { settingKey: "operator.note", settingValue: "preserve" },
-        ],
-      },
-    });
-    const result = bootstrapWorkbook(workbook, { dryRun: false });
-    expect(result.actions).toContainEqual({
-      type: "UPSERT_SCHEMA_METADATA",
-      sheet: "Settings",
-      settingKey: "schema.version",
-      change: "update",
-    });
+    const preview = migrateToCompactWorkbook(workbook, { dryRun: true });
+    expect(preview.blockers).toEqual([]);
     expect(
-      workbook
-        .getSheet("Settings")
-        ?.getRowByPrimaryKey("settingKey", "operator.note"),
-    ).toEqual({ settingKey: "operator.note", settingValue: "preserve" });
+      preview.actions.filter(
+        (action) => action.type === "DELETE_EMPTY_LEGACY_SHEET",
+      ),
+    ).toHaveLength(LEGACY_FULL_SCHEMA_SHEETS.length);
+    expect(workbook.getSheet("Users")).not.toBeNull();
+    expect(workbook.getSheet("Overview")).toBeNull();
+
+    const applied = migrateToCompactWorkbook(workbook, { dryRun: false });
+    expect(applied.blockers).toEqual([]);
+    expect(workbook.getSheet("Users")).toBeNull();
+    expect(workbook.getSheet("Settings")).toBeNull();
+    expect(workbook.getSheet("OperatorNotes")?.rows).toEqual([
+      { note: "must survive" },
+    ]);
+    for (const name of expectedSheets)
+      expect(workbook.getSheet(name)).not.toBeNull();
+    expect(migrateToCompactWorkbook(workbook, { dryRun: false })).toEqual({
+      dryRun: false,
+      actions: [],
+      blockers: [],
+      changed: false,
+    });
+  });
+
+  it("performs no mutation when any legacy data row is unknown", () => {
+    const workbook = new InMemoryWorkbook({
+      ...legacySeed(),
+      Posts: {
+        headers: ["messageId", "body"],
+        rows: [{ messageId: "fixture", body: "do not delete" }],
+      },
+    });
+    const before = [...workbook.sheets.keys()];
+    const result = migrateToCompactWorkbook(workbook, { dryRun: false });
+    expect(result.actions).toEqual([]);
+    expect(result.blockers).toEqual(["Posts contains 1 data row(s)"]);
+    expect([...workbook.sheets.keys()]).toEqual(before);
+    expect(workbook.getSheet("Overview")).toBeNull();
+    expect(workbook.getSheet("Posts")?.rows).toHaveLength(1);
+  });
+
+  it("blocks migration when legacy Settings has an operator-owned key", () => {
+    const seed = legacySeed();
+    seed.Settings?.rows?.push({
+      settingKey: "operator.note",
+      settingValue: "preserve",
+    });
+    const workbook = new InMemoryWorkbook(seed);
+    const result = migrateToCompactWorkbook(workbook, { dryRun: true });
+    expect(result.actions).toEqual([]);
+    expect(result.blockers).toEqual([
+      "Settings contains operator-owned keys: operator.note",
+    ]);
   });
 });

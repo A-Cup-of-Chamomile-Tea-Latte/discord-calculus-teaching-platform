@@ -23,6 +23,14 @@ export class InMemorySheet implements SheetPort {
     return [...this.headers];
   }
 
+  getDataRowCount(): number {
+    return this.rows.length;
+  }
+
+  getColumnValues(header: string): string[] {
+    return this.rows.map((row) => String(row[header] ?? ""));
+  }
+
   appendHeaders(headers: readonly string[]): void {
     for (const header of headers) {
       if (!this.headers.includes(header)) this.headers.push(header);
@@ -79,5 +87,13 @@ export class InMemoryWorkbook implements WorkbookPort {
     const sheet = new InMemorySheet();
     this.sheets.set(name, sheet);
     return sheet;
+  }
+
+  deleteSheet(name: string): void {
+    this.sheets.delete(name);
+  }
+
+  listSheetNames(): string[] {
+    return [...this.sheets.keys()];
   }
 }

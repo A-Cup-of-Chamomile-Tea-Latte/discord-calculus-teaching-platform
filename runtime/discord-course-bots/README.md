@@ -29,6 +29,7 @@ source checkpoint 階段中斷既有服務。
 - `export-private`：只匯出已登錄的 Private Support 案件。
 - Private dump queue 使用原子 claim、唯一 token、15 分鐘 lease、5 分鐘心跳、指數退避與最多五次嘗試；只有持有目前 claim token 的 worker 可以完成或標記失敗。
 - SQLite 使用具 checksum 的 migration ledger；未知新版或已竄改 migration 會拒絕啟動。
+- `discord-db-inspect` 以 SQLite 唯讀模式列出 schema version、表名、欄位與列數；不執行 migration，也不讀出或列印 application row values。
 
 ## 刻意未接通
 
@@ -145,3 +146,15 @@ cp .env.example .env
 - `dump_bot` 匯出內容可能含訊息正文與附件 URL，請只使用虛構測試資料。
 - Queue 的 `error` 欄位只保存固定安全代碼，不保存 exception 原文、學生姓名或訊息內容。
 - 第一次測試不要給 `course_assistant` Administrator。權限錯誤本身正是目前要觀察的資料。
+
+## 自己檢查 SQLite 結構（唯讀）
+
+先對測試資料庫使用，不要直接修改 live 檔案：
+
+```bash
+.venv/bin/discord-db-inspect ./data/course_bots.sqlite3
+# 或輸出只含結構、列數與檔案雜湊的 JSON
+.venv/bin/discord-db-inspect ./data/course_bots.sqlite3 --json
+```
+
+這個指令不會顯示訊息、姓名、Discord ID 或其他 row values。檔案雜湊可用來確認檢查前後資料庫檔本身沒有被改寫。

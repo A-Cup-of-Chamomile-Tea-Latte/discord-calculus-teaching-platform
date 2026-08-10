@@ -25,23 +25,33 @@ declare const PropertiesService: {
 
 interface GasRange {
   getValues(): unknown[][];
+  setBackground(color: string): GasRange;
+  setFontWeight(weight: string): GasRange;
   setValues(values: unknown[][]): GasRange;
 }
 
 interface GasSheet {
   appendRow(values: unknown[]): GasSheet;
+  autoResizeColumns(startColumn: number, numberOfColumns: number): GasSheet;
   getLastColumn(): number;
   getLastRow(): number;
+  getName(): string;
   getRange(
     row: number,
     column: number,
     rows: number,
     columns: number,
   ): GasRange;
+  hideSheet(): GasSheet;
+  isSheetHidden(): boolean;
+  setFrozenRows(rows: number): GasSheet;
+  showSheet(): GasSheet;
 }
 
 interface GasSpreadsheet {
+  deleteSheet(sheet: GasSheet): void;
   getSheetByName(name: string): GasSheet | null;
+  getSheets(): GasSheet[];
   insertSheet(name: string): GasSheet;
 }
 

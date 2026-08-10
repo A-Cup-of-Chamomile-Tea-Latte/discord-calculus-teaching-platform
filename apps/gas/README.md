@@ -17,11 +17,9 @@ Build 使用 esbuild 產生兩個共用 domain code、但 entrypoint 分離的 b
 
 所有 tests 都是 pure local logic；build 本身不需要 Google credential、clasp login 或 network。
 
-Task 16 另公開 `bootstrapSheetsDryRun` 與 `bootstrapSheetsApply` operator functions；fixture mode會在任何 `SpreadsheetApp.openById` 前拒絕執行。Schema catalog與non-storage boundary見 `docs/SHEETS_SCHEMA.md`。
+Standalone 另公開 `bootstrapSheetsDryRun` 與 `bootstrapSheetsApply` operator functions；fixture mode會在任何 `SpreadsheetApp.openById` 前拒絕執行。Schema catalog與non-storage boundary見 `docs/SHEETS_SCHEMA.md`。
 
-Sheets schema `1.3.0` 已新增本機 `CommandQueue` 與 metadata-only `EmailQueue`
-contracts。兩者都要求 idempotency key，並支援 claim/lease 與 retry metadata；
-`EmailQueue` 不保存收件內容、驗證碼或 credential。附著 target 會在試算表開啟時加入「微積分模組管理」選單；apply 前一定先顯示 dry-run 摘要並要求確認。
+Sheets schema `2.0.0` 採 compact cloud projection：五個 human views 與五個預設隱藏的 machine views。附著 target 會在試算表開啟時加入「微積分模組管理」選單；遷移先做完整 preflight，只要任何舊受管頁籤有不明資料就零 mutation。通過後才建立精簡頁籤、刪除確認為空的 21 個舊受管頁籤並套用基本呈現格式。
 
 ## Runtime configuration
 

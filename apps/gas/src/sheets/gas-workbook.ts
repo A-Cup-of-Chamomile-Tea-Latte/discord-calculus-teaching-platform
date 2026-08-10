@@ -1,6 +1,12 @@
 import { loadRuntimeConfig } from "../config";
 import type { SheetPort, SheetRecord, WorkbookPort } from "./bootstrap";
-import { bootstrapWorkbook, type BootstrapResult } from "./bootstrap";
+import {
+  bootstrapWorkbook,
+  migrateToCompactWorkbook,
+  type BootstrapResult,
+  type CompactMigrationResult,
+} from "./bootstrap";
+import { SHEET_SCHEMAS } from "./schema";
 
 class GasSheetAdapter implements SheetPort {
   constructor(private readonly sheet: GasSheet) {}
@@ -11,6 +17,21 @@ class GasSheetAdapter implements SheetPort {
     return (this.sheet.getRange(1, 1, 1, lastColumn).getValues()[0] ?? []).map(
       (value) => String(value),
     );
+  }
+
+  getDataRowCount(): number {
+    return Math.max(0, this.sheet.getLastRow() - 1);
+  }
+
+  getColumnValues(header: string): string[] {
+    const headers = this.getHeaders();
+    const columnIndex = headers.indexOf(header);
+    const rowCount = this.getDataRowCount();
+    if (columnIndex < 0 || rowCount === 0) return [];
+    return this.sheet
+      .getRange(2, columnIndex + 1, rowCount, 1)
+      .getValues()
+      .map((row) => String(row[0] ?? ""));
   }
 
   appendHeaders(headers: readonly string[]): void {
@@ -79,6 +100,37 @@ class GasWorkbookAdapter implements WorkbookPort {
   createSheet(name: string): SheetPort {
     return new GasSheetAdapter(this.spreadsheet.insertSheet(name));
   }
+
+  deleteSheet(name: string): void {
+    const sheet = this.spreadsheet.getSheetByName(name);
+    if (sheet) this.spreadsheet.deleteSheet(sheet);
+  }
+
+  listSheetNames(): string[] {
+    return this.spreadsheet.getSheets().map((sheet) => sheet.getName());
+  }
+}
+
+function configureCompactPresentation(spreadsheet: GasSpreadsheet): void {
+  for (const definition of SHEET_SCHEMAS) {
+    const sheet = spreadsheet.getSheetByName(definition.name);
+    if (!sheet) continue;
+    const columnCount = sheet.getLastColumn();
+    if (columnCount > 0) {
+      sheet
+        .getRange(1, 1, 1, columnCount)
+        .setFontWeight("bold")
+        .setBackground("#f1f3f4");
+      sheet.setFrozenRows(1);
+      sheet.autoResizeColumns(1, columnCount);
+    }
+    if (definition.audience === "MACHINE" && !sheet.isSheetHidden()) {
+      sheet.hideSheet();
+    }
+    if (definition.audience === "HUMAN" && sheet.isSheetHidden()) {
+      sheet.showSheet();
+    }
+  }
 }
 
 export function bootstrapRuntimeSpreadsheet(dryRun = true): BootstrapResult {
@@ -95,6 +147,18 @@ export function bootstrapRuntimeSpreadsheet(dryRun = true): BootstrapResult {
 
 export function bootstrapActiveSpreadsheet(dryRun = true): BootstrapResult {
   return bootstrapSpreadsheet(SpreadsheetApp.getActiveSpreadsheet(), dryRun);
+}
+
+export function migrateActiveSpreadsheet(
+  dryRun = true,
+): CompactMigrationResult {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const result = migrateToCompactWorkbook(new GasWorkbookAdapter(spreadsheet), {
+    dryRun,
+  });
+  if (!dryRun && result.blockers.length === 0)
+    configureCompactPresentation(spreadsheet);
+  return result;
 }
 
 function bootstrapSpreadsheet(

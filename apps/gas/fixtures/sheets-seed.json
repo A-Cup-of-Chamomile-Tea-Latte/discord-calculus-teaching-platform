@@ -1,87 +1,77 @@
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "2.0.0",
   "fixtureOnly": true,
   "sheets": {
-    "Users": [
+    "Overview": [
       {
-        "schemaVersion": "1.0",
-        "userId": "usr_sheet_fixture",
-        "displayLabel": "Sheet Fixture Student",
-        "defaultAuthorDisplayMode": "COURSE_ALIAS",
-        "analysisPermissionDefault": "INCLUDED",
-        "verifiedEmailIdsJson": "[\"email_sheet_fixture\"]",
-        "discordAccountIdsJson": "[]",
-        "membershipIdsJson": "[\"membership_sheet_fixture\"]",
-        "createdAt": "2026-07-19T00:00:00+08:00",
-        "updatedAt": "2026-07-19T00:00:00+08:00"
+        "metricKey": "open_cases",
+        "metricValue": "1",
+        "status": "OK",
+        "description": "Synthetic current open-case count",
+        "asOf": "2026-08-10T22:30:00+08:00",
+        "sourceReceipt": "fixture:overview:1"
       }
     ],
-    "Emails": [],
-    "DiscordAccounts": [],
-    "CourseMemberships": [],
-    "Cases": [
+    "CaseBoard": [
       {
-        "schemaVersion": "1.0",
-        "caseId": "case_sheet_fixture",
-        "caseNumber": "C99-R8N6WX-0719-0005",
-        "caseType": "GENERAL",
+        "schemaVersion": "2.0.0",
+        "caseNumber": "FIXTURE-0001",
+        "moduleCode": "CALCULUS",
         "status": "OPEN",
-        "visibility": "CLASS",
-        "authorDisplayMode": "COURSE_ALIAS",
-        "analysisPermission": "INCLUDED",
-        "createdByUserId": "usr_sheet_fixture",
-        "classCode": "01",
-        "title": "Fictional Sheets seed case",
-        "source": "IMPORT",
-        "discordMappingJson": "null",
-        "createdAt": "2026-07-19T00:05:00+08:00",
-        "updatedAt": "2026-07-19T00:05:00+08:00"
+        "assignedAlias": "TA-A",
+        "actionNeeded": "REVIEW",
+        "lastStudentAt": "2026-08-10T21:00:00+08:00",
+        "lastStaffAt": null,
+        "nextDeadlineAt": "2026-08-12T21:00:00+08:00",
+        "analysisEligible": true,
+        "updatedAt": "2026-08-10T22:30:00+08:00",
+        "sourceVersion": 1,
+        "sourceChecksum": "sha256:fixture-case"
       }
     ],
-    "Posts": [],
-    "Consents": [],
-    "ActiveCases": [],
-    "CaseProjection": [],
-    "SyncState": [],
-    "ChangedCaseQueue": [],
-    "CommandQueue": [],
-    "EmailQueue": [],
-    "ArchiveIndex": [],
-    "ExportManifest": [],
-    "SanitizedPackage": [],
-    "WeeklyMaintenanceRun": [],
-    "ActivationCodes": [
+    "Members": [
       {
-        "schemaVersion": "1.0",
-        "activationCodeId": "activation_sheet_fixture",
-        "verifierHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "status": "UNUSED",
-        "createdByUserId": "usr_staff_example",
-        "bindingKind": "NONE",
-        "bindingValueHash": null,
-        "permissionProfileJson": "{\"role\":\"STUDENT\",\"courseId\":\"calculus_1151\",\"classCode\":\"01\",\"permissions\":[\"JOIN_COURSE\",\"ACCESS_DISCORD\",\"ASK_QUESTIONS\"]}",
-        "redeemedByUserId": null,
-        "createdAt": "2026-07-19T00:10:00+08:00",
-        "expiresAt": "2026-07-19T00:25:00+08:00",
-        "redeemedAt": null,
-        "revokedAt": null,
-        "redemptionRequestHash": null
+        "schemaVersion": "2.0.0",
+        "memberRef": "member_fixture_01",
+        "courseAlias": "Student-A",
+        "role": "STUDENT",
+        "membershipStatus": "ACTIVE",
+        "verificationStatus": "VERIFIED",
+        "analysisDefault": "INCLUDED_WITH_CONSENT",
+        "joinedAt": "2026-08-01T09:00:00+08:00",
+        "updatedAt": "2026-08-10T22:30:00+08:00",
+        "sourceVersion": 1
       }
     ],
-    "Exports": [],
-    "AuditLog": [],
-    "Settings": [
+    "Operations": [
+      {
+        "schemaVersion": "2.0.0",
+        "operationKey": "course-assistant:gateway",
+        "service": "course-assistant",
+        "component": "discord-gateway",
+        "status": "HEALTHY",
+        "mode": "FIXTURE",
+        "version": "fixture",
+        "lastHeartbeatAt": "2026-08-10T22:29:00+08:00",
+        "queueDepth": 0,
+        "lastSuccessAt": "2026-08-10T22:29:00+08:00",
+        "safeErrorCode": null,
+        "nextAction": null,
+        "checkedAt": "2026-08-10T22:30:00+08:00"
+      }
+    ],
+    "History": [],
+    "_CommandInbox": [],
+    "_EmailOutbox": [],
+    "_SyncState": [],
+    "_Artifacts": [],
+    "_Settings": [
       {
         "settingKey": "schema.version",
-        "settingValue": "1.2.0",
-        "description": "Current non-destructive Sheets schema version",
-        "updatedAt": "2026-07-23T00:00:00+08:00"
-      },
-      {
-        "settingKey": "schema.migration.last",
-        "settingValue": "0003-working-archive-fixture-model",
-        "description": "Last idempotent migration applied by bootstrap",
-        "updatedAt": "2026-07-23T00:00:00+08:00"
+        "settingValue": "2.0.0",
+        "valueClass": "PUBLIC",
+        "description": "Current compact cloud projection schema version",
+        "updatedAt": "2026-08-10T22:30:00+08:00"
       }
     ]
   }

@@ -1,60 +1,70 @@
-# Prototype Sheets schema v1.3.0
+# Compact cloud projection schema v2.0.0
 
-此 schema 是低頻行政／案件 metadata prototype，不是 Discord message database。Bootstrap預設 `dryRun=true`，只回傳 plan；apply mode只建立缺少的 sheets、把缺少的 headers附加到右側、upsert兩筆受管理的 schema metadata。它不刪除 sheet、row、column、extra header或 operator-owned setting。
+`Server Database` 不是完整資料庫，也不是 Discord message archive。Local SQLite 是 operational authority；Google Sheets 只承載人需要查看／操作的充分統計量，以及少量跨系統協作 metadata。
 
-## Sheet catalog
+## Carrier decision
 
-欄位型別：`string`、`integer`、`boolean`、`timestamp`、`nullable-string`、`nullable-timestamp`、`json`。`*`表示 sensitive；JSON欄位是 contract array/object在 Sheet cell中的序列化表示。
+| 資料 | 正式載體 | 是否出現在 Sheet | 理由 |
+| --- | --- | --- | --- |
+| 案件目前狀態、待辦、期限 | Local SQLite | `CaseBoard` 摘要 | TA 需要可視化；不需要全文 |
+| 成員目前角色／驗證狀態 | Local SQLite | `Members` 去識別投影 | 方便行政調整；不含姓名、學號、Email、Discord ID |
+| Bot／queue 健康狀態 | Local runtime receipts | `Operations` 摘要 | 適合遠端巡檢；不含 PID、log 或 credential |
+| 重要狀態轉換 | Local SQLite | `History` 精簡事件 | 只保留有維護意義的 lifecycle event |
+| 原始訊息、Private Support、附件 | 受管本機檔案／archive | 不出現 | 內容敏感且不適合表格 |
+| 高頻 log／heartbeat 明細 | rotating local log | 只投影最新健康狀態 | Sheet 不是 log system |
+| Secret、OAuth／Discord token | 本機 secret carrier | 絕不出現 | `_Settings` 只允許 secret reference，不允許 secret value |
+| Schema／程式規則 | Git 文字檔與 migration | `_Settings` 只放版本 receipt | 文字檔可 review、diff、test；Sheet 不是 source code |
+| 匯出內容 | 受管檔案 | `_Artifacts` 只有 index/checksum | 大檔與敏感內容留在有 retention 控制的載體 |
 
-| Sheet             | Columns (in bootstrap order)                                                                                                                                                                                                                                                                                                                                                                                                                                        | Primary key        | Indexes / lookups                                                                                   | Sensitive fields                                                               | Retention                                         | Source                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------- | ------------------------------- |
-| Users             | `schemaVersion:string`, `userId:string*`, `displayLabel:string*`, `defaultAuthorDisplayMode:string`, `analysisPermissionDefault:string`, `verifiedEmailIdsJson:json*`, `discordAccountIdsJson:json*`, `membershipIdsJson:json*`, `createdAt:timestamp`, `updatedAt:timestamp`                                                                                                                                                                                       | `userId`           | `displayLabel`                                                                                      | IDs、label、relationship arrays                                                | Account lifetime + approved deletion/audit window | `user.schema.json`              |
-| Emails            | `schemaVersion:string`, `verifiedEmailId:string*`, `userId:string*`, `email:string*`, `kind:string`, `verifiedAt:timestamp`, `isPrimary:boolean`, `createdAt:timestamp`                                                                                                                                                                                                                                                                                             | `verifiedEmailId`  | unique `email`; `userId`; `userId+isPrimary`                                                        | email與identity links                                                          | Membership/contact need + audit window            | `verified-email.schema.json`    |
-| DiscordAccounts   | `schemaVersion:string`, `discordAccountId:string*`, `userId:string*`, `discordUserId:string*`, `globalUsername:string*`, `globalDisplayName:nullable-string*`, `linkedAt:timestamp`, `updatedAt:timestamp`                                                                                                                                                                                                                                                          | `discordAccountId` | unique `discordUserId`; `userId`                                                                    | all account identifiers/names                                                  | Unlink後移除，保留最小audit                       | `discord-account.schema.json`   |
-| CourseMemberships | `schemaVersion:string`, `membershipId:string*`, `userId:string*`, `courseId:string`, `classCode:string`, `joiningOrder:integer`, `courseAlias:string*`, `verificationMethod:string*`, `status:string`, `joinedAt:timestamp`, `updatedAt:timestamp`                                                                                                                                                                                                                  | `membershipId`     | unique `userId+courseId`; unique `courseId+courseAlias`; `courseId+classCode+status`                | identity、alias、verification method                                           | Course term + approved support/audit window       | `course-membership.schema.json` |
-| Cases             | `schemaVersion:string`, `caseId:string*`, `caseNumber:nullable-string`, `caseType:string`, `status:string`, `visibility:string`, `authorDisplayMode:string`, `analysisPermission:string`, `createdByUserId:string*`, `classCode:nullable-string`, `title:string*`, `source:string`, `discordMappingJson:json*`, `createdAt:timestamp`, `updatedAt:timestamp`                                                                                                        | `caseId`           | unique non-null `caseNumber`; `status+updatedAt`; `createdByUserId`; `caseType+visibility`          | internal IDs、title、Discord mapping                                           | Case lifecycle + audit；Private Support更嚴格     | `case.schema.json`              |
-| Posts             | `schemaVersion:string`, `messageId:string*`, `caseId:string*`, `authorUserId:string*`, `authorRole:string`, `authorDisplayMode:string`, `body:string*`, `source:string`, `analysisPermission:string`, `parentMessageId:nullable-string`, `discordMessageId:nullable-string*`, `editedAt:nullable-timestamp`, `attachmentsJson:json*`, `createdAt:timestamp`                                                                                                         | `messageId`        | `caseId+createdAt`; unique non-null `discordMessageId`; `authorUserId+createdAt`                    | body、author/internal/Discord IDs、attachment metadata                         | 只存curated case posts；policy待Task 29           | `case-message.schema.json`      |
-| Consents          | `schemaVersion:string`, `consentId:string*`, `userId:string*`, `scope:string`, `accountDefault:string`, `perPostOverridesJson:json*`, `updatedAt:timestamp`                                                                                                                                                                                                                                                                                                         | `consentId`        | unique `userId+scope`; `updatedAt`                                                                  | user/decision links                                                            | 保留current decision與必要change audit            | `consent.schema.json`           |
-| CommandQueue      | `schemaVersion:string`, `commandId:string*`, `commandType:string`, `payloadJson:json*`, `targetUserId:nullable-string*`, `targetCaseId:nullable-string*`, `status:string`, `idempotencyKey:string*`, `claimedBy:nullable-string*`, `leaseExpiresAt:nullable-timestamp`, `attemptCount:integer`, `retryAt:nullable-timestamp`, `resultJson:json*`, `errorCode:nullable-string`, `createdAt:timestamp`, `updatedAt:timestamp`                                         | `commandId`        | unique `idempotencyKey`; `status+retryAt`; `claimedBy+leaseExpiresAt`                               | command payload、target、worker、result                                        | Working command + minimal audit window            | `command-queue.schema.json`     |
-| EmailQueue        | `schemaVersion:string`, `emailJobId:string*`, `emailType:string`, `recipientEmailId:string*`, `templateKey:string`, `contentReference:string*`, `status:string`, `idempotencyKey:string*`, `claimedBy:nullable-string*`, `leaseExpiresAt:nullable-timestamp`, `attemptCount:integer`, `retryAt:nullable-timestamp`, `providerAcceptedAt:nullable-timestamp`, `providerReceiptJson:json*`, `errorCode:nullable-string`, `createdAt:timestamp`, `updatedAt:timestamp` | `emailJobId`       | unique `idempotencyKey`; `status+retryAt`; `claimedBy+leaseExpiresAt`; `recipientEmailId+createdAt` | recipient/content references、worker、provider receipt                         | Working delivery metadata + minimal audit window  | `email-queue.schema.json`       |
-| ActivationCodes   | `schemaVersion:string`, `activationCodeId:string*`, `verifierHash:string*`, `status:string`, `createdByUserId:string*`, `bindingKind:string*`, `bindingValueHash:nullable-string*`, `permissionProfileJson:json*`, `redeemedByUserId:nullable-string*`, `createdAt:timestamp`, `expiresAt:timestamp`, `redeemedAt:nullable-timestamp`, `revokedAt:nullable-timestamp`, `redemptionRequestHash:nullable-string*`                                                     | `activationCodeId` | unique `verifierHash`; `status+expiresAt`; `redeemedByUserId`                                       | verifier、binding/request fingerprints、permission profile與actor/redeemer IDs | 短期verifier metadata + minimal audit             | `activation-code.schema.json`   |
-| Exports           | `schemaVersion:string`, `exportId:string*`, `caseId:string*`, `caseType:string`, `initiatedByUserId:string*`, `mode:string`, `analysisPermission:string`, `messageCount:integer`, `cursor:nullable-string*`, `filesJson:json*`, `createdAt:timestamp`, `completedAt:timestamp`                                                                                                                                                                                      | `exportId`         | `caseId+createdAt`; `initiatedByUserId+createdAt`                                                   | IDs、cursor、local file manifest                                               | Sheet只存manifest/audit；files另定刪除policy      | `export-manifest.schema.json`   |
-| AuditLog          | `schemaVersion:string`, `eventId:string*`, `eventType:string`, `actorUserId:nullable-string*`, `subjectType:string`, `subjectId:string*`, `source:string`, `metadataJson:json*`, `occurredAt:timestamp`                                                                                                                                                                                                                                                             | `eventId`          | `subjectType+subjectId+occurredAt`; `actorUserId+occurredAt`; `eventType+occurredAt`                | actor/subject/metadata                                                         | Security/audit window；禁止高頻event logging      | `audit-event.schema.json`       |
-| Settings          | `settingKey:string`, `settingValue:string*`, `description:string`, `updatedAt:timestamp`                                                                                                                                                                                                                                                                                                                                                                            | `settingKey`       | primary lookup                                                                                      | value永不存secret                                                              | current schema metadata + migration history       | GAS local operational schema    |
+## Human views（預設顯示）
 
-## Schema metadata and upgrades
+| Sheet | 用途 | 明確不保存 |
+| --- | --- | --- |
+| `Overview` | 當前 KPI、警示與資料時間 | 歷史明細、原始內容 |
+| `CaseBoard` | 目前案件狀態、TA 待辦、期限與分析資格 | message body、附件、Private Support |
+| `Members` | 不透明 member ref、course alias、角色、成員／驗證狀態、分析預設 | 姓名、學號、Email、Discord ID |
+| `Operations` | 兩隻 bot、GAS、projection／queue 的狀態與最新 heartbeat | PID、完整 exception、log body、token |
+| `History` | 有意義的 open／close／reopen／verification 等狀態轉換 | 高頻事件與訊息內容 |
 
-- Current version：`1.3.0`。
-- Managed Settings：`schema.version=1.3.0`、`schema.migration.last=0004-command-email-queues`。
-- Migration `0004`只新增 `CommandQueue`、`EmailQueue` sheet definitions 與對應的本機 contracts；不連線或改寫 production Spreadsheet。
-- Migration `0003`只新增 Working／Archive fixture sheet definitions，不寫入 production Spreadsheet。
-- Migration `0002`只在ActivationCodes右側附加binding/profile/idempotency headers；不改寫既有rows。Task 18 domain adapter負責將新issued records寫入完整欄位。
-- Bootstrap若遇到舊metadata，只更新這兩個managed keys；其他 Settings rows不變。
-- 遇到extra headers或legacy rows會保留；缺少headers只附加到最右側。Column rename/type conversion需要新的explicit migration，不能在bootstrap中猜測或刪除。
+## Machine views（預設隱藏）
 
-## Dry run and fixture seed
+| Sheet | 用途 | Boundary |
+| --- | --- | --- |
+| `_CommandInbox` | 帶 idempotency、claim／lease／retry 的命令 metadata | 只存 `payloadRef`，不存 payload 或 credential |
+| `_EmailOutbox` | Email 工作 metadata；`providerAcceptedAt` 對應產品語意 `SENT` | 不存地址、subject、body、驗證碼 |
+| `_SyncState` | source version、checksum、cursor 與人工確認 receipt | 不作 change history |
+| `_Artifacts` | 匯出／sanitized package 的 index、checksum、retention 狀態 | 不存 artifact payload |
+| `_Settings` | schema version、data authority 與非 secret 設定 | 不存 secret value |
 
-`bootstrapWorkbook(workbook, { dryRun: true })`只回傳 `CREATE_SHEET`、`APPEND_HEADERS`、`UPSERT_SCHEMA_METADATA` plan，不呼叫mutation methods。`apps/gas/fixtures/sheets-seed.json`提供少量虛構Users/Cases/ActivationCodes/Settings rows與其他sheet空集合；activation fixture只有`sha256:` verifier hash。
+隱藏頁籤只是降低操作雜訊，不是存取控制。試算表仍必須限制共用範圍；若未來 Machine views 與 TA views 的讀取者不同，應依權限邊界拆成 `TA Operations Console` 與 `System Ledger` 兩份檔案，而不是因頁籤數量拆檔。
 
-Cloud adapter `bootstrapRuntimeSpreadsheet()` 在fixture mode會拒絕開啟Sheet。未來經授權、設定non-fixture Script Properties後，也應先呼叫`bootstrapRuntimeSpreadsheet(true)`審查plan，再明確呼叫`false` apply。
+## Safe migration from v1.3.0
 
-v1.3.0 新增 `CommandQueue`、`EmailQueue`。兩者都要求 idempotency key，並在
-`CLAIMED` 時要求 worker 與 lease expiry。`EmailQueue` 只保存 delivery metadata 與不透明
-content reference，不保存收件內容、驗證碼或 credential；`PROVIDER_ACCEPTED` 也不代表收件匣已投遞。
+選單「微積分模組管理」提供：
 
-v1.2.0 新增 `ActiveCases`、`CaseProjection`、`SyncState`、`ChangedCaseQueue`、
-`ArchiveIndex`、`ExportManifest`、`SanitizedPackage`、`WeeklyMaintenanceRun`。完整欄位以
-`src/sheets/schema.ts` 為準，working/archive 邊界與 fixture 行為見
-`WORKING_ARCHIVE_FIXTURE_SPIKE.md`。
+1. `檢查精簡資料庫遷移（不修改）`
+2. `套用精簡資料庫遷移…`
 
-## Explicitly not stored synchronously
+遷移採 fail-closed：
 
-- 每一則 Discord message或完整server history；
-- large attachment bytes（Sheets最多只放allowlisted metadata）；
-- bot session、Gateway state、Discord bot token；
-- OAuth token、email credential、Apps Script credential；
-- high-frequency interaction/event logs；
-- plaintext activation code／redeemable nonce；
-- local export file contents。
+- 只辨識 v1.3.0 的 21 個確切舊受管名稱；
+- 除舊 `Settings` 的兩個 schema keys 外，只要任一舊頁籤有資料列，就回報 blocker 且零 mutation；
+- 舊 `Settings` 只要有 operator-owned key，也整批停止；
+- 通過 preflight 後才建立 10 個新頁、寫入 v2 metadata，再刪除空的舊受管頁；
+- 名稱不在 allowlist 的頁籤永遠保留；
+- 第二次執行應為 no-op。
 
-以上資料若日後需要，必須使用適合的受保護runtime/storage、明確retention與separate security review；不得把Sheets當作即時訊息資料庫。
+Apply 完成後，五個 Machine views 會隱藏，所有新頁凍結 header row、套用淺灰粗體 header 並自動調整欄寬。
+
+## Authenticity boundary
+
+任何 cloud → local fetch 都不能直接覆寫 SQLite。至少要驗證：
+
+1. 來源檔與預期 Spreadsheet 相符；
+2. schema version 可支援；
+3. source version 單調遞增；
+4. checksum 與內容相符；
+5. receipt 時間合理；
+6. 人工確認本次 import scope。
+
+未來若要自動化，以上 gate 必須先有 executable tests；Sheet 不能被當成比 local SQLite 更新就自動勝出的 source of truth。

@@ -23,6 +23,7 @@ dev = [
 course-assistant = "discord_course_bots.course_assistant.bot:main"
 dump-bot = "discord_course_bots.dump_bot.cli:main"
 discord-bot-invites = "discord_course_bots.invites:main"
+discord-db-inspect = "discord_course_bots.inspect_db:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

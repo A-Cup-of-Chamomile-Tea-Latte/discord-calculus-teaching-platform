@@ -23,8 +23,8 @@ const definitions = {
     manifest: "appsscript.bound.json",
     wrappers: [
       { name: "onOpen", parameters: "", arguments: "" },
-      { name: "boundBootstrapSheetsDryRun", parameters: "", arguments: "" },
-      { name: "boundBootstrapSheetsApply", parameters: "", arguments: "" },
+      { name: "boundCompactDatabaseDryRun", parameters: "", arguments: "" },
+      { name: "boundCompactDatabaseApply", parameters: "", arguments: "" },
     ],
   },
 };
