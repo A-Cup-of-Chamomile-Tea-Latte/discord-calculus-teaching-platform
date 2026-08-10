@@ -1,6 +1,6 @@
 # Implementation status
 
-Last repository/data-layer verification: 2026-08-10 (Asia/Taipei)
+Last repository/data-layer verification: 2026-08-10 22:49 (Asia/Taipei)
 
 Last Discord live verification: 2026-07-30 20:18 (Asia/Taipei)
 
@@ -76,8 +76,17 @@ Detailed result:
   the live SQLite file.
 - The tracked monorepo contains a broader fixture-first contract and GAS prototype. It must not
   be described as the live bot database.
-- GAS Sheets schema `1.3.0` includes local-only `CommandQueue` and metadata-only `EmailQueue`
-  contracts with idempotency and claim/lease fields. No Spreadsheet, Email or Drive mutation was
-  performed.
+- GAS Sheets schema `2.0.0` replaces the overbuilt 21-tab prototype with five human views
+  (`Overview`, `CaseBoard`, `Members`, `Operations`, `History`) and five hidden machine views.
+  It stores sufficient statistics and opaque references only; raw messages, names, student IDs,
+  email addresses, attachments, logs and credentials remain outside Sheets.
+- The compact migration performs a full preflight. Any data row in an old managed tab, or any
+  operator-owned legacy `Settings` key, blocks all mutations. Only exact empty legacy tabs may be
+  deleted; unknown tabs are preserved. Local tests cover apply, blocker, preservation and no-op.
+- Both GAS projects are at immutable version 3 with exact push/pull-back fingerprints. The
+  standalone owner-only fixture deployment is on v3. The bound Sheet operator apply is awaiting
+  the explicit in-Sheet menu confirmation; no Email or real-data sync has been enabled.
+- Canonical runtime now provides `discord-db-inspect`, which opens SQLite read-only and reports
+  schema version, tables, columns and row counts without querying or printing row values.
 - The evidence audit and implementation handoff is recorded in
   `project-exchange/15_GAS_SQLITE_DRIVE_REPOSITORY_EVIDENCE_AUDIT_2026-08-10.md`.

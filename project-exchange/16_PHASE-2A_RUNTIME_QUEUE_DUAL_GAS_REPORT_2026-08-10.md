@@ -1,47 +1,95 @@
-# Phase 2A — Canonical Runtime、Reliable Queue 與 Dual GAS 完工報告
+# Phase 2A — Runtime、SQLite、Reliable Queue 與 Compact Dual GAS 交接報告
 
 日期：2026-08-10（Asia/Taipei）
 
-完成時間：22:21
+最後更新：22:49
 
-用途：GPT Pro 審閱／下一階段規劃
+用途：GPT Pro 審閱／下一工作包裁決
 
 Canonical root：`/Users/chamomiletea/Documents/Curricular/115-1/Calculus TA/Discord_微積分模組教學優化專案`
 
-> 本報告不含 Discord token、OAuth token、Script ID、Spreadsheet ID、deployment ID、
-> Discord ID、學生姓名、Email 內容、Private Support 內容或 raw messages。
+> 本報告不含 Discord／OAuth token、Script／Spreadsheet／deployment ID、學生姓名、學號、Email、Discord ID、Private Support、附件或 raw messages。
 
-## 十分鐘結論
+## Executive conclusion
 
-本輪已完成預定 Phase 2A 主線：先把髒 worktree 拆成可稽核 checkpoints，再將 live-tested
-Discord runtime 納入 canonical tracked package；於 disposable SQLite 建立 checksum migration
-ledger 與可靠 Private Support dump queue；最後把 GAS 拆成 standalone／bound 兩個共用 domain
-的 target，推送到使用者指定的兩個既有空白 Apps Script project，逐 byte pull-back 驗證，並各自
-建立 immutable versions。初版使用 `var onOpen = …`，Web App handler 可運作但 Apps Script
-編輯器未可靠辨識 simple trigger；已改為明確頂層 `function onOpen()`／operator wrappers，重新
-完整驗證、push、pull-back，建立 version 2 並將既有 owner-only deployment 原地升到 v2。
+Phase 2A 的可靠性主線可接受：canonical tracked Discord runtime、checksum-verified SQLite migration ledger、具 atomic claim／lease／heartbeat／retry 的 Private Support dump queue、standalone／bound 雙 GAS target 均已完成且集中驗證。
 
-Standalone 另建立一個只有 owner 可存取的 fixture-only development Web App deployment；使用者
-已在 Ding Ding profile 實測 `/health` 成功，確認 `status=200`、`fixtureMode=true`、
-`discordGatewayHost=false`，且沒有擴大到公開或網域存取。Bound 不建立多餘 deployment：它在 `Server Database` 內透過
-`onOpen` 加入「微積分模組管理」選單，第一次 dry-run／apply 保留給 Ding Ding Chrome profile
-完成 Google 授權與人工確認。
+本次追加修正了 Google Sheet 過度正規化的 21-tab prototype。新版 schema 2.0.0 使用「local SQLite authority + compact cloud projection」：五個人類視圖、五個預設隱藏的 machine views。它不把 SQLite 複製到 Sheet，只投影 TA 真正需要的充分統計量、bot 健康狀態與低頻協作 metadata。
 
-兩隻既有 Discord bot 在 22:13 仍由原 LaunchAgent 執行，已連續運作約 11 天；本輪沒有 restart、
-cutover、live SQLite migration 或 live export。換句話說：新 runtime/source/cloud infrastructure
-已準備好，但不把 Discord live cutover 與 GAS deployment 綁成一次高風險切換。
+兩個 GAS project 已推送相同 domain build、pull-back fingerprint exact，並各建立 immutable version 3；standalone 既有 owner-only fixture deployment 已升至 v3。Bound compact migration code 已到雲端，最後一個 in-Sheet dry-run／Yes confirmation 由使用者在 Chrome `Ding Ding` profile 執行中；截至本次更新，未宣稱 Sheet 遷移已完成。
 
-## 完成範圍
+## Product architecture
 
-### 1. Worktree 與 canonical source
+| Layer | Authority / responsibility | Explicit exclusion |
+| --- | --- | --- |
+| Local SQLite | Bot operational state、transaction、queue、主要 authority | 不作遠端 dashboard |
+| Google Sheets | 人可讀的 current projection、低頻 commands/outbox/sync receipts | raw message、完整 identity、secret、附件、完整 log |
+| Git text | Schema、migration、policy、code、可 review 歷史 | live records、credential |
+| Governed files | Raw/sanitized exports、attachments、manifest/checksum | 即時 operational state |
+| Local rotating logs | 近期診斷 evidence | 永久 audit 或 TA view |
 
-- 將先前大量未提交成果拆成主題明確的 local commits。
-- 建立 `runtime/discord-course-bots/`，納管兩隻已實機測試 bot 的 source、tests、文件與 package metadata。
-- 明確排除 live `.env`、token、SQLite、exports、logs、PID、Discord resource mapping 與真實資料。
-- 更新產品決策：Local SQLite 為 operational authority；Sheets 為行政 projection、分享與暫時復原層。
-- 沒有 Git remote、沒有 GitHub push，也尚不需要建立 GitHub repository。
+Cloud → local 永不以「雲端比較新」為理由靜默覆寫。未來 import gate 必須檢查 intended source、schema version、單調 source version、checksum、timestamp，並要求 operator confirmation。
 
-### 2. Versioned SQLite migration ledger
+## Compact Sheets schema 2.0.0
+
+### 預設可見：給人看
+
+| View | Sufficient statistics |
+| --- | --- |
+| `Overview` | 當前 KPI、警示、資料時間 |
+| `CaseBoard` | 案件狀態、TA 待辦、期限、分析資格；無正文 |
+| `Members` | opaque member ref、course alias、role、membership／verification status、analysis default；無姓名／學號／Email／Discord ID |
+| `Operations` | 兩隻 bot、GAS、projection／queue 的 status、heartbeat、depth、safe error code；無 PID／log body |
+| `History` | 重要 open／close／reopen／verification 等 lifecycle transitions；無高頻 event |
+
+### 預設隱藏：給機器協作
+
+| View | Boundary |
+| --- | --- |
+| `_CommandInbox` | idempotency、claim／lease／retry；只存 `payloadRef` |
+| `_EmailOutbox` | metadata-only；`providerAcceptedAt` 對應產品 `SENT`，不代表 inbox delivery |
+| `_SyncState` | source version、checksum、cursor、operator confirmation receipt |
+| `_Artifacts` | index/checksum/retention；payload 留在 governed file carrier |
+| `_Settings` | schema/data-authority receipts 與 non-secret config；禁止 secret value |
+
+Hidden 是 UX，不是 security。若未來 TA 與 system operator 的讀者範圍不同，應依 access boundary 拆成兩份 Spreadsheet；目前不因頁籤數量任意拆檔。
+
+## Safe v1.3 → v2.0 migration
+
+Bound menu 已改為：
+
+1. `檢查精簡資料庫遷移（不修改）`
+2. `套用精簡資料庫遷移…`
+
+Executable safety properties：
+
+- allowlist 只包含 21 個精確舊受管名稱；
+- 任一舊非-Settings tab 有 data row → actions 為空、零 mutation；
+- 舊 `Settings` 出現 operator-owned key → actions 為空、零 mutation；
+- 通過 preflight 才建立 10 個新頁、寫 v2 receipts、刪除空舊頁；
+- unknown tab 永遠保留；
+- second apply idempotent no-op；
+- apply 後 machine views 隱藏，header 凍結、淺灰粗體、自動欄寬。
+
+Local tests 覆蓋 safe apply、unknown preservation、legacy-data blocker、operator-setting blocker 與 no-op。雲端首次 apply 仍以 in-Sheet 結果為準。
+
+## SQLite feasibility and transparency
+
+SQLite 適合目前單機、兩隻 bot 共用的 operational state：不需另架 database server，支援 unique constraints、transactions、indexes 與可靠 migration。它不是 AI；所有 schema、SQL、migration 與 tests 都在 repository 可讀。
+
+Canonical runtime 新增 `discord-db-inspect`：
+
+- 以 SQLite read-only mode 開啟；
+- 只報 schema version、table name、columns、row counts 與 database file SHA-256；
+- 不執行 migration；
+- 不 query／print application row values；
+- 測試確認 inspector 前後主 database file hash 相同，且 synthetic private value 不出現在輸出。
+
+教學路線已放在 `docs/guides/SQLITE_AND_DATA_CARRIERS_LEARNING_PATH.md`，分成 7 堂 15–30 分鐘的小課：資料地圖、唯讀 inspect、安全 SELECT、transaction/migration、queue、carrier decision、projection authenticity、backup/restore。每堂只用 synthetic/disposable DB，避免再次用大量文字製造理解債。
+
+## Existing Phase 2A evidence retained
+
+### SQLite migrations
 
 | Version | Purpose |
 | --- | --- |
@@ -49,184 +97,90 @@ cutover、live SQLite migration 或 live export。換句話說：新 runtime/sou
 | 2 | legacy `base_title` 與 Private Support case number compatibility |
 | 3 | Private dump claim／lease／attempt／retry／failure／updated metadata |
 
-每個 migration 記錄 version、name、SHA-256 checksum 與 applied time，並同步
-`PRAGMA user_version`。以下情況全部 fail closed：
+Migration ledger 記錄 version、name、SHA-256 checksum、applied time 並同步 `PRAGMA user_version`；未知新版、name/checksum 不符或 transaction failure 全部 fail closed。Live SQLite 尚未由 canonical v3 runtime migration，live LaunchAgents 也尚未 cut over。
 
-- migration name 或 checksum 被竄改；
-- DB 記錄比目前 runtime 更新的未知 migration；
-- migration transaction 中途失敗。
+### Reliable Private Support queue
 
-重跑 idempotent，舊資料保留測試已通過；live DB 尚未被 version 3 runtime 開啟。
+`PENDING → BEGIN IMMEDIATE claim → CLAIMED + unique token/worker/lease → heartbeat → export → manifest/checksum verify → VERIFIED`。
 
-### 3. Reliable Private Support dump queue
+Temporary failure bounded backoff；permanent/exhausted failure terminal；expired lease 可 reclaim；stale token 不得完成新 claim；DB 只保存 safe error code，不保存 exception text 或內容。
 
-```text
-PENDING
-  → BEGIN IMMEDIATE atomic claim
-  → CLAIMED + unique token + worker ID + 15-minute lease
-  → 5-minute heartbeat renews lease
-  → selected closed channel export
-  → manifest/checksum verification
-  → current-token-only VERIFIED
-```
+### Dual GAS responsibility
 
-- 暫時性錯誤：清除 claim，使用 bounded exponential backoff 回到 `PENDING`。
-- 永久錯誤：進 `FAILED/PERMANENT`。
-- 第五次仍失敗：進 `FAILED/EXHAUSTED`。
-- lease 到期可由另一 worker 接手；舊 worker 的 token 不得完成或改寫新 claim。
-- DB 只保存固定大寫 error code，不保存 exception 原文、訊息內容、姓名或附件資料。
-- 每個 sweep 最多五個 jobs，避免單輪無界工作。
+| Target | Responsibility | Current cloud state |
+| --- | --- | --- |
+| standalone | owner-only fixture Web App/API、future cross-file orchestration | immutable v3；fixture deployment on v3 |
+| bound | active `Server Database` menu、preflight、confirmed compact migration | immutable v3；awaiting operator menu apply receipt |
 
-測試涵蓋雙 repository 同時搶單、lease reclaim、stale completion、heartbeat renewal、retry delay、
-permanent failure、attempt exhaustion、安全 error code 與 v2→v3 legacy preservation。
+兩個 target 共用 domain/schema source，但 entrypoints 明確分開。所有 global handlers 是 explicit top-level function declarations，避免 Apps Script 不辨識 bundled `var` handler 的歷史問題。
 
-### 4. Dual GAS architecture
-
-| Target | Cloud container | Global entrypoints | Responsibility |
-| --- | --- | --- | --- |
-| standalone | `獨立 GAS` | `doGet`、`doPost`、bootstrap by configured ID | Web App/API、跨檔案操作 |
-| bound | `Server Database` 附著 GAS | `onOpen`、dry-run、confirmed apply | Sheet UI／active spreadsheet 內部操作 |
-
-兩個 target 從同一份 schema/domain source build，不各自手改 business rules。
-
-Bound apply 的安全順序：
-
-1. 先對 active spreadsheet 產生 dry-run actions；
-2. 在 Sheet UI 顯示摘要；
-3. 使用者選 Yes 才建立缺少的分頁、追加缺少欄位與更新受管 schema metadata；
-4. 不刪除未知分頁、不移除既有欄位、不覆蓋 operator-owned rows。
-
-### 5. Google Cloud actions
-
-- 使用者已在 Google Apps Script settings 開啟 Apps Script API。
-- clasp OAuth、兩個 cloud asset owner 與 Chrome Ding Ding profile 均確認包含同一專案帳號。
-- Drive 工作範圍只限使用者指定的專案資料夾及其中的 `Server Database`、`獨立 GAS`。
-- push 前分別 pull 至 gitignored inventory；兩邊都只有預設 `myFunction()` 與基礎 manifest。
-- standalone 初版於 22:11:11 push；bound 初版於 22:11:39 push。
-- 初版 `var` wrappers 對 Web App `doGet` 可用，但沒有讓 bound `onOpen` 被可靠辨識；22:20 改為
-  明確頂層 function declarations 後重新 push 兩個 target。
-- 每次 current push 後都 pull 至新的 gitignored verify directory，Code.js 與 manifest 逐 byte相同。
-- 兩個 project 各保留 immutable version 1，current 是修正版 immutable version 2。
-- standalone 建立 fixture-only、owner-only development Web App deployment，並已原地升到 version 2。
-- development `/health` 與 `Server Database` 已用 Chrome `Ding Ding` profile 開啟。
-- 使用者回報 `/health` 成功：HTTP/application status 200、service `calculus-gas`、environment
-  `fixture`、fixture mode true、Discord Gateway host false。
-- 沒有 public/domain deployment、trigger、Email send、Sheet schema apply、Drive upload 或資料分析。
-
-不使用 `clasp run` 執行 bound dry-run，原因不是程式失敗：Google 官方要求 API executable 與
-caller 共用同一個 standard Cloud project；clasp 的 Google-provided OAuth client 與 Apps Script
-預設 Cloud project 不符合。為一次 dry-run 新建額外 Cloud project／OAuth app 會增加無必要的
-credential 與維運面，因此保留 Sheet UI 第一次授權。官方依據：
-<https://developers.google.com/apps-script/api/how-tos/execute>
-
-## Product decisions carried forward
-
-- Local SQLite 是主要 operational authority；Sheets 是可寫的 administrative projection。
-- Cloud → local fetch 必須檢查 schema/version、來源、時間與 checksum，再由人確認；不得靜默覆寫。
-- Sheet-bound GAS 處理 active spreadsheet；standalone GAS 處理 Web App/API 與跨檔案事項。
-- Email 的 `SENT` 只表示 approved sender call 成功且 audit 已寫入，不代表 inbox delivery/read。
-- 學號、姓名與可回連學生身分的資料受保護；AI 分析需學生明確同意，且只限教學優化。
-- 開發期直接覆蓋沒有相容價值的微小歷史；保留 migration、rollback 與外部操作 receipt。
-- 此專案的人工瀏覽器操作固定使用 Chrome 顯示名稱 `Ding Ding` 的 profile；clasp 使用命名 OAuth profile `ntusupercool`。
-
-## Verification summary
+## Verification
 
 | Gate | Result |
 | --- | --- |
-| Secret scan | 569 candidate files，0 findings |
-| Portal | 43 tests passed |
-| Config Studio | 3 tests passed |
-| GAS | 50 tests passed；standalone + bound build passed |
-| Python | 205 tests passed |
-| Runtime package | 37 tests passed；含 7 個 reliable queue scenarios |
-| Type/lint/format | Astro 60 files 0 diagnostics；mypy 96 files；Ruff/Prettier/TS all pass |
-| npm production audit | 0 vulnerabilities |
-| npm development audit | 5 moderate，來自 clasp→googleapis→uuid；唯一自動完整修法會強制降 clasp 2.x，未採用 |
-| Known warnings | 2 個既有 discord.py／Python 3.14 deprecation warnings |
+| Secret scan | 572 candidate files，0 findings |
+| Portal | 43 passed |
+| Config Studio | 3 passed |
+| GAS | 50 passed；TS/build passed |
+| Python total | 206 passed；2 existing discord.py/Python 3.14 warnings |
+| Canonical runtime subset | 38 passed |
+| Static quality | Astro 60 files 0 diagnostics；mypy 96 files；Ruff/Prettier/TS passed |
 
-### Push／pull-back fingerprints
+### v3 push/pull-back fingerprints
 
 | Target | File | SHA-256 | Pull-back |
 | --- | --- | --- | --- |
-| standalone | `Code.js` | `3eb5c8ae138bdfde24481346717e57b5faf89d8f0b61adfc76e7dd15d983fd33` | exact |
-| standalone | `appsscript.json` | `7015e799ad4f0a4ae35febc5010ce7c6319a7261a202761bce9976518589a9b4` | exact |
-| bound | `Code.js` | `fc97202bc545d55994f49a409f3ee2e2b866b337d222abcb9c5e6cbcf99ad797` | exact |
+| bound | `Code.js` | `030bd8aa3503e0e305134f66a10ffc57c6181d4dbd6e876bd9bcaf80d03ed257` | exact |
 | bound | `appsscript.json` | `7bae41361c73c9602bdf52f9fcea50a151191adde27ba4b76651849497504ae3` | exact |
+| standalone | `Code.js` | `27dd6f854a5c298be9810455bd1aac55c7e41f4c33be334cc054f0060b262162` | exact |
+| standalone | `appsscript.json` | `7015e799ad4f0a4ae35febc5010ce7c6319a7261a202761bce9976518589a9b4` | exact |
 
 ## Git checkpoints
 
 | Commit | Purpose |
 | --- | --- |
-| `ca14043` | review studio and live provisioning checkpoint |
-| `b695807` | review experience and lifecycle guidance |
-| `a0ed919` | GAS queues and repository evidence audit |
-| `d53019a` | canonical tracked Discord runtime |
 | `7911752` | versioned SQLite migration ledger |
-| `e946e7a` | reliable Private Support dump jobs |
-| `ab5337d` | bound + standalone GAS build targets |
-| `9b4decb` | safe non-breaking clasp audit updates |
-| `8ade3b6` | initial Phase 2A report checkpoint；本檔已依完工狀態整份覆寫 |
-| `5a4a18d` | cloud verification and Ding Ding operator profile |
-| `ffa138c` | explicit top-level Apps Script handler wrappers |
+| `e946e7a` | reliable Private Support jobs |
+| `ab5337d` | dual GAS build targets |
+| `ffa138c` | explicit Apps Script handlers |
+| `9178c0e` | compact cloud projection + safe migration + SQLite inspector + learning path |
 
-## Wall-clock timing
+## Timing
 
-時間為可讀的約數；OAuth、測試與程式工作有部分重疊。21:15–22:03 是等待使用者回來與 Google
-設定操作的外部停頓，不算 active implementation time。
+前段完整 wall-clock 與 OAuth 外部等待紀錄保留在 Git history。這次 compact redesign 節點：
 
 | Node | Local time | Elapsed |
 | --- | --- | ---: |
-| dirty worktree inventory + scoped checkpoints | 20:43–20:49 | ~6 min |
-| canonical runtime tracking + decisions | 20:49–20:53 | ~4 min |
-| migration ledger | 20:53–20:55 | ~2 min |
-| reliable queue implementation + tests + docs | 20:55–21:02 | ~7 min |
-| clasp install/OAuth（與 queue 重疊） | 20:57–21:01 | ~4 min |
-| dual GAS architecture/build/runbook | 21:02–21:12 | ~10 min |
-| cloud inventory、API gate、初版報告 | 21:12–21:15 | ~3 min |
-| external pause / user API setting | 21:15–22:03 | ~48 min wait |
-| bound ID mapping、account proof、two pushes、pull-back、versions、deployment | 22:03–22:13 | ~10 min |
-| top-level handler diagnosis、fix、full gate、v2 push／verify／redeploy | 22:17–22:21 | ~4 min |
+| 21-tab 問題辨識與 carrier decision | 22:23–22:31 | ~8 min discussion |
+| compact schema、safe migration、fixtures/tests | 22:31–22:45 | ~14 min |
+| docs、SQLite inspector、learning path | 22:45–22:48 | ~3 min |
+| full repository gate | 22:48–22:49 | ~1 min active / ~15 sec command wall time |
+| GAS v3 push、pull-back、version、standalone redeploy | 22:48–22:49 | ~1 min（與文件整理部分重疊） |
 
-Active engineering／verification 約 46 分鐘；wall-clock 約 98 分鐘。
+## Current boundaries / NO-GO
 
-## Rollback and remaining boundaries
-
-### Discord runtime
-
-- live LaunchAgents 仍使用舊 runtime copy，因此本輪 code 不會直接改變線上 bot 行為。
-- 正式 cutover 前：停止 worker → owner-only DB backup → 副本 migration/smoke → launcher path 切換 →
-  health/queue verification → 保留舊 package 作一次 rollback。
-- 不把 live DB migration 與 GAS deployment 放在同一 maintenance window。
-
-### GAS
-
-- 兩個 project 的 version 1 保留為稽核／rollback 證據；current verified version 是 2。
-- standalone deployment 只允許 owner；任何 access 擴大都需另行 privacy/security review。
-- bound 尚未 apply Sheet schema；第一次操作先跑選單 dry-run，確認摘要後才 apply，再跑一次 dry-run
-  應回報 no-op。
-- Script ID、deployment ID、OAuth state 與 local project mapping 都在 gitignored local state，不進報告／Git。
+- Live bots 仍在既有 LaunchAgent/runtime；本輪未 restart 或 cutover。
+- Live SQLite 未被 canonical migration/inspector 開啟。
+- Standalone 保持 fixture + owner-only；沒有 public/domain access。
+- 沒有寄信、trigger、real-data projection、cloud → local import、Discord command adapter 或 AI analysis。
+- Bound cloud code已更新；Sheet apply 是否完成必須以使用者回報／second dry-run no-op 為 evidence。
 
 ## Recommended next work package
 
-1. 在 Ding Ding profile 重新整理 `Server Database`，執行「檢查資料表結構（不修改）」。
-2. 人工確認 dry-run 摘要後執行「套用資料表結構…」，再跑 dry-run 驗證 no-op。
-3. 保持 standalone fixture mode；owner-only `/health` visual smoke 已完成。正式 Script Properties 留待
-   下一個已核准的 adapter 工作包設定。
-4. 建立 local→Sheets projection receipt：source commit、schema version、checksum、operator、timestamp。
-5. 實作 cloud→local import gate：只允許 signed/hashed snapshot，驗證後仍需人工確認。
-6. 另案實作 `CommandQueue`／`EmailQueue` adapters 與 triggers；Email `SENT` 語意保持 provider accepted。
-7. 最後才做 Discord canonical runtime cutover；先處理 stale PID files 與 live DB backup/migration rehearsal。
+1. 完成 bound compact migration，保留 dry-run／apply／second dry-run no-op receipt。
+2. 以 synthetic records 實作 local → Sheets projection adapter，只先寫 `Operations` 與 `Overview`。
+3. 加上 authenticity receipt；再擴充 `CaseBoard`／`Members`，保持去識別欄位。
+4. `_CommandInbox`／`_EmailOutbox` adapter 另案 integration test；Email `SENT` 只代表 sender responsibility complete。
+5. 與使用者完成 SQLite 小課 1–2；再做 disposable backup/restore drill。
+6. Discord live runtime cutover 另開 maintenance package：stop writer、owner-only backup、copy rehearsal、launcher switch、health/rollback。
 
-## 想傳給 GPT Pro 的話
+## 請 GPT Pro 優先裁決
 
-本輪不是 production launch，而是把 source、資料庫可靠性與 Google deployment boundary 收斂到可審核
-狀態。請優先審：
+1. 10-view sufficient-statistics boundary 是否接受；哪些欄位仍可再刪？
+2. Members 使用 opaque member ref + course alias 是否足夠，是否應完全移除 cloud member-level rows、只留 aggregate？
+3. `Operations` heartbeat cadence／stale threshold 應如何定義，避免 Sheet 成為高頻 log？
+4. Authenticity receipt 先用 SHA-256 + operator confirmation，或此階段就需要 HMAC/signature？
+5. 何時因 access boundary 把 human console 與 machine ledger 拆檔？
+6. SQLite 教學／inspector 是否足以降低黑盒風險，還需要哪一個最小 restore exercise？
 
-1. Private dump claim/lease/retry terminal-state 是否足以作 reliable queue baseline；
-2. local-primary、Sheets projection 的 authenticity receipt 是否應加入簽章或至少 HMAC；
-3. standalone／bound GAS 的責任切割及 bound UI-confirmation 模型；
-4. live runtime cutover 的 backup、rehearsal、rollback 與 monitoring gate；
-5. Email、consent、Private Support 與 cloud backup 的 retention／access audit 規則。
-
-請勿要求把 raw Discord messages、學生身分、Email、附件、Private Support、OAuth token、Script ID 或
-deployment ID 上傳到聊天、LLM、Git、公開 ZIP 或公開網站。
+請勿要求把 raw messages、學生身分、Email、附件、Private Support、OAuth token、Script／Spreadsheet／deployment ID 上傳到聊天、LLM、Git、公開 ZIP 或公開網站。

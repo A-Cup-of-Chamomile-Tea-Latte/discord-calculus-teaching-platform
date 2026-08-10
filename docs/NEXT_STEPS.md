@@ -21,12 +21,19 @@ separate instruction.
 ## Data-layer order
 
 1. Review the repository evidence audit in `project-exchange/15_GAS_SQLITE_DRIVE_REPOSITORY_EVIDENCE_AUDIT_2026-08-10.md`.
-2. Decide the authoritative owner for identity data and the exact SQLite ↔ Sheets projection.
+2. **Decided and implemented locally:** SQLite is the operational authority. Sheets schema 2.0.0
+   is a compact cloud projection with five human and five hidden machine views. Cloud → local
+   still requires version/checksum/source validation and explicit confirmation.
 3. **Completed locally:** the live-tested source has a canonical tracked package at
    `runtime/discord-course-bots/`; live LaunchAgents still use the old copy until a separate
    backup/dry-run/cutover gate.
 4. **Completed in disposable databases:** checksum-verified migrations and a reliable Private
    Support dump job queue. The existing live DB remains untouched.
-5. Connect `CommandQueue` and `EmailQueue` to adapters only after dry-run, claim/lease and
-   idempotency tests pass. `PROVIDER_ACCEPTED` must not be reported as inbox delivery.
-6. Apply any Google Sheet schema only after reading a dry-run diff for the intended Spreadsheet.
+5. In Chrome profile `Ding Ding`, run the bound menu compact-migration dry-run. Apply only if it
+   reports no blocker, then rerun dry-run and expect no-op. Five machine tabs should be hidden.
+6. Build the local → Sheets projection adapter and authenticity receipt before inserting any real
+   projection rows. Do not connect cloud → local automatic writes.
+7. Connect `_CommandInbox` and `_EmailOutbox` adapters only after integration tests pass.
+   `providerAcceptedAt` / product state `SENT` must not be reported as inbox delivery.
+8. Use the SQLite learning guide and `discord-db-inspect` first on a disposable database; do not
+   use live row dumps as teaching material.
