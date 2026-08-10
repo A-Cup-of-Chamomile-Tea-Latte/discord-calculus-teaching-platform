@@ -22,9 +22,11 @@ separate instruction.
 
 1. Review the repository evidence audit in `project-exchange/15_GAS_SQLITE_DRIVE_REPOSITORY_EVIDENCE_AUDIT_2026-08-10.md`.
 2. Decide the authoritative owner for identity data and the exact SQLite ↔ Sheets projection.
-3. Move or re-implement the local-only live runtime in a tracked package before adding production
-   migrations; do not apply speculative migrations to the existing live DB.
-4. Add a versioned SQLite migration ledger and durable job/outbox model in a disposable DB first.
+3. **Completed locally:** the live-tested source has a canonical tracked package at
+   `runtime/discord-course-bots/`; live LaunchAgents still use the old copy until a separate
+   backup/dry-run/cutover gate.
+4. **Completed in disposable databases:** checksum-verified migrations and a reliable Private
+   Support dump job queue. The existing live DB remains untouched.
 5. Connect `CommandQueue` and `EmailQueue` to adapters only after dry-run, claim/lease and
    idempotency tests pass. `PROVIDER_ACCEPTED` must not be reported as inbox delivery.
 6. Apply any Google Sheet schema only after reading a dry-run diff for the intended Spreadsheet.

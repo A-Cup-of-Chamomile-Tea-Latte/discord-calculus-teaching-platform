@@ -68,9 +68,15 @@ Detailed result:
   `cases`, `private_support` and `private_dump_jobs`.
 - The live schema has no foreign keys, schema migration table, deadline, claim/lease, retry,
   outbox or Google sync columns. `PRAGMA user_version` is `0`.
+- A canonical tracked runtime now exists at `runtime/discord-course-bots/`, but the live
+  LaunchAgents have not been cut over to it. Its disposable-database implementation has a
+  checksum-verified migration ledger through version 3 and a Private Support dump queue with
+  atomic claim, lease/heartbeat, safe error codes, retry/backoff and stale-token protection.
+- The version-3 implementation is covered by isolated tests only; it has not migrated or opened
+  the live SQLite file.
 - The tracked monorepo contains a broader fixture-first contract and GAS prototype. It must not
   be described as the live bot database.
-- GAS Sheets schema `1.3.0` now includes local-only `CommandQueue` and metadata-only `EmailQueue`
+- GAS Sheets schema `1.3.0` includes local-only `CommandQueue` and metadata-only `EmailQueue`
   contracts with idempotency and claim/lease fields. No Spreadsheet, Email or Drive mutation was
   performed.
 - The evidence audit and implementation handoff is recorded in

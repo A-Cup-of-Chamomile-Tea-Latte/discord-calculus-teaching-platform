@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import uuid
+from contextlib import suppress
 from pathlib import Path
 
 import discord
@@ -13,6 +16,24 @@ from discord_course_bots.settings import DumpBotSettings
 from .exporter import collect_messages, verify_export, write_export
 
 LOGGER = logging.getLogger(__name__)
+PRIVATE_DUMP_LEASE_SECONDS = 900
+PRIVATE_DUMP_HEARTBEAT_SECONDS = 300
+PRIVATE_DUMP_MAX_JOBS_PER_SWEEP = 5
+
+
+def classify_private_dump_error(error: Exception) -> tuple[str, bool]:
+    """Return a privacy-safe error code and whether the job may be retried."""
+    if isinstance(error, discord.Forbidden):
+        return ("DISCORD_FORBIDDEN", False)
+    if isinstance(error, discord.NotFound):
+        return ("CHANNEL_NOT_FOUND", False)
+    if isinstance(error, discord.HTTPException):
+        return ("DISCORD_HTTP_ERROR", True)
+    if isinstance(error, OSError):
+        return ("FILESYSTEM_ERROR", True)
+    if isinstance(error, RuntimeError):
+        return ("EXPORT_VALIDATION_ERROR", True)
+    return ("UNEXPECTED_ERROR", True)
 
 
 class DumpClient(discord.Client):
@@ -34,6 +55,7 @@ class DumpClient(discord.Client):
         self.channel_id = channel_id
         self.output_dir = output_dir or Path("exports")
         self.repo = Repository(settings.database_path)
+        self.worker_id = f"dump-bot-{uuid.uuid4().hex}"
 
     async def on_ready(self) -> None:
         unexpected = [guild for guild in self.guilds if guild.id != self.settings.test_guild_id]
@@ -165,16 +187,68 @@ class DumpClient(discord.Client):
         guild = self.get_guild(self.settings.test_guild_id)
         if guild is None:
             return
-        for job in self.repo.pending_private_dump_jobs():
-            channel_id = int(job["channel_id"])
+        for _ in range(PRIVATE_DUMP_MAX_JOBS_PER_SWEEP):
+            claim = self.repo.claim_private_dump_job(
+                worker_id=self.worker_id,
+                lease_seconds=PRIVATE_DUMP_LEASE_SECONDS,
+            )
+            if claim is None:
+                break
+            heartbeat = asyncio.create_task(
+                self._renew_private_dump_lease(claim.channel_id, claim.claim_token)
+            )
             try:
-                paths = await self.export_private_channel(guild, channel_id)
+                paths = await self.export_private_channel(guild, claim.channel_id)
                 if not verify_export(paths):
                     raise RuntimeError("Private dump manifest verification failed")
-                self.repo.complete_private_dump(channel_id, str(paths["manifest"]))
-                LOGGER.info("Verified private dump for %s", channel_id)
-            except (RuntimeError, discord.HTTPException):
-                LOGGER.exception("Private dump failed for %s", channel_id)
+                completed = self.repo.complete_private_dump(
+                    claim.channel_id,
+                    claim.claim_token,
+                    str(paths["manifest"]),
+                )
+                if completed:
+                    LOGGER.info("Verified private dump for %s", claim.channel_id)
+                else:
+                    LOGGER.warning(
+                        "Private dump claim became stale before completion for %s",
+                        claim.channel_id,
+                    )
+            except Exception as error:
+                error_code, retryable = classify_private_dump_error(error)
+                failure = self.repo.fail_private_dump_job(
+                    channel_id=claim.channel_id,
+                    claim_token=claim.claim_token,
+                    error_code=error_code,
+                    retryable=retryable,
+                )
+                if failure is None:
+                    LOGGER.exception(
+                        "Private dump failed after its claim became stale for %s",
+                        claim.channel_id,
+                    )
+                else:
+                    LOGGER.exception(
+                        "Private dump failed for %s with %s; state=%s",
+                        claim.channel_id,
+                        error_code,
+                        failure.status,
+                    )
+            finally:
+                heartbeat.cancel()
+                with suppress(asyncio.CancelledError):
+                    await heartbeat
+
+    async def _renew_private_dump_lease(self, channel_id: int, claim_token: str) -> None:
+        while True:
+            await asyncio.sleep(PRIVATE_DUMP_HEARTBEAT_SECONDS)
+            renewed = self.repo.renew_private_dump_lease(
+                channel_id=channel_id,
+                claim_token=claim_token,
+                lease_seconds=PRIVATE_DUMP_LEASE_SECONDS,
+            )
+            if not renewed:
+                LOGGER.warning("Private dump lease could not be renewed for %s", channel_id)
+                return
 
     @private_dump_worker.before_loop
     async def before_private_dump_worker(self) -> None:

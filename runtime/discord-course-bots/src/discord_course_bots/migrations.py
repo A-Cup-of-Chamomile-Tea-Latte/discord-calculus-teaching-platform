@@ -133,6 +133,38 @@ def _apply_legacy_compatibility(connection: sqlite3.Connection) -> None:
     )
 
 
+def _apply_private_dump_job_leases(connection: sqlite3.Connection) -> None:
+    columns = _column_names(connection, "private_dump_jobs")
+    additions = (
+        ("claim_token", "TEXT"),
+        ("claimed_by", "TEXT"),
+        ("lease_expires_at", "TEXT"),
+        ("attempt_count", "INTEGER NOT NULL DEFAULT 0"),
+        ("retry_at", "TEXT"),
+        ("failure_kind", "TEXT"),
+        ("updated_at", "TEXT"),
+    )
+    for name, declaration in additions:
+        if name not in columns:
+            connection.execute(f"ALTER TABLE private_dump_jobs ADD COLUMN {name} {declaration}")
+    connection.execute(
+        """
+        UPDATE private_dump_jobs
+        SET updated_at = COALESCE(updated_at, completed_at, requested_at),
+            attempt_count = CASE
+                WHEN status IN ('VERIFIED', 'DELETED') AND attempt_count = 0 THEN 1
+                ELSE attempt_count
+            END
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS private_dump_jobs_claimable
+        ON private_dump_jobs(status, retry_at, lease_expires_at, requested_at)
+        """
+    )
+
+
 MIGRATIONS = (
     Migration(
         1,
@@ -145,6 +177,15 @@ MIGRATIONS = (
         "legacy-base-title-and-private-case-number",
         "cases.base_title from initial snapshot; private_support.case_number; unique index; v1",
         _apply_legacy_compatibility,
+    ),
+    Migration(
+        3,
+        "private-dump-job-claim-lease-retry",
+        (
+            "private_dump_jobs claim_token claimed_by lease_expires_at attempt_count retry_at "
+            "failure_kind updated_at; claimable index; legacy backfill; v1"
+        ),
+        _apply_private_dump_job_leases,
     ),
 )
 

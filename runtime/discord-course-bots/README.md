@@ -24,9 +24,11 @@ source checkpoint 階段中斷既有服務。
 
 - 邀請權限只有 View Channel + Read Message History。
 - `probe`：一次性登入、列出可見頻道與權限後離線。
-- `online`：保持在線，無任何寫入事件或 Discord 指令。
+- `online`：保持在線，僅消費本機 SQLite 中已明確建立的 Private Support dump job；不接收 Discord 指令。
 - `export-public`：只匯出已登錄的公開 Forum 案件。
 - `export-private`：只匯出已登錄的 Private Support 案件。
+- Private dump queue 使用原子 claim、唯一 token、15 分鐘 lease、5 分鐘心跳、指數退避與最多五次嘗試；只有持有目前 claim token 的 worker 可以完成或標記失敗。
+- SQLite 使用具 checksum 的 migration ledger；未知新版或已竄改 migration 會拒絕啟動。
 
 ## 刻意未接通
 
@@ -34,7 +36,7 @@ source checkpoint 階段中斷既有服務。
 - Email 寄送。
 - NTU Mail、Student／Guest 真實驗證。
 - 正式 Google Sheets／資料庫。
-- Private Support 結案後的跨 Bot 自動授權、驗證與刪除。
+- Private Support 結案後的跨 Bot Discord ACL 自動授權與自動刪除；目前只完成共用 SQLite queue、已驗證匯出與待刪除狀態。
 - AI 正文分析。
 
 這些介面仍保留，但測試版不會偽造成功。
@@ -141,4 +143,5 @@ cp .env.example .env
 - 空伺服器仍是真實 Discord API；任何測試文字都會留在 Discord，除非手動刪除。
 - Bot 會拒絕在非 `TEST_GUILD_ID` 的伺服器啟動。
 - `dump_bot` 匯出內容可能含訊息正文與附件 URL，請只使用虛構測試資料。
+- Queue 的 `error` 欄位只保存固定安全代碼，不保存 exception 原文、學生姓名或訊息內容。
 - 第一次測試不要給 `course_assistant` Administrator。權限錯誤本身正是目前要觀察的資料。

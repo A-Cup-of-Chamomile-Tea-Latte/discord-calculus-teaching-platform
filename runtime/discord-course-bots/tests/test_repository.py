@@ -15,7 +15,7 @@ def test_fresh_database_has_versioned_migration_ledger(tmp_path: Path) -> None:
 
     assert repo.schema_version == MIGRATIONS[-1].version
     history = repo.migration_history()
-    assert [row["version"] for row in history] == [1, 2]
+    assert [row["version"] for row in history] == [migration.version for migration in MIGRATIONS]
     assert all(len(str(row["checksum"])) == 64 for row in history)
     table_names = {
         str(row[0])

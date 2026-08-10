@@ -1,17 +1,22 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from discord_course_bots.domain.case_numbers import generate_case_number
+from discord_course_bots.jobs import PrivateDumpClaim, PrivateDumpFailureResult
 from discord_course_bots.migrations import apply_migrations
 from discord_course_bots.repository_time import utc_now_iso
 
 CASE_NUMBER_MAX_ATTEMPTS = 5
+SAFE_JOB_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 
 
 class Repository:
@@ -27,6 +32,16 @@ class Repository:
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
         try:
+            yield self._connection
+            self._connection.commit()
+        except Exception:
+            self._connection.rollback()
+            raise
+
+    @contextmanager
+    def immediate_transaction(self) -> Iterator[sqlite3.Connection]:
+        try:
+            self._connection.execute("BEGIN IMMEDIATE")
             yield self._connection
             self._connection.commit()
         except Exception:
@@ -280,33 +295,218 @@ class Repository:
             ).fetchone()
 
     def queue_private_dump(self, channel_id: int, requested_by: int) -> bool:
+        requested_at = utc_now_iso()
         with self.transaction() as db:
             result = db.execute(
-                """INSERT INTO private_dump_jobs(channel_id, status, requested_by, requested_at)
-                SELECT channel_id, 'PENDING', ?, ? FROM private_support
+                """INSERT INTO private_dump_jobs(
+                    channel_id, status, requested_by, requested_at, updated_at
+                )
+                SELECT channel_id, 'PENDING', ?, ?, ? FROM private_support
                 WHERE channel_id = ? AND status = 'CLOSED'
                 ON CONFLICT(channel_id) DO NOTHING""",
-                (requested_by, utc_now_iso(), channel_id),
+                (requested_by, requested_at, requested_at, channel_id),
             )
             return result.rowcount == 1
 
-    def pending_private_dump_jobs(self) -> list[sqlite3.Row]:
-        return list(
-            self._connection.execute(
-                """SELECT job.*, support.case_number FROM private_dump_jobs AS job
-            JOIN private_support AS support USING(channel_id)
-            WHERE job.status = 'PENDING' ORDER BY job.requested_at"""
-            ).fetchall()
-        )
+    def claim_private_dump_job(
+        self,
+        *,
+        worker_id: str,
+        now: datetime | None = None,
+        lease_seconds: int = 900,
+    ) -> PrivateDumpClaim | None:
+        normalized_worker = worker_id.strip()
+        if not normalized_worker or len(normalized_worker) > 128:
+            raise ValueError("worker_id must contain 1–128 characters")
+        if lease_seconds <= 0:
+            raise ValueError("lease_seconds must be positive")
+        moment = now or datetime.now(UTC)
+        if moment.tzinfo is None:
+            raise ValueError("now must be timezone-aware")
+        now_iso = moment.astimezone(UTC).isoformat()
+        lease_expires_at = (moment.astimezone(UTC) + timedelta(seconds=lease_seconds)).isoformat()
+        claim_token = uuid.uuid4().hex
 
-    def complete_private_dump(self, channel_id: int, manifest_path: str) -> None:
-        with self.transaction() as db:
-            db.execute(
-                """UPDATE private_dump_jobs
-                SET status = 'VERIFIED', completed_at = ?, manifest_path = ?
-                WHERE channel_id = ? AND status = 'PENDING'""",
-                (utc_now_iso(), manifest_path, channel_id),
+        with self.immediate_transaction() as db:
+            candidate = db.execute(
+                """
+                SELECT job.channel_id
+                FROM private_dump_jobs AS job
+                WHERE (
+                    job.status = 'PENDING'
+                    AND (job.retry_at IS NULL OR job.retry_at <= ?)
+                ) OR (
+                    job.status = 'CLAIMED'
+                    AND job.lease_expires_at IS NOT NULL
+                    AND job.lease_expires_at <= ?
+                )
+                ORDER BY COALESCE(job.retry_at, job.requested_at), job.requested_at
+                LIMIT 1
+                """,
+                (now_iso, now_iso),
+            ).fetchone()
+            if candidate is None:
+                return None
+            channel_id = int(candidate["channel_id"])
+            result = db.execute(
+                """
+                UPDATE private_dump_jobs
+                SET status = 'CLAIMED', claim_token = ?, claimed_by = ?,
+                    lease_expires_at = ?, attempt_count = attempt_count + 1,
+                    retry_at = NULL, failure_kind = NULL, error = NULL, updated_at = ?
+                WHERE channel_id = ? AND (
+                    (status = 'PENDING' AND (retry_at IS NULL OR retry_at <= ?))
+                    OR (status = 'CLAIMED' AND lease_expires_at IS NOT NULL
+                        AND lease_expires_at <= ?)
+                )
+                """,
+                (
+                    claim_token,
+                    normalized_worker,
+                    lease_expires_at,
+                    now_iso,
+                    channel_id,
+                    now_iso,
+                    now_iso,
+                ),
             )
+            if result.rowcount != 1:
+                return None
+            row = db.execute(
+                """
+                SELECT job.*, support.case_number
+                FROM private_dump_jobs AS job
+                JOIN private_support AS support USING(channel_id)
+                WHERE job.channel_id = ?
+                """,
+                (channel_id,),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("Claimed private dump job has no support record")
+            return PrivateDumpClaim(
+                channel_id=channel_id,
+                case_number=str(row["case_number"]),
+                claim_token=claim_token,
+                claimed_by=normalized_worker,
+                attempt_count=int(row["attempt_count"]),
+                lease_expires_at=lease_expires_at,
+            )
+
+    def renew_private_dump_lease(
+        self,
+        *,
+        channel_id: int,
+        claim_token: str,
+        now: datetime | None = None,
+        lease_seconds: int = 900,
+    ) -> bool:
+        if lease_seconds <= 0:
+            raise ValueError("lease_seconds must be positive")
+        moment = now or datetime.now(UTC)
+        if moment.tzinfo is None:
+            raise ValueError("now must be timezone-aware")
+        now_iso = moment.astimezone(UTC).isoformat()
+        lease_expires_at = (moment.astimezone(UTC) + timedelta(seconds=lease_seconds)).isoformat()
+        with self.transaction() as db:
+            result = db.execute(
+                """
+                UPDATE private_dump_jobs
+                SET lease_expires_at = ?, updated_at = ?
+                WHERE channel_id = ? AND status = 'CLAIMED' AND claim_token = ?
+                  AND lease_expires_at > ?
+                """,
+                (lease_expires_at, now_iso, channel_id, claim_token, now_iso),
+            )
+            return result.rowcount == 1
+
+    def complete_private_dump(self, channel_id: int, claim_token: str, manifest_path: str) -> bool:
+        completed_at = utc_now_iso()
+        with self.transaction() as db:
+            result = db.execute(
+                """UPDATE private_dump_jobs
+                SET status = 'VERIFIED', completed_at = ?, manifest_path = ?,
+                    claim_token = NULL, claimed_by = NULL, lease_expires_at = NULL,
+                    failure_kind = NULL, error = NULL, updated_at = ?
+                WHERE channel_id = ? AND status = 'CLAIMED' AND claim_token = ?""",
+                (completed_at, manifest_path, completed_at, channel_id, claim_token),
+            )
+            return result.rowcount == 1
+
+    def fail_private_dump_job(
+        self,
+        *,
+        channel_id: int,
+        claim_token: str,
+        error_code: str,
+        retryable: bool,
+        now: datetime | None = None,
+        max_attempts: int = 5,
+        base_retry_seconds: int = 30,
+        max_retry_seconds: int = 1800,
+    ) -> PrivateDumpFailureResult | None:
+        if not SAFE_JOB_ERROR_CODE.fullmatch(error_code):
+            raise ValueError("error_code must be a safe uppercase identifier")
+        if max_attempts <= 0 or base_retry_seconds <= 0 or max_retry_seconds <= 0:
+            raise ValueError("retry limits must be positive")
+        moment = now or datetime.now(UTC)
+        if moment.tzinfo is None:
+            raise ValueError("now must be timezone-aware")
+        normalized_now = moment.astimezone(UTC)
+        now_iso = normalized_now.isoformat()
+
+        with self.immediate_transaction() as db:
+            row = db.execute(
+                """
+                SELECT attempt_count FROM private_dump_jobs
+                WHERE channel_id = ? AND status = 'CLAIMED' AND claim_token = ?
+                """,
+                (channel_id, claim_token),
+            ).fetchone()
+            if row is None:
+                return None
+            attempt_count = int(row["attempt_count"])
+            should_retry = retryable and attempt_count < max_attempts
+            if should_retry:
+                delay = min(max_retry_seconds, base_retry_seconds * (2 ** (attempt_count - 1)))
+                status = "PENDING"
+                failure_kind = "RETRYABLE"
+                retry_at = (normalized_now + timedelta(seconds=delay)).isoformat()
+            else:
+                status = "FAILED"
+                failure_kind = "EXHAUSTED" if retryable else "PERMANENT"
+                retry_at = None
+            result = db.execute(
+                """
+                UPDATE private_dump_jobs
+                SET status = ?, retry_at = ?, failure_kind = ?, error = ?,
+                    claim_token = NULL, claimed_by = NULL, lease_expires_at = NULL,
+                    updated_at = ?
+                WHERE channel_id = ? AND status = 'CLAIMED' AND claim_token = ?
+                """,
+                (
+                    status,
+                    retry_at,
+                    failure_kind,
+                    error_code,
+                    now_iso,
+                    channel_id,
+                    claim_token,
+                ),
+            )
+            if result.rowcount != 1:
+                return None
+            return PrivateDumpFailureResult(
+                channel_id=channel_id,
+                status=status,
+                attempt_count=attempt_count,
+                failure_kind=failure_kind,
+                retry_at=retry_at,
+            )
+
+    def get_private_dump_job(self, channel_id: int) -> sqlite3.Row | None:
+        return self._connection.execute(
+            "SELECT * FROM private_dump_jobs WHERE channel_id = ?", (channel_id,)
+        ).fetchone()
 
     def pending_private_deletions(self) -> list[sqlite3.Row]:
         return list(
@@ -316,12 +516,14 @@ class Repository:
         )
 
     def mark_private_deleted(self, channel_id: int) -> None:
+        deleted_at = utc_now_iso()
         with self.transaction() as db:
             db.execute(
                 "UPDATE private_support SET status = 'DELETED' WHERE channel_id = ?", (channel_id,)
             )
             db.execute(
-                """UPDATE private_dump_jobs SET status = 'DELETED', delete_completed_at = ?
+                """UPDATE private_dump_jobs
+                SET status = 'DELETED', delete_completed_at = ?, updated_at = ?
                 WHERE channel_id = ? AND status = 'VERIFIED'""",
-                (utc_now_iso(), channel_id),
+                (deleted_at, deleted_at, channel_id),
             )

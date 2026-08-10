@@ -32,7 +32,8 @@ Original author clicks Reopen
 → append cycle suffix 2/3/...
 ```
 
-`dump_version` is not advanced by closing in this build because automatic verified export is not connected yet.
+`dump_version` is not advanced by closing in this build. Private Support 使用獨立的可靠 job
+狀態；公開案件的版本化 dump 仍是明確操作。
 
 ## dump_bot
 
@@ -45,3 +46,19 @@ Local administrator runs probe/export
 → write SHA-256 manifest
 → disconnect
 ```
+
+Private Support 的 online worker 只處理已由授權操作建立的本機 job：
+
+```text
+closed Private Support job is queued
+→ one worker atomically claims it with a unique token and expiring lease
+→ heartbeat renews the live claim during export
+→ fetch registered closed channel and write files
+→ verify manifest and hashes
+→ token-checked transition to VERIFIED
+→ deletion remains a separate explicit state transition
+```
+
+暫時性失敗會清除 claim、設定 bounded exponential backoff 並回到 `PENDING`；永久錯誤或
+第五次失敗進入 `FAILED`。資料庫只保存固定 error code，不保存原始 exception。逾時 lease
+可被其他 worker 接手，舊 token 不得完成新 claim。
