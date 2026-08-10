@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/config/data-policy.schema.json",
+  "title": "Proposed local data policy boundary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "fixtureOnly",
+    "workingData",
+    "archiveData",
+    "analysis",
+    "attachments",
+    "identity",
+    "prohibited",
+    "openGovernance"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "status": {
+      "const": "PROPOSED_WITH_OPEN_GOVERNANCE"
+    },
+    "fixtureOnly": {
+      "const": true
+    },
+    "workingData": {
+      "$ref": "#/$defs/dataClass"
+    },
+    "archiveData": {
+      "$ref": "#/$defs/dataClass"
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default",
+        "explicitChoiceRequired",
+        "llmTransferAllowed",
+        "humanReleaseRequired",
+        "residualPiiReviewRequired",
+        "privateSupportDefault"
+      ],
+      "properties": {
+        "default": {
+          "const": "EXCLUDED"
+        },
+        "explicitChoiceRequired": {
+          "const": true
+        },
+        "llmTransferAllowed": {
+          "const": false
+        },
+        "humanReleaseRequired": {
+          "const": true
+        },
+        "residualPiiReviewRequired": {
+          "const": true
+        },
+        "privateSupportDefault": {
+          "const": "EXCLUDED"
+        }
+      }
+    },
+    "attachments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downloadInPrototype",
+        "proxyInPortal",
+        "metadataOnly",
+        "contentReview"
+      ],
+      "properties": {
+        "downloadInPrototype": {
+          "const": false
+        },
+        "proxyInPortal": {
+          "const": false
+        },
+        "metadataOnly": {
+          "const": true
+        },
+        "contentReview": {
+          "type": "string"
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "studentRealNameCollected",
+        "studentNumberCollected",
+        "studentEmailDomain",
+        "guestReview",
+        "publicEmailDisplay"
+      ],
+      "properties": {
+        "studentRealNameCollected": {
+          "const": false
+        },
+        "studentNumberCollected": {
+          "const": false
+        },
+        "studentEmailDomain": {
+          "const": "@ntu.edu.tw"
+        },
+        "guestReview": {
+          "const": "MANUAL"
+        },
+        "publicEmailDisplay": {
+          "const": false
+        }
+      }
+    },
+    "prohibited": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "contains": {
+        "const": "RAW_MESSAGE_TO_LLM"
+      },
+      "minContains": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "openGovernance": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "dataClass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purpose",
+        "storage",
+        "realDataAllowed",
+        "retention",
+        "access"
+      ],
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "storage": {
+          "type": "string"
+        },
+        "realDataAllowed": {
+          "const": false
+        },
+        "retention": {
+          "type": "string"
+        },
+        "access": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

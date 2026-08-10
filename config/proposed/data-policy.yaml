@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0",
+  "status": "PROPOSED_WITH_OPEN_GOVERNANCE",
+  "fixtureOnly": true,
+  "workingData": {
+    "purpose": "案件服務、同步與短期操作",
+    "storage": "UNSELECTED",
+    "realDataAllowed": false,
+    "retention": "UNRESOLVED",
+    "access": [
+      "AUTHORIZED_STAFF",
+      "SERVICE_ACCOUNTS_WITH_SCOPE"
+    ]
+  },
+  "archiveData": {
+    "purpose": "經核准之案件保存與教學改進",
+    "storage": "UNSELECTED",
+    "realDataAllowed": false,
+    "retention": "UNRESOLVED",
+    "access": [
+      "AUTHORIZED_DATA_OWNER"
+    ]
+  },
+  "analysis": {
+    "default": "EXCLUDED",
+    "explicitChoiceRequired": true,
+    "llmTransferAllowed": false,
+    "humanReleaseRequired": true,
+    "residualPiiReviewRequired": true,
+    "privateSupportDefault": "EXCLUDED"
+  },
+  "attachments": {
+    "downloadInPrototype": false,
+    "proxyInPortal": false,
+    "metadataOnly": true,
+    "contentReview": "UNRESOLVED"
+  },
+  "identity": {
+    "studentRealNameCollected": false,
+    "studentNumberCollected": false,
+    "studentEmailDomain": "@ntu.edu.tw",
+    "guestReview": "MANUAL",
+    "publicEmailDisplay": false
+  },
+  "prohibited": [
+    "RAW_MESSAGE_TO_LLM",
+    "PRIVATE_SUPPORT_PUBLICATION",
+    "SECRET_IN_GIT",
+    "REAL_CASE_STATIC_PREBUILD",
+    "VOICE_RECORDING",
+    "AUTOMATIC_TRANSCRIPTION"
+  ],
+  "openGovernance": [
+    "RETENTION",
+    "DELETION",
+    "BACKUP",
+    "CONSENT_WITHDRAWAL",
+    "OTHER_AUTHOR_CONSENT",
+    "APPROVED_ANALYSIS_DESTINATION",
+    "NAMED_PRIVACY_OWNER",
+    "NAMED_SECURITY_OWNER",
+    "NAMED_DATA_OWNER",
+    "NAMED_SYSTEM_OWNER"
+  ]
+}

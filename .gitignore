@@ -52,6 +52,7 @@ apps/gas/deployment*.json
 /exports/
 /local-data/
 **/local-data/
+/.local/
 *.sqlite
 *.sqlite3
 
@@ -63,3 +64,6 @@ apps/gas/deployment*.json
 
 # Historical handoff archives stay local for Codex/GPT reference only.
 project-exchange/**/*.zip
+project-exchange/archive/
+project-exchange/13_PKG_112-114_Dump與三年分析/
+project-exchange/Codex_*_本機工作包.md

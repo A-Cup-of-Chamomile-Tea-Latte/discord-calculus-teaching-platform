@@ -1,0 +1,136 @@
+{
+  "schemaVersion": "1.0",
+  "status": "PROPOSED",
+  "fixtureOnly": true,
+  "language": "zh-Hant",
+  "defaultTheme": "COURSE_FORMAL",
+  "themes": [
+    {
+      "key": "COURSE_FORMAL",
+      "label": "課程正式版",
+      "description": "資訊密度較高、低裝飾、適合作為正式預設。"
+    },
+    {
+      "key": "STUDENT_FRIENDLY",
+      "label": "學生友善版",
+      "description": "入口與步驟更明顯，卡片較柔和但不幼稚。"
+    }
+  ],
+  "pages": [
+    {
+      "key": "home",
+      "path": "/",
+      "label": "首頁",
+      "audience": "ALL",
+      "enabled": true
+    },
+    {
+      "key": "join",
+      "path": "/join/",
+      "label": "加入／設定",
+      "audience": "LEARNER",
+      "enabled": true
+    },
+    {
+      "key": "discord_guide",
+      "path": "/discord-guide/",
+      "label": "Discord 直接提問指南",
+      "audience": "LEARNER",
+      "enabled": true
+    },
+    {
+      "key": "ask",
+      "path": "/ask/",
+      "label": "網站代為提問",
+      "audience": "LEARNER",
+      "enabled": true
+    },
+    {
+      "key": "case_lookup",
+      "path": "/cases/",
+      "label": "案號查詢",
+      "audience": "LEARNER",
+      "enabled": true
+    },
+    {
+      "key": "case_detail",
+      "path": "/cases/{caseNumber}/",
+      "label": "案件詳細資料",
+      "audience": "LEARNER",
+      "enabled": true
+    },
+    {
+      "key": "private_support",
+      "path": "/private-support/",
+      "label": "Private Support",
+      "audience": "LEARNER",
+      "enabled": true
+    },
+    {
+      "key": "settings",
+      "path": "/settings/",
+      "label": "我的設定",
+      "audience": "LEARNER",
+      "enabled": true
+    },
+    {
+      "key": "guide",
+      "path": "/guide/",
+      "label": "使用指南",
+      "audience": "ALL",
+      "enabled": true
+    },
+    {
+      "key": "status",
+      "path": "/status/",
+      "label": "系統狀態",
+      "audience": "ALL",
+      "enabled": true
+    },
+    {
+      "key": "team",
+      "path": "/team/",
+      "label": "教學團隊展示",
+      "audience": "STAFF_FIXTURE",
+      "enabled": true
+    },
+    {
+      "key": "scenarios",
+      "path": "/scenarios/",
+      "label": "情境庫",
+      "audience": "REVIEWER",
+      "enabled": true
+    }
+  ],
+  "submissionFields": [
+    "forum",
+    "problemType",
+    "title",
+    "content",
+    "classCode",
+    "module",
+    "mainTag",
+    "visibility",
+    "aiPermission",
+    "attachmentNotice"
+  ],
+  "lookupStates": [
+    "FOUND",
+    "NOT_FOUND",
+    "INVALID",
+    "OFFLINE",
+    "STALE"
+  ],
+  "fixtureCaseNumbers": [
+    "C01-7K4M2Q-0702-1000",
+    "C02-R8N6WX-0702-1100",
+    "C01-P3T7V9-0702-1200"
+  ],
+  "externalConnections": {
+    "discord": false,
+    "email": false,
+    "google": false,
+    "oauth": false,
+    "aiApi": false
+  }
+}

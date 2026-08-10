@@ -1,0 +1,21 @@
+{
+  "name": "@calculus/config-studio",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --port 4322",
+    "build": "astro build",
+    "preview": "astro preview --port 4322",
+    "check": "astro check",
+    "typecheck": "npm run check",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@types/node": "^26.1.1",
+    "astro": "^7.1.1",
+    "prettier-plugin-astro": "^0.14.1",
+    "vitest": "^4.1.10"
+  }
+}

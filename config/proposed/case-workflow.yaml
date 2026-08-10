@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0",
+  "status": "PROPOSED_CONFIRMED_SOURCE",
+  "caseNumber": {
+    "pattern": "C{classCode}-{randomToken}-{MMDD}-{HHmm}",
+    "privateSuffix": "-P",
+    "specialClassCode": "99",
+    "randomAlphabet": "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
+    "authenticationFactor": false
+  },
+  "canonicalTitle": {
+    "pattern": "[{module}][{mainTag}] {userTitle}",
+    "modules": [
+      "M1",
+      "M2",
+      "M3",
+      "M4"
+    ],
+    "mainTags": [
+      "觀念",
+      "計算",
+      "技巧",
+      "討論",
+      "WebWork",
+      "Gradescope",
+      "NTU COOL",
+      "其他"
+    ],
+    "mainTagsFinalized": false,
+    "manualClosePrefix": "✅",
+    "automaticClosePrefix": "(„• ֊ •„)"
+  },
+  "states": [
+    {
+      "key": "OPEN",
+      "label": "Open",
+      "description": "新案件，尚未由教學團隊接手。"
+    },
+    {
+      "key": "TRACKED",
+      "label": "Tracked",
+      "description": "教學團隊已接手；等待後續互動或結案。"
+    },
+    {
+      "key": "IDLE",
+      "label": "Idle",
+      "description": "自教學團隊最後留言起 48 小時無學生回覆，已進入提醒。"
+    },
+    {
+      "key": "CLOSED",
+      "label": "Closed",
+      "description": "由負責人手動結案。"
+    },
+    {
+      "key": "AUTO_CLOSED",
+      "label": "Auto Closed",
+      "description": "Idle 後再 48 小時無回覆，自動結案。"
+    }
+  ],
+  "transitions": [
+    {
+      "from": "OPEN",
+      "to": "TRACKED",
+      "event": "STAFF_CLAIM",
+      "actor": "STAFF"
+    },
+    {
+      "from": "TRACKED",
+      "to": "IDLE",
+      "event": "FIRST_48H_WITHOUT_LEARNER_REPLY",
+      "actor": "SYSTEM"
+    },
+    {
+      "from": "IDLE",
+      "to": "TRACKED",
+      "event": "LEARNER_REPLY",
+      "actor": "LEARNER"
+    },
+    {
+      "from": "TRACKED",
+      "to": "CLOSED",
+      "event": "MANUAL_CLOSE",
+      "actor": "STAFF"
+    },
+    {
+      "from": "IDLE",
+      "to": "AUTO_CLOSED",
+      "event": "SECOND_48H_WITHOUT_LEARNER_REPLY",
+      "actor": "SYSTEM"
+    },
+    {
+      "from": "CLOSED",
+      "to": "TRACKED",
+      "event": "NEW_FOLLOW_UP_CYCLE",
+      "actor": "LEARNER"
+    },
+    {
+      "from": "AUTO_CLOSED",
+      "to": "TRACKED",
+      "event": "NEW_FOLLOW_UP_CYCLE",
+      "actor": "LEARNER"
+    }
+  ],
+  "timers": {
+    "idleAfterHours": 48,
+    "autoCloseAfterIdleHours": 48,
+    "startFrom": "LAST_STAFF_MESSAGE",
+    "semanticTurnDetection": false,
+    "emailReminder": true
+  },
+  "aiPermission": {
+    "required": true,
+    "preselected": false,
+    "values": [
+      "YES",
+      "NO"
+    ],
+    "originalPosterNoExcludesCase": true,
+    "otherAuthorFilteringRequired": true
+  },
+  "privateSupport": {
+    "enabled": true,
+    "transport": "TEMPORARY_TEXT_CHANNEL",
+    "capacityThreshold": 200,
+    "visibleRoles": [
+      "CREATOR",
+      "STAFF",
+      "COURSE_ASSISTANT",
+      "DUMP_BOT"
+    ],
+    "attachmentAllowed": true,
+    "publicLookup": false,
+    "closeSequence": [
+      "ARCHIVE",
+      "VERIFY",
+      "LOG",
+      "DELETE_CHANNEL"
+    ],
+    "reopenUi": "UNRESOLVED"
+  }
+}

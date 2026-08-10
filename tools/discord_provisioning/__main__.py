@@ -1,3 +1,3 @@
-from tools.discord_provisioning.cli import main
+from tools.discord_provisioning.live import main
 
 raise SystemExit(main())

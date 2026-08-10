@@ -1,0 +1,409 @@
+{
+  "schemaVersion": "1.0",
+  "status": "PROPOSED_CONFIRMED_SOURCE",
+  "source": {
+    "package": "project-exchange/10_CFG_DiscordSide.zip",
+    "document": "discord-side-config/CONFIG.md",
+    "priority": 1,
+    "note": "已確認設定來源；尚未套用至任何 Discord 伺服器。"
+  },
+  "server": {
+    "name": "Fixture Calculus Learning Community",
+    "fixtureOnly": true,
+    "language": "zh-Hant"
+  },
+  "roles": [
+    {
+      "key": "staff",
+      "name": "Staff",
+      "kind": "STAFF",
+      "hierarchy": 80,
+      "publiclyDisplayed": true,
+      "databaseOnly": false
+    },
+    {
+      "key": "ta_lecturer",
+      "name": "TA Lecturer",
+      "kind": "STAFF",
+      "hierarchy": 75,
+      "publiclyDisplayed": true,
+      "databaseOnly": false
+    },
+    {
+      "key": "ta_grader",
+      "name": "TA Grader",
+      "kind": "STAFF",
+      "hierarchy": 70,
+      "publiclyDisplayed": true,
+      "databaseOnly": false
+    },
+    {
+      "key": "professor_staff",
+      "name": "Professor / Staff",
+      "kind": "STAFF",
+      "hierarchy": 78,
+      "publiclyDisplayed": true,
+      "databaseOnly": false
+    },
+    {
+      "key": "administrator",
+      "name": "Administrator",
+      "kind": "STAFF",
+      "hierarchy": 90,
+      "publiclyDisplayed": true,
+      "databaseOnly": false
+    },
+    {
+      "key": "course_assistant",
+      "name": "course_assistant",
+      "kind": "BOT",
+      "hierarchy": 65,
+      "publiclyDisplayed": true,
+      "databaseOnly": false
+    },
+    {
+      "key": "dump_bot",
+      "name": "dump_bot",
+      "kind": "BOT",
+      "hierarchy": 60,
+      "publiclyDisplayed": true,
+      "databaseOnly": false
+    },
+    {
+      "key": "student",
+      "name": "Student",
+      "kind": "LEARNER",
+      "hierarchy": 20,
+      "publiclyDisplayed": true,
+      "databaseOnly": false
+    },
+    {
+      "key": "guest",
+      "name": "Guest",
+      "kind": "LEARNER",
+      "hierarchy": 15,
+      "publiclyDisplayed": true,
+      "databaseOnly": false
+    },
+    {
+      "key": "registered_audit",
+      "name": "Registered / Audit",
+      "kind": "ATTRIBUTE",
+      "hierarchy": 5,
+      "publiclyDisplayed": false,
+      "databaseOnly": true
+    }
+  ],
+  "userTypes": [
+    "STUDENT",
+    "GUEST",
+    "TA_LECTURER",
+    "TA_GRADER",
+    "PROFESSOR_STAFF",
+    "ADMINISTRATOR"
+  ],
+  "modules": ["M1", "M2", "M3", "M4"],
+  "classModuleMapping": { "status": "PENDING_AUGUST_ROSTER", "entries": [] },
+  "nicknameRules": {
+    "modes": ["DISCORD_IDENTITY", "STUDENT_NNMMM", "GUEST_NNMMM"],
+    "studentPattern": "Student_{classCode}{sequence:03d}",
+    "guestPattern": "Guest_{guestType}{sequence:03d}",
+    "retainHistory": true
+  },
+  "categories": [
+    { "key": "questions", "name": "QUESTIONS", "enabled": true },
+    { "key": "resources", "name": "RESOURCES", "enabled": true },
+    { "key": "community", "name": "COMMUNITY", "enabled": true },
+    { "key": "private_support", "name": "PRIVATE SUPPORT", "enabled": true },
+    { "key": "voice", "name": "VOICE", "enabled": true },
+    { "key": "system", "name": "SYSTEM", "enabled": true }
+  ],
+  "channels": [
+    {
+      "key": "math_questions",
+      "name": "Math Questions",
+      "type": "FORUM",
+      "parent": "questions",
+      "topic": "微積分與數學觀念、計算與解題討論。",
+      "slowmodeSeconds": 0,
+      "autoArchiveMinutes": 10080,
+      "enabled": true,
+      "managedCase": true,
+      "forumTags": ["觀念", "計算", "技巧", "討論", "其他"],
+      "permissions": {
+        "student": { "allow": ["VIEW", "POST", "REPLY"], "deny": ["MANAGE"] },
+        "guest": { "allow": ["VIEW", "POST", "REPLY"], "deny": ["MANAGE"] },
+        "staff": { "allow": ["VIEW", "POST", "REPLY", "MANAGE"], "deny": [] },
+        "course_assistant": {
+          "allow": ["VIEW", "POST", "REPLY", "MANAGE"],
+          "deny": []
+        },
+        "dump_bot": {
+          "allow": ["VIEW", "EXPORT"],
+          "deny": ["POST", "REPLY", "MANAGE"]
+        }
+      }
+    },
+    {
+      "key": "coursework_systems",
+      "name": "Coursework / Systems",
+      "type": "FORUM",
+      "parent": "questions",
+      "topic": "WebWork、Gradescope、NTU COOL 與課程系統問題。",
+      "slowmodeSeconds": 0,
+      "autoArchiveMinutes": 10080,
+      "enabled": true,
+      "managedCase": true,
+      "forumTags": [
+        "WeBWorK",
+        "Gradescope",
+        "NTU COOL",
+        "Quiz / Assessment",
+        "教材勘誤",
+        "學分 / 報名",
+        "其他"
+      ],
+      "permissions": {
+        "student": { "allow": ["VIEW", "POST", "REPLY"], "deny": ["MANAGE"] },
+        "guest": { "allow": ["VIEW", "POST", "REPLY"], "deny": ["MANAGE"] },
+        "staff": { "allow": ["VIEW", "POST", "REPLY", "MANAGE"], "deny": [] },
+        "course_assistant": {
+          "allow": ["VIEW", "POST", "REPLY", "MANAGE"],
+          "deny": []
+        },
+        "dump_bot": {
+          "allow": ["VIEW", "EXPORT"],
+          "deny": ["POST", "REPLY", "MANAGE"]
+        }
+      }
+    },
+    {
+      "key": "other_problem_free_talk",
+      "name": "Other Problem / Free Talk",
+      "type": "FORUM",
+      "parent": "questions",
+      "topic": "其他問題、趣味題與希望保留脈絡的完整討論。",
+      "slowmodeSeconds": 0,
+      "autoArchiveMinutes": 10080,
+      "enabled": true,
+      "managedCase": true,
+      "forumTags": ["討論", "趣味題", "課外延伸", "其他"],
+      "permissions": {
+        "student": { "allow": ["VIEW", "POST", "REPLY"], "deny": ["MANAGE"] },
+        "guest": { "allow": ["VIEW", "POST", "REPLY"], "deny": ["MANAGE"] },
+        "staff": { "allow": ["VIEW", "POST", "REPLY", "MANAGE"], "deny": [] },
+        "course_assistant": {
+          "allow": ["VIEW", "POST", "REPLY", "MANAGE"],
+          "deny": []
+        },
+        "dump_bot": {
+          "allow": ["VIEW", "EXPORT"],
+          "deny": ["POST", "REPLY", "MANAGE"]
+        }
+      }
+    },
+    {
+      "key": "course_materials",
+      "name": "course-materials",
+      "type": "FORUM",
+      "parent": "resources",
+      "topic": "課程相關講義、題目、工具與參考資料；不建立案件。",
+      "slowmodeSeconds": 0,
+      "autoArchiveMinutes": 10080,
+      "enabled": true,
+      "managedCase": false,
+      "forumTags": ["講義", "題目", "工具", "參考資料", "其他"],
+      "permissions": {
+        "student": { "allow": ["VIEW", "POST", "REPLY"], "deny": ["MANAGE"] },
+        "guest": { "allow": ["VIEW", "POST", "REPLY"], "deny": ["MANAGE"] },
+        "staff": { "allow": ["VIEW", "POST", "REPLY", "MANAGE"], "deny": [] },
+        "course_assistant": {
+          "allow": ["VIEW", "POST", "REPLY", "MANAGE"],
+          "deny": []
+        },
+        "dump_bot": {
+          "allow": ["VIEW", "EXPORT"],
+          "deny": ["POST", "REPLY", "MANAGE"]
+        }
+      }
+    },
+    {
+      "key": "zh_chat",
+      "name": "中文聊天",
+      "type": "TEXT",
+      "parent": "community",
+      "topic": "一般中文交流；不自動建立案件。",
+      "slowmodeSeconds": 0,
+      "autoArchiveMinutes": 1440,
+      "enabled": true,
+      "managedCase": false,
+      "forumTags": [],
+      "permissions": {
+        "student": {
+          "allow": ["VIEW", "POST", "REPLY", "CREATE_THREAD"],
+          "deny": ["MANAGE"]
+        },
+        "guest": {
+          "allow": ["VIEW", "POST", "REPLY", "CREATE_THREAD"],
+          "deny": ["MANAGE"]
+        },
+        "staff": {
+          "allow": ["VIEW", "POST", "REPLY", "CREATE_THREAD", "MANAGE"],
+          "deny": []
+        },
+        "course_assistant": {
+          "allow": ["VIEW", "POST", "REPLY", "CREATE_THREAD", "MANAGE"],
+          "deny": []
+        }
+      }
+    },
+    {
+      "key": "en_chat",
+      "name": "English Chat",
+      "type": "TEXT",
+      "parent": "community",
+      "topic": "General English conversation; no automatic case lifecycle.",
+      "slowmodeSeconds": 0,
+      "autoArchiveMinutes": 1440,
+      "enabled": true,
+      "managedCase": false,
+      "forumTags": [],
+      "permissions": {
+        "student": {
+          "allow": ["VIEW", "POST", "REPLY", "CREATE_THREAD"],
+          "deny": ["MANAGE"]
+        },
+        "guest": {
+          "allow": ["VIEW", "POST", "REPLY", "CREATE_THREAD"],
+          "deny": ["MANAGE"]
+        },
+        "staff": {
+          "allow": ["VIEW", "POST", "REPLY", "CREATE_THREAD", "MANAGE"],
+          "deny": []
+        },
+        "course_assistant": {
+          "allow": ["VIEW", "POST", "REPLY", "CREATE_THREAD", "MANAGE"],
+          "deny": []
+        }
+      }
+    },
+    {
+      "key": "private_case_template",
+      "name": "private-case-template",
+      "type": "TEXT",
+      "parent": "private_support",
+      "topic": "每案動態建立文字頻道的 fixture 樣板；不在本輪套用。",
+      "slowmodeSeconds": 0,
+      "autoArchiveMinutes": 1440,
+      "enabled": false,
+      "managedCase": true,
+      "forumTags": [],
+      "permissions": {
+        "student": { "allow": [], "deny": ["VIEW", "POST", "REPLY", "MANAGE"] },
+        "guest": { "allow": [], "deny": ["VIEW", "POST", "REPLY", "MANAGE"] },
+        "staff": { "allow": ["VIEW", "POST", "REPLY", "MANAGE"], "deny": [] },
+        "course_assistant": {
+          "allow": ["VIEW", "POST", "REPLY", "MANAGE"],
+          "deny": []
+        },
+        "dump_bot": { "allow": ["VIEW", "EXPORT", "MANAGE"], "deny": ["POST"] }
+      }
+    },
+    {
+      "key": "zh_study_room",
+      "name": "中文自習室",
+      "type": "VOICE",
+      "parent": "voice",
+      "topic": "不錄音、不自動轉錄。",
+      "slowmodeSeconds": 0,
+      "autoArchiveMinutes": 1440,
+      "enabled": true,
+      "managedCase": false,
+      "forumTags": [],
+      "permissions": {
+        "student": {
+          "allow": ["VIEW", "CONNECT", "SPEAK"],
+          "deny": ["MANAGE"]
+        },
+        "guest": { "allow": ["VIEW", "CONNECT", "SPEAK"], "deny": ["MANAGE"] },
+        "staff": { "allow": ["VIEW", "CONNECT", "SPEAK", "MANAGE"], "deny": [] }
+      }
+    },
+    {
+      "key": "en_study_room",
+      "name": "English Study Room",
+      "type": "VOICE",
+      "parent": "voice",
+      "topic": "No recording or automatic transcription.",
+      "slowmodeSeconds": 0,
+      "autoArchiveMinutes": 1440,
+      "enabled": true,
+      "managedCase": false,
+      "forumTags": [],
+      "permissions": {
+        "student": {
+          "allow": ["VIEW", "CONNECT", "SPEAK"],
+          "deny": ["MANAGE"]
+        },
+        "guest": { "allow": ["VIEW", "CONNECT", "SPEAK"], "deny": ["MANAGE"] },
+        "staff": { "allow": ["VIEW", "CONNECT", "SPEAK", "MANAGE"], "deny": [] }
+      }
+    },
+    {
+      "key": "system_log",
+      "name": "system-log",
+      "type": "TEXT",
+      "parent": "system",
+      "topic": "課程機器人工作日誌；不公開給一般學生。",
+      "slowmodeSeconds": 0,
+      "autoArchiveMinutes": 1440,
+      "enabled": true,
+      "managedCase": false,
+      "forumTags": [],
+      "permissions": {
+        "student": { "allow": [], "deny": ["VIEW", "POST", "REPLY", "MANAGE"] },
+        "guest": { "allow": [], "deny": ["VIEW", "POST", "REPLY", "MANAGE"] },
+        "staff": { "allow": ["VIEW", "POST", "REPLY", "MANAGE"], "deny": [] },
+        "course_assistant": { "allow": ["VIEW", "POST"], "deny": ["MANAGE"] },
+        "dump_bot": { "allow": ["VIEW", "POST", "EXPORT"], "deny": ["MANAGE"] }
+      }
+    }
+  ],
+  "botPermissions": [
+    {
+      "key": "course_assistant",
+      "permissions": [
+        "VIEW_CHANNEL",
+        "SEND_MESSAGES",
+        "SEND_MESSAGES_IN_THREADS",
+        "CREATE_PUBLIC_THREADS",
+        "READ_MESSAGE_HISTORY",
+        "EMBED_LINKS",
+        "ATTACH_FILES",
+        "MANAGE_THREADS",
+        "MANAGE_NICKNAMES",
+        "MANAGE_ROLES",
+        "MANAGE_CHANNELS",
+        "USE_APPLICATION_COMMANDS"
+      ],
+      "scopedAreas": [
+        "questions",
+        "resources",
+        "community",
+        "private_support",
+        "system"
+      ]
+    },
+    {
+      "key": "dump_bot",
+      "permissions": [
+        "VIEW_CHANNEL",
+        "READ_MESSAGE_HISTORY",
+        "SEND_MESSAGES",
+        "ATTACH_FILES",
+        "MANAGE_CHANNELS"
+      ],
+      "scopedAreas": ["questions", "resources", "private_support", "system"]
+    }
+  ]
+}

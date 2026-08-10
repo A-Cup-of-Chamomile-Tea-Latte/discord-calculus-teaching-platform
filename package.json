@@ -9,9 +9,13 @@
   },
   "workspaces": [
     "apps/portal",
+    "apps/config-studio",
     "apps/gas"
   ],
   "scripts": {
+    "review": "node tools/review/start-review.mjs",
+    "review:portal": "npm run dev --workspace @calculus/portal -- --host 127.0.0.1 --port 4321",
+    "review:studio": "npm run dev --workspace @calculus/config-studio -- --host 127.0.0.1",
     "format": "prettier --write \"apps/**/*.{astro,css,ts,json}\" package.json && python -m ruff format bots tools tests",
     "format:check": "prettier --check \"apps/**/*.{astro,css,ts,json}\" package.json && python -m ruff format --check bots tools tests",
     "build": "npm run build --workspaces --if-present",

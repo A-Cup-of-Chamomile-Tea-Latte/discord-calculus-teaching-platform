@@ -1,0 +1,536 @@
+---
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+import type {
+  PermissionDecision,
+  StudioBundle,
+  StudioChannel,
+} from "../lib/studio-model";
+import "../styles/global.css";
+
+const projectRoot = resolve(process.cwd(), "../..");
+const readConfig = (name: string): Record<string, unknown> =>
+  JSON.parse(
+    readFileSync(resolve(projectRoot, "config/proposed", name), "utf-8"),
+  ) as Record<string, unknown>;
+
+const bundle = {
+  server: readConfig("server.yaml"),
+  portal: readConfig("portal.yaml"),
+  workflow: readConfig("case-workflow.yaml"),
+  dataPolicy: readConfig("data-policy.yaml"),
+} as unknown as StudioBundle;
+
+const serializedBundle = JSON.stringify(bundle).replaceAll("<", "\\u003c");
+const actors = [
+  ["student", "Student"],
+  ["guest", "Guest"],
+  ["guest", "特許 Guest"],
+  ["staff", "TA／教授"],
+  ["staff", "Administrator"],
+  ["course_assistant", "course_assistant"],
+  ["dump_bot", "dump_bot"],
+] as const;
+
+const hasPermission = (
+  channel: StudioChannel,
+  actor: string,
+  permission: string,
+): boolean => {
+  const decision = channel.permissions[actor] as PermissionDecision | undefined;
+  return Boolean(
+    decision?.allow.includes(permission) && !decision.deny.includes(permission),
+  );
+};
+
+const panelItems = [
+  ["overview", "設定總覽"],
+  ["channels", "頻道樹"],
+  ["roles", "身份與角色"],
+  ["permissions", "有效權限"],
+  ["forum", "Forum 與標題"],
+  ["workflow", "案件流程"],
+  ["private", "Private Support"],
+  ["import", "文件匯入"],
+  ["diff", "差異比較"],
+  ["export", "匯出"],
+] as const;
+---
+
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta
+      name="description"
+      content="Discord 微積分模組本機提案設定台；不連接或套用真實服務。"
+    />
+    <title>提案設定台｜微積分教學支援</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand__mark" aria-hidden="true">∫</span>
+          <h1>提案設定台</h1>
+          <p>Discord 微積分模組 · 本機審查工具</p>
+          <span class="proposal-badge">PROPOSED · 未套用</span>
+        </div>
+        <nav class="studio-nav" aria-label="設定台頁面">
+          {
+            panelItems.map(([key, label], index) => (
+              <button
+                type="button"
+                data-panel-target={key}
+                aria-selected={index === 0 ? "true" : "false"}
+              >
+                {label}
+              </button>
+            ))
+          }
+        </nav>
+        <div class="sidebar__footer">
+          <strong>安全邊界</strong><br />
+          本工具不讀取 .env、不連 Discord、不顯示 token，也沒有「套用」功能。匯入內容一律視為不可信提案。
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Local review workspace</p>
+            <h2>把伺服器設定放在同一張桌上</h2>
+            <p>
+              編輯只存在於目前瀏覽器頁面；需要保留時請匯出。所有內容仍是提案，不代表
+              Discord 已建立。
+            </p>
+          </div>
+          <span class="dirty-status" id="dirty-status">與載入來源一致</span>
+        </header>
+
+        <section id="panel-overview" data-studio-panel="overview" tabindex="-1">
+          <header class="panel-header">
+            <p class="eyebrow">Overview</p>
+            <h2>設定總覽</h2>
+            <p>
+              來源、核准狀態、驗證與主要未決事項都在這裡。最新確認來源優先於舊
+              Task 文件。
+            </p>
+          </header>
+          <div class="cards">
+            <article class="card">
+              <p class="card__label">來源狀態</p>
+              <p class="card__value">已找到</p>
+              <p>{bundle.server.source.package}</p>
+            </article>
+            <article class="card">
+              <p class="card__label">頻道／樣板</p>
+              <p class="card__value">{bundle.server.channels.length}</p>
+              <p>
+                {bundle.server.categories.length} 個分類，全部為本機 proposed config。
+              </p>
+            </article>
+            <article class="card">
+              <p class="card__label">案件狀態</p>
+              <p class="card__value">{bundle.workflow.states.length}</p>
+              <p>Open → Tracked → Idle → Closed／Auto Closed。</p>
+            </article>
+            <article class="card">
+              <p class="card__label">外部連線</p>
+              <p class="card__value">0</p>
+              <p>Discord、Google、Email、OAuth 與 AI API 全部關閉。</p>
+            </article>
+          </div>
+          <div class="notice" role="note">
+            <strong>目前不是已核准 production 設定。</strong>
+            Class → Module 正式對照、main tag 最終清單、資料保存與 Private Support
+            重啟介面仍需人工決策。
+          </div>
+        </section>
+
+        <section
+          id="panel-channels"
+          data-studio-panel="channels"
+          tabindex="-1"
+          hidden
+        >
+          <header class="panel-header">
+            <p class="eyebrow">Channel tree editor</p>
+            <h2>頻道樹編輯器</h2>
+            <p>
+              可搜尋、重新命名、排序或新增本機提案。這些動作不會寫回設定檔或
+              Discord。
+            </p>
+          </header>
+          <div class="toolbar">
+            <input
+              id="channel-search"
+              type="search"
+              aria-label="搜尋頻道"
+              placeholder="搜尋名稱、分類或類型"
+            />
+            <button id="add-channel" type="button">新增本機提案頻道</button>
+          </div>
+          <div class="editor-list" id="channel-list"></div>
+        </section>
+
+        <section
+          id="panel-roles"
+          data-studio-panel="roles"
+          tabindex="-1"
+          hidden
+        >
+          <header class="panel-header">
+            <p class="eyebrow">Identity and roles</p>
+            <h2>身份與角色</h2>
+            <p>
+              Module 是後台屬性，不是 Discord 角色；Administrator 必須是 TA，Bot
+              不得操作 Staff。
+            </p>
+          </header>
+          <div class="matrix-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">角色</th>
+                  <th scope="col">用途</th>
+                  <th scope="col">層級</th>
+                  <th scope="col">公開顯示</th>
+                  <th scope="col">僅資料庫</th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  bundle.server.roles.map((role) => (
+                    <tr>
+                      <td>
+                        <strong>{role.name}</strong>
+                        <br />
+                        <small>{role.key}</small>
+                      </td>
+                      <td>{role.kind}</td>
+                      <td>{role.hierarchy}</td>
+                      <td>{role.publiclyDisplayed ? "是" : "否"}</td>
+                      <td>{role.databaseOnly ? "是" : "否"}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="notice">
+            顯示模式：沿用 Discord 身份、Student_nnmmm、Guest_nnmmm。正式 Class
+            → Module 對照待八月資料，不在此硬編碼。
+          </div>
+        </section>
+
+        <section
+          id="panel-permissions"
+          data-studio-panel="permissions"
+          tabindex="-1"
+          hidden
+        >
+          <header class="panel-header">
+            <p class="eyebrow">Effective permissions</p>
+            <h2>有效權限矩陣</h2>
+            <p>
+              顯示目前 proposed config
+              的合併結果；「管理」包含該區域的受限管理能力，不等於
+              Administrator。
+            </p>
+          </header>
+          <div class="matrix-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">區域</th>
+                  {actors.map(([, label]) => <th scope="col">{label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  bundle.server.channels.map((channel) => (
+                    <tr>
+                      <th scope="row">{channel.name}</th>
+                      {actors.map(([key]) => (
+                        <td>
+                          <span
+                            class={
+                              hasPermission(channel, key, "VIEW")
+                                ? "permission-yes"
+                                : "permission-no"
+                            }
+                          >
+                            {hasPermission(channel, key, "VIEW")
+                              ? "可見"
+                              : "不可見"}
+                          </span>
+                          <br />
+                          {hasPermission(channel, key, "POST") ? "發文" : "—"}
+                          {" · "}
+                          {hasPermission(channel, key, "CREATE_THREAD")
+                            ? "開串"
+                            : "—"}
+                          {" · "}
+                          {hasPermission(channel, key, "MANAGE") ? "管理" : "—"}
+                          {" · "}
+                          {hasPermission(channel, key, "EXPORT") ? "匯出" : "—"}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section
+          id="panel-forum"
+          data-studio-panel="forum"
+          tabindex="-1"
+          hidden
+        >
+          <header class="panel-header">
+            <p class="eyebrow">Forum and title rules</p>
+            <h2>Forum 與文章設定</h2>
+            <p>
+              每篇案件只有一個 main tag 進入 canonical title；AI
+              與案件狀態不塞進一般標題。
+            </p>
+          </header>
+          <div class="split">
+            <div class="editor-card">
+              <h3>標題即時預覽</h3>
+              <div class="form-grid">
+                <label>
+                  <span>Module</span>
+                  <select id="title-module">
+                    <option>M1</option>
+                    <option>M2</option>
+                    <option>M3</option>
+                    <option>M4</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Main tag</span>
+                  <input id="title-tag" value="觀念" />
+                </label>
+                <label>
+                  <span>學生輸入標題</span>
+                  <input id="title-input" value="我不懂 chain rule" />
+                </label>
+              </div>
+              <p class="title-preview" id="title-preview"></p>
+            </div>
+            <div class="preview-card">
+              <h3>Forum 分工</h3>
+              <ul>
+                {
+                  bundle.server.channels
+                    .filter((channel) => channel.type === "FORUM")
+                    .map((channel) => (
+                      <li>
+                        <strong>{channel.name}</strong>
+                        <br />
+                        {channel.forumTags.join("、") || "無原生標籤"}
+                        <br />
+                        <small>
+                          {channel.managedCase ? "建立案件" : "不建立案件"}
+                        </small>
+                      </li>
+                    ))
+                }
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="panel-workflow"
+          data-studio-panel="workflow"
+          tabindex="-1"
+          hidden
+        >
+          <header class="panel-header">
+            <p class="eyebrow">Case lifecycle</p>
+            <h2>案件流程</h2>
+            <p>
+              第一段 48 小時從 TA
+              最後留言起算，不做「輪到誰」的語意判斷；Discord auto-archive
+              是另一件事。
+            </p>
+          </header>
+          <ol class="state-flow">
+            {
+              bundle.workflow.states.map((state) => (
+                <li>
+                  <strong>{state.label}</strong>
+                  <small>{state.description}</small>
+                </li>
+              ))
+            }
+          </ol>
+          <div class="notice">
+            Idle 後再 {bundle.workflow.timers.autoCloseAfterIdleHours} 小時無回覆才
+            Auto Closed。手動結案前綴：
+            {bundle.workflow.canonicalTitle.manualClosePrefix}；自動結案前綴：
+            {bundle.workflow.canonicalTitle.automaticClosePrefix}。
+          </div>
+        </section>
+
+        <section
+          id="panel-private"
+          data-studio-panel="private"
+          tabindex="-1"
+          hidden
+        >
+          <header class="panel-header">
+            <p class="eyebrow">Private Support</p>
+            <h2>Private Support 設定</h2>
+            <p>
+              本頁只呈現提案與風險檢查，不會建立頻道，也不會觸碰 Private Support
+              內容。
+            </p>
+          </header>
+          <div class="cards">
+            <article class="card">
+              <p class="card__label">承載方式</p>
+              <p class="card__value">暫時文字頻道</p>
+              <p>每案一個；由 Bot 建立，學生不能自行建立。</p>
+            </article>
+            <article class="card">
+              <p class="card__label">容量門檻</p>
+              <p class="card__value">
+                {bundle.workflow.privateSupport.capacityThreshold}
+              </p>
+              <p>伺服器總頻道數達門檻時拒絕新案件，改走 NTU Mail。</p>
+            </article>
+            <article class="card">
+              <p class="card__label">可見對象</p>
+              <p class="card__value">
+                {bundle.workflow.privateSupport.visibleRoles.length}
+              </p>
+              <p>{bundle.workflow.privateSupport.visibleRoles.join("、")}</p>
+            </article>
+            <article class="card">
+              <p class="card__label">安全結案</p>
+              <p class="card__value">4 步</p>
+              <p>{bundle.workflow.privateSupport.closeSequence.join(" → ")}</p>
+            </article>
+          </div>
+          <div class="notice">
+            刪除後重新開啟原 Case 的 UI 仍是 <strong
+              >{bundle.workflow.privateSupport.reopenUi}</strong
+            >；此項保持未決。
+          </div>
+        </section>
+
+        <section
+          id="panel-import"
+          data-studio-panel="import"
+          tabindex="-1"
+          hidden
+        >
+          <header class="panel-header">
+            <p class="eyebrow">Untrusted document preview</p>
+            <h2>文件匯入區</h2>
+            <p>
+              匯入只會載入目前頁面供人工檢視；不執行程式、不自動合併，也不升格為正式設定。
+            </p>
+          </header>
+          <div class="import-card form-grid">
+            <label>
+              <span>文件性質（必選）</span>
+              <select id="import-kind">
+                <option value="">請選擇</option>
+                <option>正式設定</option>
+                <option>修改提案</option>
+                <option>舊版本</option>
+                <option>分析報告</option>
+                <option>Codex 回報</option>
+                <option>人工備註</option>
+              </select>
+            </label>
+            <label>
+              <span>匯入 Markdown／YAML／JSON</span>
+              <input
+                id="import-file"
+                type="file"
+                accept=".md,.yaml,.yml,.json,text/markdown,application/json"
+              />
+            </label>
+            <label>
+              <span>或貼上內容</span>
+              <textarea id="import-text" placeholder="內容只停留在目前頁面"
+              ></textarea>
+            </label>
+            <button id="inspect-import" type="button">檢查匯入預覽</button>
+            <p id="import-status" class="import-status" role="status">
+              尚未載入文件。
+            </p>
+          </div>
+        </section>
+
+        <section id="panel-diff" data-studio-panel="diff" tabindex="-1" hidden>
+          <header class="panel-header">
+            <p class="eyebrow">Proposal diff</p>
+            <h2>差異比較</h2>
+            <p>
+              比較目前頁面中的本機編輯與載入時 proposed
+              config；無法判定或涉及正式套用者一律需人工核准。
+            </p>
+          </header>
+          <div class="editor-card">
+            <ul class="diff-list" id="diff-list"></ul>
+          </div>
+          <div class="notice">
+            本輪不計算真實 Discord 差異；假伺服器 provisioning diff 由獨立
+            dry-run 工具產生。
+          </div>
+        </section>
+
+        <section
+          id="panel-export"
+          data-studio-panel="export"
+          tabindex="-1"
+          hidden
+        >
+          <header class="panel-header">
+            <p class="eyebrow">Local export</p>
+            <h2>匯出提案</h2>
+            <p>
+              匯出會下載到目前裝置；檔案仍標示為 proposed，沒有任何 Discord
+              套用語意。
+            </p>
+          </header>
+          <div class="export-card">
+            <div class="export-actions">
+              <button type="button" data-export="yaml">匯出 YAML</button>
+              <button type="button" data-export="json">匯出 JSON</button>
+              <button type="button" data-export="markdown">
+                匯出 Markdown 摘要
+              </button>
+            </div>
+            <p class="notice">
+              YAML 匯出使用 JSON-compatible YAML，避免引入額外 parser；內容可由
+              YAML 1.2 工具直接讀取。
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script
+      id="studio-data"
+      type="application/json"
+      is:inline
+      set:html={serializedBundle}
+    />
+    <script>
+      import "../scripts/studio";
+    </script>
+  </body>
+</html>

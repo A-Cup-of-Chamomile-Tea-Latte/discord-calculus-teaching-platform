@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/config/case-workflow.schema.json",
+  "title": "Proposed case workflow",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "caseNumber",
+    "canonicalTitle",
+    "states",
+    "transitions",
+    "timers",
+    "aiPermission",
+    "privateSupport"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "status": {
+      "enum": [
+        "PROPOSED",
+        "PROPOSED_CONFIRMED_SOURCE"
+      ]
+    },
+    "caseNumber": {
+      "type": "object",
+      "required": [
+        "pattern",
+        "privateSuffix",
+        "specialClassCode",
+        "randomAlphabet",
+        "authenticationFactor"
+      ],
+      "properties": {
+        "pattern": {
+          "type": "string"
+        },
+        "privateSuffix": {
+          "const": "-P"
+        },
+        "specialClassCode": {
+          "const": "99"
+        },
+        "randomAlphabet": {
+          "type": "string",
+          "minLength": 20
+        },
+        "authenticationFactor": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "canonicalTitle": {
+      "type": "object",
+      "required": [
+        "pattern",
+        "modules",
+        "mainTags",
+        "mainTagsFinalized",
+        "manualClosePrefix",
+        "automaticClosePrefix"
+      ],
+      "properties": {
+        "pattern": {
+          "const": "[{module}][{mainTag}] {userTitle}"
+        },
+        "modules": {
+          "const": [
+            "M1",
+            "M2",
+            "M3",
+            "M4"
+          ]
+        },
+        "mainTags": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "mainTagsFinalized": {
+          "type": "boolean"
+        },
+        "manualClosePrefix": {
+          "const": "✅"
+        },
+        "automaticClosePrefix": {
+          "const": "(„• ֊ •„)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "states": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "$ref": "#/$defs/state"
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "minItems": 7,
+      "items": {
+        "$ref": "#/$defs/transition"
+      }
+    },
+    "timers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idleAfterHours",
+        "autoCloseAfterIdleHours",
+        "startFrom",
+        "semanticTurnDetection",
+        "emailReminder"
+      ],
+      "properties": {
+        "idleAfterHours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "autoCloseAfterIdleHours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "startFrom": {
+          "const": "LAST_STAFF_MESSAGE"
+        },
+        "semanticTurnDetection": {
+          "const": false
+        },
+        "emailReminder": {
+          "type": "boolean"
+        }
+      }
+    },
+    "aiPermission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "preselected",
+        "values",
+        "originalPosterNoExcludesCase",
+        "otherAuthorFilteringRequired"
+      ],
+      "properties": {
+        "required": {
+          "const": true
+        },
+        "preselected": {
+          "const": false
+        },
+        "values": {
+          "const": [
+            "YES",
+            "NO"
+          ]
+        },
+        "originalPosterNoExcludesCase": {
+          "const": true
+        },
+        "otherAuthorFilteringRequired": {
+          "const": true
+        }
+      }
+    },
+    "privateSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "transport",
+        "capacityThreshold",
+        "visibleRoles",
+        "attachmentAllowed",
+        "publicLookup",
+        "closeSequence",
+        "reopenUi"
+      ],
+      "properties": {
+        "enabled": {
+          "const": true
+        },
+        "transport": {
+          "const": "TEMPORARY_TEXT_CHANNEL"
+        },
+        "capacityThreshold": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "visibleRoles": {
+          "type": "array",
+          "contains": {
+            "const": "STAFF"
+          },
+          "minContains": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "CREATOR",
+              "STAFF",
+              "COURSE_ASSISTANT",
+              "DUMP_BOT"
+            ]
+          }
+        },
+        "attachmentAllowed": {
+          "type": "boolean"
+        },
+        "publicLookup": {
+          "const": false
+        },
+        "closeSequence": {
+          "const": [
+            "ARCHIVE",
+            "VERIFY",
+            "LOG",
+            "DELETE_CHANNEL"
+          ]
+        },
+        "reopenUi": {
+          "enum": [
+            "UNRESOLVED",
+            "PORTAL",
+            "COMMAND"
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "stateKey": {
+      "enum": [
+        "OPEN",
+        "TRACKED",
+        "IDLE",
+        "CLOSED",
+        "AUTO_CLOSED"
+      ]
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "label",
+        "description"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/stateKey"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to",
+        "event",
+        "actor"
+      ],
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/stateKey"
+        },
+        "to": {
+          "$ref": "#/$defs/stateKey"
+        },
+        "event": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_]+$"
+        },
+        "actor": {
+          "enum": [
+            "STAFF",
+            "LEARNER",
+            "SYSTEM"
+          ]
+        }
+      }
+    }
+  }
+}

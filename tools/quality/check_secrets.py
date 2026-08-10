@@ -103,7 +103,12 @@ def candidate_files(root: Path) -> list[Path]:
 
 def scan_file(path: Path) -> list[Finding]:
     """Scan a reasonably sized UTF-8 text file and report rule names, never values."""
-    if path.stat().st_size > 2_000_000:
+    try:
+        size = path.stat().st_size
+    except OSError:
+        # A tracked file can be deleted in the worktree before the next commit.
+        return []
+    if size > 2_000_000:
         return []
     try:
         text = path.read_text(encoding="utf-8")
