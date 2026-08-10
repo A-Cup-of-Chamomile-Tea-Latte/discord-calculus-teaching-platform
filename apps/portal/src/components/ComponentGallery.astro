@@ -4,8 +4,6 @@ import ButtonLink from "./ButtonLink.astro";
 import Card from "./Card.astro";
 import FormField from "./FormField.astro";
 import MetaLabel from "./MetaLabel.astro";
-import SiteFooter from "./SiteFooter.astro";
-import SiteHeader from "./SiteHeader.astro";
 import StatePanel from "./StatePanel.astro";
 import StatusBadge from "./StatusBadge.astro";
 
@@ -19,16 +17,6 @@ const statuses = [
 ---
 
 <div class="gallery">
-  <SiteHeader
-    homeHref="#navigation"
-    modeLabel="Gallery fixture"
-    navItems={[
-      { href: "#status", label: "狀態" },
-      { href: "#forms", label: "表單" },
-      { href: "#states", label: "介面狀態" },
-    ]}
-  />
-
   <div class="shell stack section" style="--stack-gap: var(--space-7)">
     <header id="navigation" class="reading-width">
       <p class="gallery__eyebrow">Local fixture gallery</p>
@@ -144,8 +132,6 @@ const statuses = [
       </StatePanel>
     </section>
   </div>
-
-  <SiteFooter guideHref="#navigation" statusHref="#states" />
 </div>
 
 <style>

@@ -8,9 +8,10 @@ interface Props {
   title: string;
   description: string;
   currentPath?: string;
+  requiredRole?: "staff" | "admin";
 }
 
-const { title, description, currentPath = "" } = Astro.props;
+const { title, description, currentPath = "", requiredRole } = Astro.props;
 const pageTitle = `${title}｜微積分教學支援`;
 const navItems = [
   {
@@ -34,51 +35,93 @@ const navItems = [
     label: "使用指南",
     current: currentPath === "guide",
   },
-  {
-    href: withBase("sqlite-lab/"),
-    label: "SQLite 實驗室",
-    current: currentPath === "sqlite-lab",
-  },
-  {
-    href: withBase("settings/"),
-    label: "我的設定",
-    current: currentPath === "settings",
-  },
-  {
-    href: withBase("status/"),
-    label: "系統狀態",
-    current: currentPath === "status",
-  },
 ];
 ---
 
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-access-role="guest">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
+    {requiredRole && <meta name="robots" content="noindex, nofollow" />}
     <meta name="generator" content={Astro.generator} />
     <title>{pageTitle}</title>
     <script is:inline>
       (() => {
         try {
-          const saved = localStorage.getItem("calculus-portal-theme");
-          document.documentElement.dataset.theme =
-            saved === "student" ? "student" : "formal";
+          const raw = sessionStorage.getItem("calculus-local-session-v1");
+          const session = raw ? JSON.parse(raw) : null;
+          const role = session?.role;
+          document.documentElement.dataset.accessRole =
+            (role === "staff" || role === "admin") &&
+            typeof session?.expiresAt === "number" &&
+            session.expiresAt > Date.now()
+              ? role
+              : "guest";
         } catch {
-          document.documentElement.dataset.theme = "formal";
+          document.documentElement.dataset.accessRole = "guest";
         }
       })();
     </script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳到主要內容</a>
-    <SiteHeader homeHref={withBase("")} navItems={navItems} />
-    <main id="main-content" tabindex="-1"><slot /></main>
+    <SiteHeader
+      homeHref={withBase("")}
+      accessHref={withBase("access/")}
+      navItems={navItems}
+    />
+    <main id="main-content" tabindex="-1" data-required-role={requiredRole}>
+      {
+        requiredRole && (
+          <section
+            class="access-required shell section"
+            aria-labelledby="access-required-title"
+          >
+            <p class="eyebrow">內部工作區</p>
+            <h1 id="access-required-title">這一頁需要內部身份</h1>
+            <p>
+              {requiredRole === "admin"
+                ? "請以管理員身份登入後開啟。"
+                : "請以助教或管理員身份登入後開啟。"}
+            </p>
+            <a
+              class="button"
+              href={`${withBase("access/")}?role=${requiredRole}`}
+            >
+              {requiredRole === "admin" ? "管理員登入" : "助教登入"}
+            </a>
+          </section>
+        )
+      }
+      <div class="protected-content"><slot /></div>
+    </main>
     <SiteFooter
       guideHref={withBase("guide/")}
       statusHref={withBase("status/")}
     />
   </body>
 </html>
+
+<style>
+  .access-required {
+    display: none;
+    max-width: 38rem;
+    text-align: center;
+  }
+
+  html[data-access-role="guest"] main[data-required-role] .access-required,
+  html[data-access-role="staff"]
+    main[data-required-role="admin"]
+    .access-required {
+    display: block;
+  }
+
+  html[data-access-role="guest"] main[data-required-role] .protected-content,
+  html[data-access-role="staff"]
+    main[data-required-role="admin"]
+    .protected-content {
+    display: none;
+  }
+</style>

@@ -102,34 +102,13 @@ const publicCases = await fixtureCaseLookupAdapter.listPublicCases();
       </div>
     </section>
 
-    <section class="grid grid--auto" aria-label="系統與審查入口">
+    <section class="reading-width" aria-label="系統狀態入口">
       <div class="prototype-panel">
         <p class="eyebrow">System status</p>
         <h2>確認目前可用狀態</h2>
         <p>查看 Portal、Discord Bot、Email 與案件同步的展示狀態及備援管道。</p>
         <ButtonLink href={withBase("status/")} variant="secondary"
           >查看系統狀態</ButtonLink
-        >
-      </div>
-      <div class="prototype-panel">
-        <p class="eyebrow">Review library</p>
-        <h2>檢查所有假資料情境</h2>
-        <p>
-          新案件、附件、Idle、自動結案、重新開啟、離線與同步落後都可目視比較。
-        </p>
-        <ButtonLink href={withBase("scenarios/")} variant="secondary"
-          >開啟情境庫</ButtonLink
-        >
-      </div>
-      <div class="prototype-panel">
-        <p class="eyebrow">互動自學 · 約 75–110 分鐘</p>
-        <h2>從零建立 SQLite 與資料架構直覺</h2>
-        <p>
-          先做不計分小測，再用資料地圖、合成
-          SQL、交易與工作佇列模擬練習。全程不會連線或寫入真實資料庫。
-        </p>
-        <ButtonLink href={withBase("sqlite-lab/")}
-          >進入 SQLite 實驗室</ButtonLink
         >
       </div>
     </section>

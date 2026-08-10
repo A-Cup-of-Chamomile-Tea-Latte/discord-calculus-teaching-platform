@@ -77,6 +77,14 @@ const memberships = rawMemberships as FixtureMembership[];
 const users = rawUsers as FixtureUser[];
 const projections = rawProjections as FixtureProjection[];
 
+const publicFixtureTitles: Record<string, string> = {
+  case_000421: "極限步驟提問",
+  case_000422: "連續性提問",
+  case_000423: "導數記號提問",
+  case_000424: "定理解讀提問",
+  case_000425: "積分設定提問",
+};
+
 function authorLabel(message: FixtureMessage): string {
   if (message.authorRole === "TA" || message.authorRole === "INSTRUCTOR")
     return "教學團隊";
@@ -142,7 +150,7 @@ function toPublicCase(item: FixtureCase): PublicCaseView | null {
       ) ?? null;
   return {
     caseNumber: item.caseNumber,
-    title: item.title,
+    title: publicFixtureTitles[item.caseId] ?? item.title,
     status: reducedProjection.status,
     visibility: item.visibility as PublicVisibility,
     authorDisplayMode: item.authorDisplayMode,

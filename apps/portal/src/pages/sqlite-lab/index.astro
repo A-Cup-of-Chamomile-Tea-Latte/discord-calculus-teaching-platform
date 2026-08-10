@@ -7,42 +7,31 @@ import { withBase } from "../../lib/paths";
   title="SQLite 學習實驗室"
   description="用互動資料地圖、唯讀 SQL、交易與可靠工作佇列模擬，理解微積分教學 Bot 的資料架構。"
   currentPath="sqlite-lab"
+  requiredRole="admin"
 >
   <div data-sqlite-lab>
     <header class="lab-hero">
       <div class="shell lab-hero__grid">
         <div class="lab-hero__copy">
-          <p class="eyebrow">SQLite 學習實驗室</p>
-          <h1>看懂資料怎麼走，<br />黑盒就會變透明。</h1>
+          <p class="eyebrow">管理員工作區 · SQLite 基礎</p>
+          <h1>先看懂，再操作 SQLite</h1>
           <p class="lab-hero__lead">
-            這套課程聚焦本專案真正會用到的資料判斷。你會親手選擇資料載體、執行安全查詢，並觀察寫入失敗與工作接手時的保護機制。
+            這裡不是真實資料庫後台，而是一條可安全練習的學習路徑。
           </p>
+          <dl class="lab-orientation">
+            <div><dt>你在哪裡</dt><dd>本機合成資料實驗室</dd></div>
+            <div><dt>現在做什麼</dt><dd>看地圖、查資料、模擬失敗</dd></div>
+            <div><dt>完成後得到</dt><dd>能審查資料設計與復原路徑</dd></div>
+          </dl>
           <div class="cluster">
-            <a class="button" href="#learning-start">從開場小測開始</a>
+            <a class="button" href="#learning-start">開始第 1 步</a>
             <a class="button button--secondary" href="#module-query"
-              >直接動手查詢</a
+              >先看查詢練習</a
             >
           </div>
           <p class="lab-hero__note">
-            約 75–110
-            分鐘，可分多次完成。所有資料都是合成範例，不會連線或寫入真實資料庫。
+            管理員自學 · 可分 3 次完成 · 全程不會寫入真實資料庫
           </p>
-        </div>
-        <div
-          class="database-object"
-          aria-label="SQLite 是一個含有多張資料表的本機資料庫檔案"
-        >
-          <div class="database-object__top">
-            <span>course_bots.sqlite3</span><span>本機檔案</span>
-          </div>
-          <div class="database-object__tables">
-            <div><span>cases</span><small>案件真實狀態</small></div>
-            <div>
-              <span>private_dump_jobs</span><small>可靠工作佇列</small>
-            </div>
-            <div><span>schema_migrations</span><small>結構升級紀錄</small></div>
-          </div>
-          <p>一個檔案 · 明確規則 · 完整交易</p>
         </div>
       </div>
     </header>
@@ -99,20 +88,13 @@ import { withBase } from "../../lib/paths";
           aria-labelledby="learning-brief-title"
         >
           <div>
-            <p class="eyebrow">學習目標</p>
-            <h2 id="learning-brief-title">完成後，你應該能做到這三件事</h2>
+            <p class="eyebrow">學習路線</p>
+            <h2 id="learning-brief-title">先建立地圖，再試著查詢與判斷</h2>
           </div>
           <ol class="outcome-list">
-            <li>
-              根據資料用途、權限與維護成本，在
-              SQLite、Sheet、Git、受管檔案與秘密載體之間作選擇。
-            </li>
-            <li>
-              用自己的話解釋交易、處理權、租約與憑證如何防止半套結果與重複處理。
-            </li>
-            <li>
-              運用來源、結構、版本、檢查碼與人工確認，判斷雲端資料能否受控匯入本機。
-            </li>
+            <li>看懂哪些資料該放 SQLite，哪些不該。</li>
+            <li>用唯讀 SQL 查找案件，不破壞資料。</li>
+            <li>解釋交易、佇列與雲端匯入如何在失敗時保護系統。</li>
           </ol>
           <div class="study-route" aria-label="建議學習節奏">
             <span>第 1 次：01–03 建立地圖</span>
@@ -841,7 +823,7 @@ import { withBase } from "../../lib/paths";
   .lab-hero {
     position: relative;
     overflow: hidden;
-    padding-block: clamp(3.5rem, 8vw, 6.5rem);
+    padding-block: clamp(2.5rem, 6vw, 4.5rem);
     border-bottom: var(--border-thin) solid rgb(255 255 255 / 14%);
     background:
       radial-gradient(
@@ -870,12 +852,12 @@ import { withBase } from "../../lib/paths";
     position: relative;
     z-index: 1;
     display: grid;
-    gap: var(--space-7);
+    max-width: 62rem;
     align-items: center;
   }
 
   .lab-hero__copy {
-    max-width: 43rem;
+    max-width: 58rem;
   }
 
   .lab-hero .eyebrow {
@@ -883,14 +865,43 @@ import { withBase } from "../../lib/paths";
   }
 
   .lab-hero h1 {
-    max-width: 14ch;
+    max-width: 22ch;
     color: inherit;
-    font-size: clamp(2.5rem, 7vw, 5rem);
+    font-size: clamp(2.15rem, 6vw, 3.8rem);
   }
 
   .lab-hero__lead {
     color: rgb(255 255 255 / 84%);
     font-size: var(--font-size-lg);
+  }
+
+  .lab-orientation {
+    display: grid;
+    margin-block: var(--space-5);
+    border-block: 1px solid rgb(255 255 255 / 18%);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .lab-orientation div {
+    min-width: 0;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .lab-orientation div + div {
+    border-inline-start: 1px solid rgb(255 255 255 / 18%);
+  }
+
+  .lab-orientation dt {
+    margin-bottom: var(--space-1);
+    color: #f0ca83;
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+  }
+
+  .lab-orientation dd {
+    margin: 0;
+    color: rgb(255 255 255 / 82%);
+    font-size: var(--font-size-sm);
   }
 
   .lab-hero__note {
@@ -1049,7 +1060,7 @@ import { withBase } from "../../lib/paths";
 
   .learning-brief h2 {
     max-width: 24ch;
-    font-family: Georgia, "Noto Serif TC", serif;
+    font-family: var(--font-heading);
     font-size: clamp(1.5rem, 3vw, 2rem);
   }
 
@@ -1127,7 +1138,7 @@ import { withBase } from "../../lib/paths";
   }
 
   .lesson__heading h2 {
-    font-family: Georgia, "Noto Serif TC", serif;
+    font-family: var(--font-heading);
     font-size: clamp(1.6rem, 4vw, 2.35rem);
   }
 
@@ -1678,10 +1689,6 @@ import { withBase } from "../../lib/paths";
   }
 
   @media (min-width: 64rem) {
-    .lab-hero__grid {
-      grid-template-columns: minmax(0, 1.2fr) minmax(24rem, 0.8fr);
-    }
-
     .lab-layout {
       grid-template-columns: 14rem minmax(0, 1fr);
     }
@@ -1710,6 +1717,15 @@ import { withBase } from "../../lib/paths";
   }
 
   @media (max-width: 36rem) {
+    .lab-orientation {
+      grid-template-columns: 1fr;
+    }
+
+    .lab-orientation div + div {
+      border-block-start: 1px solid rgb(255 255 255 / 18%);
+      border-inline-start: 0;
+    }
+
     .study-route,
     .diagnostic-quiz label {
       grid-template-columns: 1fr;

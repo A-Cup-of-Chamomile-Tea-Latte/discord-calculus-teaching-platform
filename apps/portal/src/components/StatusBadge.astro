@@ -15,21 +15,21 @@ interface Props {
 const { status } = Astro.props;
 const labels: Record<Status, { symbol: string; label: string; tone: string }> =
   {
-    OPEN: { symbol: "○", label: "Open · 待接手", tone: "info" },
+    OPEN: { symbol: "○", label: "待接手", tone: "info" },
     WAITING_FOR_STUDENT: {
       symbol: "↩",
-      label: "Idle · 等待學生",
+      label: "等待學生",
       tone: "warning",
     },
-    ANSWERED: { symbol: "✓", label: "Tracked · 已接手", tone: "success" },
-    ESCALATED: { symbol: "↑", label: "Tracked · 已升級", tone: "danger" },
+    ANSWERED: { symbol: "✓", label: "已接手", tone: "success" },
+    ESCALATED: { symbol: "↑", label: "已升級", tone: "danger" },
     TEMPORARILY_CLOSED: {
       symbol: "◐",
-      label: "Idle · 提醒中",
+      label: "提醒中",
       tone: "warning",
     },
-    CLOSED: { symbol: "■", label: "Closed · 已結案", tone: "neutral" },
-    REOPENED: { symbol: "↻", label: "Tracked · 新循環", tone: "info" },
+    CLOSED: { symbol: "■", label: "已結案", tone: "neutral" },
+    REOPENED: { symbol: "↻", label: "已重開", tone: "info" },
   };
 const value = labels[status];
 ---

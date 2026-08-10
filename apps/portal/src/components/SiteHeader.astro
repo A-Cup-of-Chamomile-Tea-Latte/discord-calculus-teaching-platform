@@ -3,15 +3,22 @@ interface NavItem {
   href: string;
   label: string;
   current?: boolean;
+  minRole?: "staff" | "admin";
 }
 
 interface Props {
   homeHref: string;
+  accessHref: string;
   navItems: NavItem[];
   modeLabel?: string;
 }
 
-const { homeHref, navItems, modeLabel = "本機展示版" } = Astro.props;
+const {
+  homeHref,
+  accessHref,
+  navItems,
+  modeLabel = "本機展示版",
+} = Astro.props;
 ---
 
 <header class="site-header">
@@ -22,7 +29,7 @@ const { homeHref, navItems, modeLabel = "本機展示版" } = Astro.props;
       <ul>
         {
           navItems.map((item) => (
-            <li>
+            <li data-min-role={item.minRole}>
               <a
                 href={item.href}
                 aria-current={item.current ? "page" : undefined}
@@ -34,13 +41,17 @@ const { homeHref, navItems, modeLabel = "本機展示版" } = Astro.props;
         }
       </ul>
     </nav>
-    <div class="theme-switcher" aria-label="外觀選擇">
-      <button type="button" data-theme-option="formal" aria-pressed="true"
-        >課程正式</button
-      >
-      <button type="button" data-theme-option="student" aria-pressed="false"
-        >學生友善</button
-      >
+    <div class="access-controls">
+      <div class="access-links access-links--guest" aria-label="內部登入">
+        <a href={`${accessHref}?role=staff`}>助教登入</a>
+        <a href={`${accessHref}?role=admin`}>管理員登入</a>
+      </div>
+      <div class="access-links access-links--signed-in" aria-label="已登入身份">
+        <a href={accessHref}><span data-access-role-label>內部</span>工作區</a>
+        <button type="button" class="access-signout" data-local-signout
+          >登出</button
+        >
+      </div>
     </div>
   </div>
 </header>
@@ -94,7 +105,7 @@ const { homeHref, navItems, modeLabel = "本機展示版" } = Astro.props;
     text-decoration-thickness: 0.18em;
   }
 
-  .theme-switcher {
+  .access-links {
     display: flex;
     gap: var(--space-1);
     padding: var(--space-1);
@@ -103,7 +114,8 @@ const { homeHref, navItems, modeLabel = "本機展示版" } = Astro.props;
     background: var(--color-surface-muted);
   }
 
-  .theme-switcher button {
+  .access-links a,
+  .access-signout {
     min-height: 2rem;
     padding: var(--space-1) var(--space-3);
     border: 0;
@@ -111,12 +123,45 @@ const { homeHref, navItems, modeLabel = "本機展示版" } = Astro.props;
     background: transparent;
     color: var(--color-text-muted);
     font-size: var(--font-size-xs);
+    font-weight: 750;
+    text-decoration: none;
   }
 
-  .theme-switcher button[aria-pressed="true"] {
+  .access-links a:hover,
+  .access-signout:hover {
     background: var(--color-surface);
     color: var(--color-text);
     box-shadow: var(--shadow-low);
+  }
+
+  .access-links--signed-in {
+    display: none;
+  }
+
+  html[data-access-role="staff"] .access-links--guest,
+  html[data-access-role="admin"] .access-links--guest {
+    display: none;
+  }
+
+  html[data-access-role="staff"] .access-links--signed-in,
+  html[data-access-role="admin"] .access-links--signed-in {
+    display: flex;
+  }
+
+  html[data-access-role="staff"] [data-access-role-label]::before {
+    content: "助教";
+  }
+
+  html[data-access-role="admin"] [data-access-role-label]::before {
+    content: "管理員";
+  }
+
+  [data-access-role-label] {
+    font-size: 0;
+  }
+
+  [data-access-role-label]::before {
+    font-size: var(--font-size-xs);
   }
 
   @media (min-width: 50rem) {
@@ -125,12 +170,12 @@ const { homeHref, navItems, modeLabel = "本機展示版" } = Astro.props;
       margin-inline-start: auto;
     }
 
-    .theme-switcher {
+    .access-controls {
       flex-basis: auto;
     }
   }
 </style>
 
 <script>
-  import "../scripts/theme-toggle";
+  import "../scripts/access-session";
 </script>

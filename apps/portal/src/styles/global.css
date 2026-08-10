@@ -6,6 +6,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html {
   background: var(--color-canvas);
   color: var(--color-text);
@@ -36,9 +40,9 @@ h3 {
 
 h1 {
   font-size: var(--font-size-xl);
-  font-family: Georgia, "Noto Serif TC", serif;
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-family: var(--font-heading);
+  font-weight: 760;
+  letter-spacing: -0.015em;
 }
 
 h2 {
@@ -165,7 +169,7 @@ button:disabled,
 }
 
 .shell {
-  width: min(100% - 2 * var(--space-4), var(--content-width));
+  width: min(calc(100% - 2 * var(--space-4)), var(--content-width));
   margin-inline: auto;
 }
 
@@ -542,7 +546,7 @@ button:disabled,
 
 @media (min-width: 42rem) {
   .shell {
-    width: min(100% - 2 * var(--space-6), var(--content-width));
+    width: min(calc(100% - 2 * var(--space-6)), var(--content-width));
   }
 
   .grid--auto {

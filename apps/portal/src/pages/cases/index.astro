@@ -1,7 +1,5 @@
 ---
-import Alert from "../../components/Alert.astro";
 import CaseSearch from "../../components/CaseSearch.astro";
-import StatusBadge from "../../components/StatusBadge.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { fixtureCaseLookupAdapter } from "../../lib/fixture-case-adapter";
 import { withBase } from "../../lib/paths";
@@ -11,75 +9,42 @@ const publicCases = await fixtureCaseLookupAdapter.listPublicCases();
 
 <BaseLayout
   title="查詢一般案件"
-  description="使用案件編號按需查詢本機 fixture 中的一般案件。"
+  description="輸入案件編號，查看最新進度。"
   currentPath="cases"
 >
-  <div class="shell stack section">
-    <header class="reading-width">
+  <div class="case-page shell stack section">
+    <header class="case-intro">
       <p><a href={withBase("")}>首頁</a> / 案件查詢</p>
-      <h1>查詢一般案件</h1>
-      <p>
-        輸入一般案件編號；Private Support
-        不會出現在查詢結果，也不會確認是否存在。
-      </p>
+      <p class="eyebrow">案件進度</p>
+      <h1>查案件</h1>
+      <p>輸入案號，查看最新狀態。Private Support 不在這裡顯示。</p>
     </header>
 
     <CaseSearch cases={publicCases} inputId="case-number" syncUrl compact />
 
-    <Alert title="目前是完全離線的 fixture 查詢">
-      <p>
-        查詢只讀取頁面內嵌的五個一般案件，不需要 token、network request 或
-        background polling。
-      </p>
-    </Alert>
-
-    <section aria-labelledby="fixture-cases-title">
-      <h2 id="fixture-cases-title">可用的一般案件 fixtures</h2>
-      <ul class="case-list">
-        {
-          publicCases.map((item) => (
-            <li>
-              <a href={withBase(`cases/${item.caseNumber}/`)}>
-                <strong>{item.caseNumber}</strong>
-                <span>{item.title}</span>
-                <StatusBadge status={item.status} />
-              </a>
-            </li>
-          ))
-        }
-      </ul>
-    </section>
+    <p class="case-help">
+      案號會出現在建案完成頁、Discord 案件貼文與通知信中。目前為離線預覽。
+    </p>
   </div>
 </BaseLayout>
 
 <style>
-  .case-list {
-    display: grid;
-    margin: 0;
-    padding: 0;
-    gap: var(--space-3);
-    list-style: none;
+  .case-page {
+    width: min(calc(100% - 2 * var(--space-4)), 46rem);
+    gap: var(--space-5);
   }
 
-  .case-list a {
-    display: grid;
-    gap: var(--space-2);
-    padding: var(--space-4);
-    border: var(--border-thin) solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
-    color: var(--color-text);
-    text-decoration: none;
+  .case-intro {
+    max-width: 36rem;
+    text-align: center;
+    margin-inline: auto;
   }
 
-  .case-list a:hover {
-    border-color: var(--color-action);
-  }
-
-  @media (min-width: 42rem) {
-    .case-list a {
-      grid-template-columns: 9rem 1fr auto;
-      align-items: center;
-    }
+  .case-help {
+    max-width: 38rem;
+    margin: 0 auto;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    text-align: center;
   }
 </style>

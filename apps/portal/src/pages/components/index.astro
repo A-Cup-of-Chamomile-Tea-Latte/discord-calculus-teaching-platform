@@ -1,18 +1,12 @@
 ---
 import ComponentGallery from "../../components/ComponentGallery.astro";
-import "../../styles/global.css";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 ---
 
-<!doctype html>
-<html lang="zh-Hant">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="robots" content="noindex" />
-    <title>元件 Gallery｜微積分教學支援</title>
-  </head>
-  <body>
-    <a class="skip-link" href="#navigation">跳到 gallery 內容</a>
-    <ComponentGallery />
-  </body>
-</html>
+<BaseLayout
+  title="元件 Gallery"
+  description="管理員用來檢查介面元件與狀態的本機展示頁。"
+  requiredRole="admin"
+>
+  <ComponentGallery />
+</BaseLayout>

@@ -15,6 +15,9 @@ describe("FixtureCaseLookupAdapter", () => {
     const listed = await adapter.listPublicCases();
     expect(listed).toHaveLength(5);
     expect(listed.every((item) => item.caseNumber.startsWith("C"))).toBe(true);
+    expect(listed.every((item) => !item.title.includes("Fictional"))).toBe(
+      true,
+    );
     expect(JSON.stringify(listed)).not.toContain("case_private_001");
   });
 

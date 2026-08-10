@@ -29,8 +29,9 @@
   --color-neutral-border: #69716e;
 
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", ui-sans-serif,
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: var(--font-sans);
   --font-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
   --font-size-xs: 0.78rem;
   --font-size-sm: 0.9rem;
@@ -59,19 +60,4 @@
   --touch-target: 2.75rem;
   --shadow-low: 0 2px 8px rgb(31 37 35 / 10%);
   --shadow-card: 0 14px 35px rgb(31 37 35 / 8%);
-}
-
-:root[data-theme="student"] {
-  --color-canvas: #f8f4ec;
-  --color-surface: #fffefa;
-  --color-surface-muted: #f2eadf;
-  --color-text: #25201d;
-  --color-text-muted: #695f58;
-  --color-border: #d8c8b9;
-  --color-border-strong: #8d7867;
-  --color-action: #8d3f35;
-  --color-action-hover: #6e3028;
-  --color-accent: #386a73;
-  --color-accent-soft: #e2f0ef;
-  --color-hero: #7f3a33;
 }

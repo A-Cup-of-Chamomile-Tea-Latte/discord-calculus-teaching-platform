@@ -1,7 +1,6 @@
 ---
 import Alert from "../../components/Alert.astro";
 import ButtonLink from "../../components/ButtonLink.astro";
-import Card from "../../components/Card.astro";
 import FormField from "../../components/FormField.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { withBase } from "../../lib/paths";
@@ -9,41 +8,26 @@ import { withBase } from "../../lib/paths";
 
 <BaseLayout
   title="加入與設定"
-  description="用不送出的 fixture form 預覽 Discord、course alias、email 與隱私設定。"
+  description="約三分鐘完成課程身分、班別與隱私設定預覽。"
   currentPath="join"
 >
-  <div class="shell stack section">
-    <header class="reading-width">
+  <div class="join-shell shell stack section">
+    <header class="join-intro">
       <p><a href={withBase("")}>首頁</a> / 加入與設定</p>
-      <h1>加入與設定</h1>
-      <p>
-        這是 fixture-only onboarding：不連
-        Discord、不寄驗證信，也不保存你輸入的資料。
-      </p>
+      <p class="eyebrow">3 分鐘完成</p>
+      <h1>加入課程與設定</h1>
+      <p>依序確認身分、班別與隱私。目前是安全預覽，不會寄信或儲存資料。</p>
     </header>
 
-    <Alert title="Discord 連結不等於課程身分">
-      <p>
-        Email 驗證、Discord account 與 course membership
-        是三件不同的事。正式課務與成員資格仍以課程指定系統為準。
-      </p>
-    </Alert>
+    <ol class="join-steps" aria-label="加入設定步驟">
+      <li><strong>1</strong><span>身分</span></li>
+      <li><strong>2</strong><span>班別</span></li>
+      <li><strong>3</strong><span>隱私</span></li>
+    </ol>
 
-    <div class="grid grid--auto">
-      <Card title="1. Discord connection">
-        <p>目前只有 placeholder，不會加入 server、開啟 OAuth 或要求 token。</p>
-        <ButtonLink href="" disabled>Discord connection 尚未啟用</ButtonLink>
-      </Card>
-      <Card title="2. Email 與班別">
-        <p>使用你當下輸入的資料，在頁面上預覽 `nnmmm` course alias。</p>
-      </Card>
-      <Card title="3. 隱私設定">
-        <p>
-          Server 暱稱不會隱藏全域 username/avatar；建議停用 shared-server 陌生
-          DM。
-        </p>
-      </Card>
-    </div>
+    <p class="connection-note">
+      <strong>Discord 連結尚未啟用。</strong> 本頁不會要求 token 或開啟 OAuth。
+    </p>
 
     <section
       class="prototype-panel"
@@ -51,13 +35,10 @@ import { withBase } from "../../lib/paths";
       data-form-kind="join"
       aria-labelledby="join-form-title"
     >
-      <div class="reading-width">
-        <p class="fixture-marker">Fixture mode · 不會送出</p>
-        <h2 id="join-form-title">建立加入與設定預覽</h2>
-        <p>
-          資料只存在目前頁面的表單與 confirmation DOM；重新整理即消失，不寫入
-          browser storage。
-        </p>
+      <div>
+        <p class="fixture-marker">安全預覽 · 不會送出</p>
+        <h2 id="join-form-title">建立設定預覽</h2>
+        <p>重新整理後，這頁輸入的內容就會消失。</p>
       </div>
 
       <form class="prototype-form" novalidate>
@@ -75,8 +56,8 @@ import { withBase } from "../../lib/paths";
 
         <FormField
           forId="join-ntu-email"
-          label="NTU email"
-          hint="僅檢查格式；不會寄驗證信。"
+          label="NTU Email"
+          hint="目前只檢查格式，不會寄信。"
           required
         >
           <input
@@ -85,7 +66,7 @@ import { withBase } from "../../lib/paths";
             type="email"
             inputmode="email"
             autocomplete="email"
-            placeholder="fixture.student@ntu.edu.tw"
+            placeholder="student@ntu.edu.tw"
             aria-describedby="join-ntu-email-hint join-ntu-email-error"
           />
           <p
@@ -100,7 +81,7 @@ import { withBase } from "../../lib/paths";
         <FormField
           forId="join-contact-gmail"
           label="聯絡 Gmail"
-          hint="選填；fixture mode 不會寄信。"
+          hint="選填，作為後續聯絡信箱。"
         >
           <input
             id="join-contact-gmail"
@@ -108,7 +89,7 @@ import { withBase } from "../../lib/paths";
             type="email"
             inputmode="email"
             autocomplete="email"
-            placeholder="fixture.contact@gmail.com"
+            placeholder="name@gmail.com"
             aria-describedby="join-contact-gmail-hint join-contact-gmail-error"
           />
           <p
@@ -123,7 +104,7 @@ import { withBase } from "../../lib/paths";
         <FormField
           forId="join-class-code"
           label="班別"
-          hint="選擇後只產生 fixture alias 預覽。"
+          hint="用來分流課程問題與通知。"
           required
         >
           <select
@@ -145,9 +126,9 @@ import { withBase } from "../../lib/paths";
         </FormField>
 
         <div class="alias-preview" aria-live="polite">
-          <strong>assigned `nnmmm` 預覽：</strong>
+          <strong>課程代號預覽：</strong>
           <output data-alias-preview for="join-class-code">尚未選擇班別</output>
-          <p>固定使用 fixture joining order `042`；這不是正式指派。</p>
+          <p>預覽會使用範例順序 042，不是正式指派。</p>
         </div>
 
         <fieldset class="choice-group">
@@ -187,7 +168,7 @@ import { withBase } from "../../lib/paths";
         </fieldset>
 
         <div class="form-actions">
-          <button type="submit">建立 fixture confirmation</button>
+          <button type="submit">預覽我的設定</button>
           <ButtonLink href={withBase("guide/")} variant="secondary"
             >閱讀完整隱私指南</ButtonLink
           >
@@ -200,15 +181,12 @@ import { withBase } from "../../lib/paths";
         tabindex="-1"
         hidden
       >
-        <p class="fixture-marker">Fixture confirmation · 未送出</p>
-        <h2 data-confirmation-title>加入與設定 fixture 已建立</h2>
+        <p class="fixture-marker">預覽完成 · 未送出</p>
+        <h2 data-confirmation-title>你的設定預覽已建立</h2>
         <p>參考編號：<strong data-confirmation-reference></strong></p>
         <dl data-confirmation-summary></dl>
-        <Alert title="沒有帳號或個人資料被建立">
-          <p>
-            沒有資料寫入 browser storage，也沒有連 Discord、email 或 membership
-            backend。
-          </p>
+        <Alert title="尚未建立帳號或送出資料">
+          <p>這份預覽沒有連線 Discord、Email 或課程成員系統。</p>
         </Alert>
         <button
           type="button"
@@ -223,3 +201,59 @@ import { withBase } from "../../lib/paths";
 <script>
   import "../../scripts/fixture-forms";
 </script>
+
+<style>
+  .join-shell {
+    width: min(calc(100% - 2 * var(--space-4)), 48rem);
+    gap: var(--space-5);
+  }
+
+  .join-intro {
+    max-width: 40rem;
+    text-align: center;
+    margin-inline: auto;
+  }
+
+  .join-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    margin: 0;
+    padding: 0;
+    gap: var(--space-2);
+    list-style: none;
+  }
+
+  .join-steps li {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border-block-end: var(--border-strong) solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  .join-steps strong {
+    display: grid;
+    width: 1.65rem;
+    height: 1.65rem;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--color-action);
+    color: var(--color-action-text);
+    font-size: var(--font-size-xs);
+  }
+
+  .connection-note {
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .prototype-panel {
+    padding: clamp(1rem, 4vw, 2rem);
+  }
+</style>

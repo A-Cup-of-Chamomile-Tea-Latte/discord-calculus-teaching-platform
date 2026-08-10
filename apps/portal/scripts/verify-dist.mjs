@@ -15,6 +15,7 @@ const requiredPages = [
   "ask/index.html",
   "private-support/index.html",
   "guide/index.html",
+  "access/index.html",
   "sqlite-lab/index.html",
   "status/index.html",
   "components/index.html",
@@ -52,6 +53,18 @@ for (const requiredText of [
 }
 if (!/data-sqlite-lab/.test(sqliteLab)) {
   throw new Error("sqlite-lab/index.html: missing interactive lab root");
+}
+const accessPage = readFileSync(join(dist, "access/index.html"), "utf8");
+for (const requiredText of [
+  "助教／管理員登入",
+  "帳號 123，密碼 123",
+  "不是正式授權邊界",
+]) {
+  if (!accessPage.includes(requiredText)) {
+    throw new Error(
+      `access/index.html: missing local access notice ${requiredText}`,
+    );
+  }
 }
 let referenceCount = 0;
 for (const relativePath of htmlFiles) {

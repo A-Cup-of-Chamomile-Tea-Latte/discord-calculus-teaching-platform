@@ -1,0 +1,346 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { withBase } from "../../lib/paths";
+---
+
+<BaseLayout
+  title="內部登入"
+  description="本機助教與管理員工作區登入。"
+  currentPath="access"
+>
+  <div class="access-shell shell" data-local-access>
+    <header class="access-intro">
+      <p class="eyebrow">內部工作區</p>
+      <h1>助教／管理員登入</h1>
+      <p>學生與一般訪客不需登入，可直接使用公開提問與案件查詢。</p>
+    </header>
+
+    <section class="access-card" data-access-view="login">
+      <nav class="role-tabs" aria-label="選擇登入身份">
+        <a href={withBase("access/?role=staff")} data-role-tab="staff"
+          >助教登入</a
+        >
+        <a href={withBase("access/?role=admin")} data-role-tab="admin"
+          >管理員登入</a
+        >
+      </nav>
+      <div>
+        <p class="eyebrow">本機身份</p>
+        <h2><span data-login-role-label>管理員</span>登入</h2>
+        <p>這是本機展示用身份層，尚不是正式網站的伺服器端授權。</p>
+      </div>
+      <form data-login-form>
+        <input type="hidden" name="expectedRole" />
+        <label>
+          <span>帳號</span>
+          <input name="accountId" autocomplete="username" required />
+        </label>
+        <label>
+          <span>密碼</span>
+          <input
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+        </label>
+        <button type="submit"
+          >登入<span data-login-role-label>管理員</span>工作區</button
+        >
+        <p class="access-message" data-login-message aria-live="polite">
+          管理員本機預設：帳號 123，密碼 123。
+        </p>
+      </form>
+    </section>
+
+    <section class="access-card" data-access-view="force-change" hidden>
+      <p class="eyebrow">首次登入</p>
+      <h2>請先更改一次性密碼</h2>
+      <p>助教帳號的初始密碼與帳號相同，更改後才會進入工作區。</p>
+      <form data-force-change-form>
+        <label>
+          <span>新密碼</span>
+          <input
+            name="password"
+            type="password"
+            autocomplete="new-password"
+            minlength="10"
+            required
+          />
+        </label>
+        <label>
+          <span>再輸入一次</span>
+          <input
+            name="passwordConfirmation"
+            type="password"
+            autocomplete="new-password"
+            minlength="10"
+            required
+          />
+        </label>
+        <button type="submit">儲存後登入</button>
+        <p class="access-message" data-force-change-message aria-live="polite">
+          至少 10 個字元，不可與帳號相同。
+        </p>
+      </form>
+    </section>
+
+    <section
+      class="access-card access-card--wide"
+      data-access-view="account"
+      hidden
+    >
+      <div class="account-heading">
+        <div>
+          <p class="eyebrow">已登入</p>
+          <h2><span data-current-role>內部</span>工作區</h2>
+        </div>
+        <button
+          class="button button--secondary"
+          type="button"
+          data-local-signout
+        >
+          登出
+        </button>
+      </div>
+
+      <div class="tool-links" aria-label="內部工具">
+        <a href={withBase("team/")}>
+          <strong>教學團隊</strong><span>查看身份與責任</span>
+        </a>
+        <a href={withBase("status/")}>
+          <strong>系統狀態</strong><span>確認目前可用服務</span>
+        </a>
+        <a href={withBase("sqlite-lab/")} data-role-card="admin">
+          <strong>SQLite 學習</strong><span>管理員資料架構教程</span>
+        </a>
+        <a href={withBase("scenarios/")} data-role-card="admin">
+          <strong>情境審查</strong><span>比對案件狀態與介面</span>
+        </a>
+        <a href={withBase("components/")} data-role-card="admin">
+          <strong>介面元件</strong><span>設計系統與狀態檢查</span>
+        </a>
+      </div>
+
+      <div class="account-forms">
+        <form data-change-password-form>
+          <h3>更改我的密碼</h3>
+          <label
+            ><span>帳號</span><input
+              name="accountId"
+              autocomplete="username"
+              required
+            /></label
+          >
+          <label
+            ><span>目前密碼</span><input
+              name="currentPassword"
+              type="password"
+              autocomplete="current-password"
+              required
+            /></label
+          >
+          <label
+            ><span>新密碼</span><input
+              name="password"
+              type="password"
+              autocomplete="new-password"
+              minlength="10"
+              required
+            /></label
+          >
+          <label
+            ><span>再輸入一次</span><input
+              name="passwordConfirmation"
+              type="password"
+              autocomplete="new-password"
+              minlength="10"
+              required
+            /></label
+          >
+          <button type="submit">更新密碼</button>
+          <p
+            class="access-message"
+            data-change-password-message
+            aria-live="polite"
+          >
+          </p>
+        </form>
+
+        <form data-add-account-form data-admin-only>
+          <h3>新增本機身份</h3>
+          <label
+            ><span>帳號／學號</span><input
+              name="accountId"
+              autocomplete="off"
+              required
+            /></label
+          >
+          <label>
+            <span>身份</span>
+            <select name="role">
+              <option value="staff">助教</option>
+              <option value="admin">管理員</option>
+            </select>
+          </label>
+          <button type="submit">新增身份</button>
+          <p>初始密碼與帳號相同；首次登入必須更改。</p>
+          <p class="access-message" data-add-account-message aria-live="polite">
+          </p>
+        </form>
+      </div>
+
+      <p class="security-note">
+        本機只儲存帳號摘要、個別 salt、PBKDF2
+        密碼雜湊與身份。這個靜態原型不是正式授權邊界，上線前必須改由伺服器端驗證與限權。
+      </p>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import "../../scripts/local-access";
+</script>
+
+<style>
+  .access-shell {
+    display: grid;
+    width: min(calc(100% - 2 * var(--space-4)), 54rem);
+    padding-block: clamp(2.5rem, 7vw, 5rem);
+    gap: var(--space-6);
+  }
+
+  .access-intro {
+    max-width: 38rem;
+    text-align: center;
+    justify-self: center;
+  }
+
+  .access-card {
+    display: grid;
+    width: 100%;
+    max-width: 32rem;
+    padding: clamp(1.25rem, 4vw, 2rem);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-low);
+    gap: var(--space-5);
+    justify-self: center;
+  }
+
+  .access-card--wide {
+    max-width: none;
+  }
+
+  .role-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: var(--space-1);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+    gap: var(--space-1);
+  }
+
+  .role-tabs a {
+    padding: var(--space-2) var(--space-3);
+    border-radius: calc(var(--radius-md) - 0.15rem);
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .role-tabs a[aria-current="page"] {
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: var(--shadow-low);
+    font-weight: 800;
+  }
+
+  form,
+  form label {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  form {
+    gap: var(--space-4);
+  }
+
+  form label span {
+    font-weight: 750;
+  }
+
+  .access-message {
+    min-height: 1.6rem;
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .access-message[data-state="error"] {
+    color: var(--color-danger-border);
+  }
+
+  .access-message[data-state="success"] {
+    color: var(--color-success-border);
+  }
+
+  .account-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+    align-items: center;
+  }
+
+  .tool-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    border-block: var(--border-thin) solid var(--color-border);
+  }
+
+  .tool-links a {
+    display: grid;
+    padding: var(--space-4) var(--space-3);
+    color: var(--color-text);
+    text-decoration: none;
+    gap: var(--space-1);
+  }
+
+  .tool-links a:hover {
+    background: var(--color-surface-muted);
+  }
+
+  .tool-links span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  :global(html[data-access-role="staff"]) [data-role-card="admin"] {
+    display: none;
+  }
+
+  .account-forms {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .account-forms form {
+    align-content: start;
+    padding: var(--space-5);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-canvas);
+  }
+
+  .security-note {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  @media (min-width: 46rem) {
+    .account-forms {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>
