@@ -2,7 +2,7 @@
 
 日期：2026-08-10（Asia/Taipei）
 
-完成時間：22:14
+完成時間：22:21
 
 用途：GPT Pro 審閱／下一階段規劃
 
@@ -17,7 +17,9 @@ Canonical root：`/Users/chamomiletea/Documents/Curricular/115-1/Calculus TA/Dis
 Discord runtime 納入 canonical tracked package；於 disposable SQLite 建立 checksum migration
 ledger 與可靠 Private Support dump queue；最後把 GAS 拆成 standalone／bound 兩個共用 domain
 的 target，推送到使用者指定的兩個既有空白 Apps Script project，逐 byte pull-back 驗證，並各自
-建立 immutable version 1。
+建立 immutable versions。初版使用 `var onOpen = …`，Web App handler 可運作但 Apps Script
+編輯器未可靠辨識 simple trigger；已改為明確頂層 `function onOpen()`／operator wrappers，重新
+完整驗證、push、pull-back，建立 version 2 並將既有 owner-only deployment 原地升到 v2。
 
 Standalone 另建立一個只有 owner 可存取的 fixture-only development Web App deployment；使用者
 已在 Ding Ding profile 實測 `/health` 成功，確認 `status=200`、`fixtureMode=true`、
@@ -100,10 +102,12 @@ Bound apply 的安全順序：
 - clasp OAuth、兩個 cloud asset owner 與 Chrome Ding Ding profile 均確認包含同一專案帳號。
 - Drive 工作範圍只限使用者指定的專案資料夾及其中的 `Server Database`、`獨立 GAS`。
 - push 前分別 pull 至 gitignored inventory；兩邊都只有預設 `myFunction()` 與基礎 manifest。
-- standalone 於 22:11:11 push；bound 於 22:11:39 push。
-- 兩邊 push 後都 pull 至新的 gitignored verify directory，Code.js 與 manifest 逐 byte相同。
-- 兩個 project 各建立 immutable version 1。
-- standalone 建立 fixture-only、owner-only development Web App deployment。
+- standalone 初版於 22:11:11 push；bound 初版於 22:11:39 push。
+- 初版 `var` wrappers 對 Web App `doGet` 可用，但沒有讓 bound `onOpen` 被可靠辨識；22:20 改為
+  明確頂層 function declarations 後重新 push 兩個 target。
+- 每次 current push 後都 pull 至新的 gitignored verify directory，Code.js 與 manifest 逐 byte相同。
+- 兩個 project 各保留 immutable version 1，current 是修正版 immutable version 2。
+- standalone 建立 fixture-only、owner-only development Web App deployment，並已原地升到 version 2。
 - development `/health` 與 `Server Database` 已用 Chrome `Ding Ding` profile 開啟。
 - 使用者回報 `/health` 成功：HTTP/application status 200、service `calculus-gas`、environment
   `fixture`、fixture mode true、Discord Gateway host false。
@@ -144,9 +148,9 @@ credential 與維運面，因此保留 Sheet UI 第一次授權。官方依據�
 
 | Target | File | SHA-256 | Pull-back |
 | --- | --- | --- | --- |
-| standalone | `Code.js` | `ab8f2188f11efebc592eb1b9ca8a3ade97400a87f90796886aea8b7b3778da28` | exact |
+| standalone | `Code.js` | `3eb5c8ae138bdfde24481346717e57b5faf89d8f0b61adfc76e7dd15d983fd33` | exact |
 | standalone | `appsscript.json` | `7015e799ad4f0a4ae35febc5010ce7c6319a7261a202761bce9976518589a9b4` | exact |
-| bound | `Code.js` | `716e5a3abcf38d4692a640477a0a667b337dd2c2832b8ac44bb8fe34051dae45` | exact |
+| bound | `Code.js` | `fc97202bc545d55994f49a409f3ee2e2b866b337d222abcb9c5e6cbcf99ad797` | exact |
 | bound | `appsscript.json` | `7bae41361c73c9602bdf52f9fcea50a151191adde27ba4b76651849497504ae3` | exact |
 
 ## Git checkpoints
@@ -162,6 +166,8 @@ credential 與維運面，因此保留 Sheet UI 第一次授權。官方依據�
 | `ab5337d` | bound + standalone GAS build targets |
 | `9b4decb` | safe non-breaking clasp audit updates |
 | `8ade3b6` | initial Phase 2A report checkpoint；本檔已依完工狀態整份覆寫 |
+| `5a4a18d` | cloud verification and Ding Ding operator profile |
+| `ffa138c` | explicit top-level Apps Script handler wrappers |
 
 ## Wall-clock timing
 
@@ -179,8 +185,9 @@ credential 與維運面，因此保留 Sheet UI 第一次授權。官方依據�
 | cloud inventory、API gate、初版報告 | 21:12–21:15 | ~3 min |
 | external pause / user API setting | 21:15–22:03 | ~48 min wait |
 | bound ID mapping、account proof、two pushes、pull-back、versions、deployment | 22:03–22:13 | ~10 min |
+| top-level handler diagnosis、fix、full gate、v2 push／verify／redeploy | 22:17–22:21 | ~4 min |
 
-Active engineering／verification 約 42 分鐘；wall-clock 約 90 分鐘。
+Active engineering／verification 約 46 分鐘；wall-clock 約 98 分鐘。
 
 ## Rollback and remaining boundaries
 
@@ -193,7 +200,7 @@ Active engineering／verification 約 42 分鐘；wall-clock 約 90 分鐘。
 
 ### GAS
 
-- 兩個 immutable version 1 是目前 rollback point。
+- 兩個 project 的 version 1 保留為稽核／rollback 證據；current verified version 是 2。
 - standalone deployment 只允許 owner；任何 access 擴大都需另行 privacy/security review。
 - bound 尚未 apply Sheet schema；第一次操作先跑選單 dry-run，確認摘要後才 apply，再跑一次 dry-run
   應回報 no-op。
