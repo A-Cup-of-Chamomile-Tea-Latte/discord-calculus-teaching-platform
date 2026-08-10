@@ -1,6 +1,7 @@
 import {
   carrierAnswers,
   evaluateSql,
+  incorrectAnswerKeys,
   queueSnapshot,
   scoreAnswers,
   transactionSnapshot,
@@ -15,8 +16,8 @@ if (root) {
 
   const carrierDetails: Record<string, { title: string; body: string }> = {
     sqlite: {
-      title: "Local SQLite｜真實 operational state",
-      body: "案件、queue 與交易一致性以本機 SQLite 為準。兩隻 Bot 可以用同一套明確 schema 協作，不需要另外架 database server。",
+      title: "本機 SQLite｜真實運作狀態",
+      body: "案件、工作佇列與交易一致性以本機 SQLite 為準。兩隻 Bot 可以用同一套明確的結構協作，無須另外架設資料庫伺服器。",
     },
     sheet: {
       title: "Google Sheets｜給人看的受控投影",
@@ -24,11 +25,11 @@ if (root) {
     },
     archive: {
       title: "受管檔案｜大而敏感的內容",
-      body: "原始訊息、Private Support、附件與匯出內容留在有 manifest、checksum、retention 規則的檔案區。",
+      body: "原始訊息、隱密案件、附件與匯出內容留在有清單、檢查碼與保留規則的檔案區。",
     },
     git: {
       title: "Git 文字檔｜規則與可審查歷史",
-      body: "schema、migration、程式與政策適合用文字檔保存，因為可以 diff、review、test；它不保存 live records。",
+      body: "資料結構、升級規則、程式與政策適合用文字檔儲存，因為可以比較差異、審查與測試；它不儲存即時記錄。",
     },
   };
 
@@ -55,14 +56,14 @@ if (root) {
     });
 
   const schemaDetails: Record<string, string> = {
-    case_id: "內部 primary key。每一列都必須唯一，程式用它穩定地找到同一案件。",
-    case_number:
-      "給人使用的案號，另有 UNIQUE constraint，避免兩個案件拿到相同案號。",
+    case_id:
+      "內部主鍵（primary key）。每一列都必須唯一，程式用它穩定地找到同一案件。",
+    case_number: "給人使用的案號，另有 UNIQUE 限制，避免兩個案件拿到相同案號。",
     status:
-      "目前狀態，例如 OPEN、TRACKED、CLOSED。這是 operational state，不是完整歷史。",
+      "目前狀態，例如 OPEN、TRACKED、CLOSED。這是運作狀態，不是完整歷史。",
     module_code:
-      "案件所屬課程模組。常用於篩選，但是否需要 index 必須看實際 query。",
-    created_at: "建立時間。用明確時區格式保存，避免不同環境各自猜測。",
+      "案件所屬課程模組。常用於篩選，但是否需要索引，必須看實際查詢。",
+    created_at: "建立時間。用明確時區格式儲存，避免不同環境各自猜測。",
   };
   root
     .querySelectorAll<HTMLButtonElement>("[data-column]")
@@ -221,6 +222,40 @@ if (root) {
   });
   renderQueue();
 
+  const diagnosticAnswers: Record<string, string> = {
+    d1: "no",
+    d2: "rollback",
+    d3: "lease",
+  };
+  const diagnosticModules: Record<string, string> = {
+    d1: "07 雲端驗證",
+    d2: "04 交易",
+    d3: "05 可靠工作佇列",
+  };
+  byId<HTMLButtonElement>("check-diagnostic")?.addEventListener("click", () => {
+    const form = byId<HTMLFormElement>("diagnostic-quiz");
+    const output = byId<HTMLElement>("diagnostic-result");
+    if (!form || !output) return;
+    const answers = Object.fromEntries(new FormData(form).entries()) as Record<
+      string,
+      string
+    >;
+    const unanswered = Object.keys(diagnosticAnswers).filter(
+      (key) => !answers[key],
+    );
+    if (unanswered.length > 0) {
+      output.textContent = `還有 ${unanswered.length} 題未作答。猜也可以，這裡不計分。`;
+      return;
+    }
+    const missed = incorrectAnswerKeys(answers, diagnosticAnswers).map(
+      (key) => diagnosticModules[key],
+    );
+    output.textContent =
+      missed.length === 0
+        ? "三題直覺都對。後面會用模擬把理由補齊。"
+        : `直覺已記下。特別留意：${missed.join("、")}。`;
+  });
+
   byId<HTMLButtonElement>("check-carriers")?.addEventListener("click", () => {
     const form = byId<HTMLFormElement>("carrier-quiz");
     const output = byId<HTMLElement>("carrier-score");
@@ -230,10 +265,20 @@ if (root) {
       string
     >;
     const score = scoreAnswers(answers, carrierAnswers);
+    const carrierTopics: Record<string, string> = {
+      caseAuthority: "案件真實狀態",
+      memberSummary: "成員驗證摘要",
+      rawAttachment: "原始附件",
+      migrationRule: "結構與升級規則",
+      discordToken: "Discord token",
+    };
+    const missed = incorrectAnswerKeys(answers, carrierAnswers).map(
+      (key) => carrierTopics[key],
+    );
     output.textContent =
       score.correct === score.total
         ? "5 / 5。你已能依資料性質選擇載體。"
-        : `${score.correct} / ${score.total}。提示：先分辨「真實狀態」、「給人看的摘要」、「大檔」、「規則」與「秘密」。`;
+        : `${score.correct} / ${score.total}。請再判斷：${missed.join("、")}。`;
     output.dataset.complete = String(score.correct === score.total);
   });
 
@@ -264,6 +309,14 @@ if (root) {
     q5: "confirm",
     q6: "later",
   };
+  const finalModules: Record<string, string> = {
+    q1: "01 資料地圖",
+    q2: "04 交易",
+    q3: "05 可靠工作佇列",
+    q4: "01 資料地圖",
+    q5: "07 雲端驗證",
+    q6: "02 結構與限制",
+  };
   byId<HTMLButtonElement>("check-final-quiz")?.addEventListener("click", () => {
     const form = byId<HTMLFormElement>("final-quiz");
     const output = byId<HTMLElement>("final-score");
@@ -273,10 +326,17 @@ if (root) {
       string
     >;
     const score = scoreAnswers(answers, finalAnswers);
+    const missed = [
+      ...new Set(
+        incorrectAnswerKeys(answers, finalAnswers).map(
+          (key) => finalModules[key],
+        ),
+      ),
+    ];
     output.textContent =
       score.correct >= 5
-        ? `${score.correct} / 6。你已掌握足以參與下一階段產品決策的核心模型。`
-        : `${score.correct} / 6。先重看 transaction、queue 與 cloud projection 三節，再試一次。`;
+        ? `${score.correct} / 6。你已掌握本頁的主要判斷框架，可以進入可拋棄資料庫的實作課。${missed.length > 0 ? `實作前再看：${missed.join("、")}。` : ""}`
+        : `${score.correct} / 6。建議重看：${missed.join("、")}。`;
     output.dataset.complete = String(score.correct >= 5);
   });
 

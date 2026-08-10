@@ -5,21 +5,20 @@ import { withBase } from "../../lib/paths";
 
 <BaseLayout
   title="SQLite 學習實驗室"
-  description="用互動資料地圖、唯讀 SQL、transaction 與 reliable queue 模擬，理解微積分教學 Bot 的資料架構。"
+  description="用互動資料地圖、唯讀 SQL、交易與可靠工作佇列模擬，理解微積分教學 Bot 的資料架構。"
   currentPath="sqlite-lab"
 >
   <div data-sqlite-lab>
     <header class="lab-hero">
       <div class="shell lab-hero__grid">
         <div class="lab-hero__copy">
-          <p class="eyebrow">SQLite learning lab</p>
-          <h1>看得見資料怎麼走，<br />就不必相信黑盒。</h1>
+          <p class="eyebrow">SQLite 學習實驗室</p>
+          <h1>看懂資料怎麼走，<br />黑盒就會變透明。</h1>
           <p class="lab-hero__lead">
-            這不是資料庫速成班，而是一套能直接用在本專案的心智模型。你會親手判斷資料放哪裡、看懂安全查詢、觀察失敗如何
-            rollback，並追蹤一個可靠 queue 工作。
+            這套課程聚焦本專案真正會用到的資料判斷。你會親手選擇資料載體、執行安全查詢，並觀察寫入失敗與工作接手時的保護機制。
           </p>
           <div class="cluster">
-            <a class="button" href="#module-map">從資料地圖開始</a>
+            <a class="button" href="#learning-start">從開場小測開始</a>
             <a class="button button--secondary" href="#module-query"
               >直接動手查詢</a
             >
@@ -39,11 +38,11 @@ import { withBase } from "../../lib/paths";
           <div class="database-object__tables">
             <div><span>cases</span><small>案件真實狀態</small></div>
             <div>
-              <span>private_dump_jobs</span><small>可靠工作 queue</small>
+              <span>private_dump_jobs</span><small>可靠工作佇列</small>
             </div>
             <div><span>schema_migrations</span><small>結構升級紀錄</small></div>
           </div>
-          <p>一個檔案 · 明確規則 · 完整 transaction</p>
+          <p>一個檔案 · 明確規則 · 完整交易</p>
         </div>
       </div>
     </header>
@@ -56,7 +55,7 @@ import { withBase } from "../../lib/paths";
           <div class="progress-track" aria-hidden="true">
             <span id="learning-progress-bar"></span>
           </div>
-          <p>只存在這台裝置。</p>
+          <p>這是閱讀進度，不代表已通過理解檢查；記錄只存在這台裝置。</p>
         </div>
         <nav aria-label="章節導覽">
           <ol>
@@ -70,10 +69,10 @@ import { withBase } from "../../lib/paths";
               <a href="#module-query"><span>03</span>唯讀查詢</a>
             </li>
             <li data-module-link="transaction">
-              <a href="#module-transaction"><span>04</span>Transaction</a>
+              <a href="#module-transaction"><span>04</span>交易</a>
             </li>
             <li data-module-link="queue">
-              <a href="#module-queue"><span>05</span>Reliable queue</a>
+              <a href="#module-queue"><span>05</span>可靠工作佇列</a>
             </li>
             <li data-module-link="carrier">
               <a href="#module-carrier"><span>06</span>載體判斷</a>
@@ -95,6 +94,68 @@ import { withBase } from "../../lib/paths";
 
       <div class="lesson-flow">
         <section
+          id="learning-start"
+          class="learning-brief"
+          aria-labelledby="learning-brief-title"
+        >
+          <div>
+            <p class="eyebrow">學習目標</p>
+            <h2 id="learning-brief-title">完成後，你應該能做到這三件事</h2>
+          </div>
+          <ol class="outcome-list">
+            <li>
+              根據資料用途、權限與維護成本，在
+              SQLite、Sheet、Git、受管檔案與秘密載體之間作選擇。
+            </li>
+            <li>
+              用自己的話解釋交易、處理權、租約與憑證如何防止半套結果與重複處理。
+            </li>
+            <li>
+              運用來源、結構、版本、檢查碼與人工確認，判斷雲端資料能否受控匯入本機。
+            </li>
+          </ol>
+          <div class="study-route" aria-label="建議學習節奏">
+            <span>第 1 次：01–03 建立地圖</span>
+            <span>第 2 次：04–05 理解失敗</span>
+            <span>第 3 次：06–08 練習判斷</span>
+          </div>
+          <form id="diagnostic-quiz" class="diagnostic-quiz">
+            <fieldset>
+              <legend>先猜再學：不計分開場小測</legend>
+              <label>
+                <span>1. Sheet 版本較新時，可以自動覆蓋本機 SQLite 嗎？</span>
+                <select name="d1">
+                  <option value="">先選你的直覺</option>
+                  <option value="yes">可以，較新就較可靠</option>
+                  <option value="no">不可以，還需要驗證與確認</option>
+                </select>
+              </label>
+              <label>
+                <span>2. 兩個寫入必須一起成立時，第二個失敗應該怎麼做？</span>
+                <select name="d2">
+                  <option value="">先選你的直覺</option>
+                  <option value="keep">保留第一個寫入</option>
+                  <option value="rollback">整組復原</option>
+                </select>
+              </label>
+              <label>
+                <span>3. 處理工作的 Bot 當機後，工作要如何被接手？</span>
+                <select name="d3">
+                  <option value="">先選你的直覺</option>
+                  <option value="manual">只能永遠等人工解鎖</option>
+                  <option value="lease">處理權到期後允許其他 Bot 接手</option>
+                </select>
+              </label>
+            </fieldset>
+            <div class="workbench-actions">
+              <button id="check-diagnostic" type="button">記下我的直覺</button>
+              <strong id="diagnostic-result" aria-live="polite">尚未作答</strong
+              >
+            </div>
+          </form>
+        </section>
+
+        <section
           id="module-map"
           class="lesson"
           data-learning-module="map"
@@ -102,16 +163,16 @@ import { withBase } from "../../lib/paths";
         >
           <div class="lesson__heading">
             <p class="lesson__number">01 · 12 分鐘</p>
-            <h2 id="map-title">先建立全局地圖：資料不必都住在同一處</h2>
+            <h2 id="map-title">先建立整體地圖：資料不必都住在同一處</h2>
             <p>
-              資料架構不是比較哪個工具最強，而是把每種資料交給最合適的載體。點選下方節點，看它在本專案中的責任。
+              資料架構要把每種資料交給最合適的載體。點選下方節點，看它在本專案中的責任。
             </p>
           </div>
 
           <div class="carrier-map" aria-label="本專案的資料載體地圖">
             <button type="button" data-carrier="sqlite" aria-pressed="true">
               <span class="carrier-map__index">A</span><strong
-                >Local SQLite</strong
+                >本機 SQLite</strong
               ><small>真實狀態與安全寫入</small>
             </button>
             <span class="carrier-map__arrow" aria-hidden="true">→</span>
@@ -134,19 +195,17 @@ import { withBase } from "../../lib/paths";
           </div>
           <div class="selected-explanation" aria-live="polite">
             <p class="eyebrow">目前選取</p>
-            <h3 id="carrier-detail-title">
-              Local SQLite｜真實 operational state
-            </h3>
+            <h3 id="carrier-detail-title">本機 SQLite｜真實運作狀態</h3>
             <p id="carrier-detail-body">
-              案件、queue 與交易一致性以本機 SQLite 為準。兩隻 Bot
-              可以用同一套明確 schema 協作，不需要另外架 database server。
+              案件、工作佇列與交易一致性以本機 SQLite 為準。兩隻 Bot
+              可以用同一套明確的結構協作，無須另外架設資料庫伺服器。
             </p>
           </div>
 
           <div class="concept-note">
-            <strong>先記住 authority 與 projection。</strong>
+            <strong>先記住權威來源（authority）與投影（projection）。</strong>
             <p>
-              <em>Authority</em> 是發生衝突時誰說了算；<em>projection</em> 是為特定讀者整理出的部分視圖。Sheet
+              權威來源是發生衝突時誰說了算；投影是為特定讀者整理出的部分視圖。Sheet
               比較容易看，不表示它自動比 SQLite 更真。
             </p>
           </div>
@@ -166,23 +225,23 @@ import { withBase } from "../../lib/paths";
         >
           <div class="lesson__heading">
             <p class="lesson__number">02 · 12 分鐘</p>
-            <h2 id="structure-title">
-              SQLite 是什麼：一個檔案，加上一組不能亂來的規則
-            </h2>
+            <h2 id="structure-title">SQLite 是什麼：一個檔案與一組明確規則</h2>
             <p>
-              它不是一張比較厲害的試算表。SQLite 會用 schema
-              定義欄位、型別與限制，再用 transaction 保護一組寫入。
+              SQLite
+              用結構（schema）定義欄位、型別與限制，再用交易（transaction）保護一組必須共同成立的寫入。
             </p>
           </div>
 
           <div class="definition-strip" aria-label="SQLite 核心概念">
-            <div><strong>Table</strong><span>同一類資料</span></div>
-            <div><strong>Row</strong><span>一筆案件或工作</span></div>
-            <div><strong>Column</strong><span>每筆資料的欄位</span></div>
+            <div><strong>資料表</strong><span>Table｜同一類資料</span></div>
+            <div><strong>資料列</strong><span>Row｜一筆案件或工作</span></div>
+            <div><strong>欄位</strong><span>Column｜每筆資料的屬性</span></div>
             <div>
-              <strong>Constraint</strong><span>資料不可違反的規則</span>
+              <strong>限制</strong><span>Constraint｜資料不可違反的規則</span>
             </div>
-            <div><strong>Index</strong><span>依實際查詢建立的捷徑</span></div>
+            <div>
+              <strong>索引</strong><span>Index｜依查詢需求建立的捷徑</span>
+            </div>
           </div>
 
           <div class="schema-explorer">
@@ -247,14 +306,13 @@ import { withBase } from "../../lib/paths";
             <p class="lesson__number">03 · 15 分鐘</p>
             <h2 id="query-title">安全查詢實驗台：先用最少資料回答問題</h2>
             <p>
-              這是瀏覽器內的 synthetic
-              模擬器，不會開啟任何真實資料庫。選一個例子、觀察它究竟讀了多少資訊。
+              這是瀏覽器內的合成資料模擬器，不會開啟任何真實資料庫。選一個範例，觀察它究竟讀了多少資訊。
             </p>
           </div>
 
           <div class="sql-presets" aria-label="查詢範例">
             <button type="button" data-sql-preset=".tables"
-              >有哪些 tables？</button
+              >有哪些資料表？</button
             >
             <button type="button" data-sql-preset=".schema cases"
               >cases 長怎樣？</button
@@ -299,7 +357,7 @@ import { withBase } from "../../lib/paths";
           </div>
 
           <details class="lesson-detail">
-            <summary>四個真正在 terminal 會用到的唯讀指令</summary>
+            <summary>四個實際會在終端機用到的唯讀指令</summary>
             <div>
               <p>
                 <code>.tables</code> 看有哪些表；<code>.schema cases</code> 看結構；<code
@@ -329,7 +387,7 @@ import { withBase } from "../../lib/paths";
           <div class="lesson__heading">
             <p class="lesson__number">04 · 12 分鐘</p>
             <h2 id="transaction-title">
-              Transaction：不是「比較不容易錯」，而是拒絕留下半套結果
+              交易（transaction）讓一組寫入一起成功或一起復原
             </h2>
             <p>
               情境：結案時必須同時把案件改成
@@ -340,7 +398,7 @@ import { withBase } from "../../lib/paths";
             <button
               type="button"
               data-transaction-mode="transaction"
-              aria-pressed="true">使用 transaction</button
+              aria-pressed="true">使用交易</button
             >
             <button
               type="button"
@@ -403,11 +461,10 @@ import { withBase } from "../../lib/paths";
           <div class="lesson__heading">
             <p class="lesson__number">05 · 12 分鐘</p>
             <h2 id="queue-title">
-              Reliable queue：如何避免兩隻 worker 重複做同一件事
+              可靠工作佇列（reliable queue）如何避免重複處理
             </h2>
             <p>
-              Claim 表示暫時取得處理權，lease 讓這個權利會到期，token
-              則證明「現在」究竟是誰持有工作。逐步播放一次 worker 接手。
+              處理權（claim）表示暫時取得工作，租約（lease）讓這個權利會到期，憑證（token）則證明當下是誰持有工作。逐步播放一次處理器接手。
             </p>
           </div>
           <div class="queue-stage" aria-live="polite">
@@ -417,10 +474,10 @@ import { withBase } from "../../lib/paths";
             </div>
             <div class="queue-stage__workers">
               <div>
-                <span>Worker A</span><strong id="queue-worker-a">等待</strong>
+                <span>處理器 A</span><strong id="queue-worker-a">等待</strong>
               </div>
               <div>
-                <span>Worker B</span><strong id="queue-worker-b">等待</strong>
+                <span>處理器 B</span><strong id="queue-worker-b">等待</strong>
               </div>
             </div>
             <p id="queue-explanation">工作已建立，但還沒有人取得處理權。</p>
@@ -435,15 +492,21 @@ import { withBase } from "../../lib/paths";
           </div>
           <dl class="term-pairs">
             <div>
-              <dt>Idempotency</dt><dd>同一個請求重送，不會創造第二份效果。</dd>
-            </div>
-            <div><dt>Claim</dt><dd>某個 worker 原子取得目前的處理權。</dd></div>
-            <div>
-              <dt>Lease</dt><dd>處理權有期限；worker 當機後工作仍可被接手。</dd>
+              <dt>冪等性（idempotency）</dt><dd>
+                同一個請求重送，不會創造第二份效果。
+              </dd>
             </div>
             <div>
-              <dt>Heartbeat</dt><dd>
-                worker 還活著時延長 lease，不必一開始就鎖很久。
+              <dt>處理權（claim）</dt><dd>某個處理器原子取得目前的處理權。</dd>
+            </div>
+            <div>
+              <dt>租約（lease）</dt><dd>
+                處理權有期限；處理器當機後工作仍可被接手。
+              </dd>
+            </div>
+            <div>
+              <dt>心跳（heartbeat）</dt><dd>
+                處理器還活著時延長租約，不必一開始就鎖很久。
               </dd>
             </div>
           </dl>
@@ -463,12 +526,10 @@ import { withBase } from "../../lib/paths";
         >
           <div class="lesson__heading">
             <p class="lesson__number">06 · 10 分鐘</p>
-            <h2 id="carrier-title">
-              載體判斷：不是「能不能放」，而是「放了會不會更難維護」
-            </h2>
+            <h2 id="carrier-title">載體判斷要一起考慮用途、權限與維護成本</h2>
             <p>
               為每種資料選最合適的主要載體。Google Sheet
-              可以查看很多東西，但不代表所有東西都應變成 worksheet。
+              容易閱讀與協作，但不需要把每種資料都變成工作表。
             </p>
           </div>
           <form id="carrier-quiz" class="carrier-quiz">
@@ -476,11 +537,11 @@ import { withBase } from "../../lib/paths";
               ><span>案件目前 status 的真實來源</span><select
                 name="caseAuthority"
                 ><option value="">選擇載體</option><option value="sqlite"
-                  >Local SQLite</option
+                  >本機 SQLite</option
                 ><option value="sheet">Google Sheet</option><option
                   value="archive">受管檔案</option
                 ><option value="git">Git</option><option value="secret"
-                  >Secret carrier</option
+                  >秘密載體</option
                 ></select
               ></label
             >
@@ -488,22 +549,22 @@ import { withBase } from "../../lib/paths";
               ><span>TA 遠端查看的成員驗證摘要</span><select
                 name="memberSummary"
                 ><option value="">選擇載體</option><option value="sqlite"
-                  >Local SQLite</option
+                  >本機 SQLite</option
                 ><option value="sheet">Google Sheet</option><option
                   value="archive">受管檔案</option
                 ><option value="git">Git</option><option value="secret"
-                  >Secret carrier</option
+                  >秘密載體</option
                 ></select
               ></label
             >
             <label
               ><span>原始附件與完整匯出內容</span><select name="rawAttachment"
                 ><option value="">選擇載體</option><option value="sqlite"
-                  >Local SQLite</option
+                  >本機 SQLite</option
                 ><option value="sheet">Google Sheet</option><option
                   value="archive">受管檔案</option
                 ><option value="git">Git</option><option value="secret"
-                  >Secret carrier</option
+                  >秘密載體</option
                 ></select
               ></label
             >
@@ -511,22 +572,22 @@ import { withBase } from "../../lib/paths";
               ><span>Schema、migration 與程式規則</span><select
                 name="migrationRule"
                 ><option value="">選擇載體</option><option value="sqlite"
-                  >Local SQLite</option
+                  >本機 SQLite</option
                 ><option value="sheet">Google Sheet</option><option
                   value="archive">受管檔案</option
                 ><option value="git">Git</option><option value="secret"
-                  >Secret carrier</option
+                  >秘密載體</option
                 ></select
               ></label
             >
             <label
               ><span>Discord token</span><select name="discordToken"
                 ><option value="">選擇載體</option><option value="sqlite"
-                  >Local SQLite</option
+                  >本機 SQLite</option
                 ><option value="sheet">Google Sheet</option><option
                   value="archive">受管檔案</option
                 ><option value="git">Git</option><option value="secret"
-                  >Secret carrier</option
+                  >秘密載體</option
                 ></select
               ></label
             >
@@ -539,9 +600,8 @@ import { withBase } from "../../lib/paths";
             <summary>什麼時候應該把 Google Sheet 拆成兩份？</summary>
             <div>
               <p>
-                不是頁籤很多就拆，而是讀取權限不同才拆。例如 TA 可以讀
-                CaseBoard，但不應讀 machine ledger；這是 access
-                boundary，值得用兩個檔案真正隔離。隱藏頁籤只改善介面，不是安全控制。
+                當讀取權限不同時，才需要拆成兩份。例如 TA 可以讀
+                CaseBoard，但不應讀機器帳本；這種存取邊界值得用兩個檔案真正隔離。隱藏頁籤只會改變介面，不是安全控制。
               </p>
             </div>
           </details>
@@ -561,22 +621,20 @@ import { withBase } from "../../lib/paths";
         >
           <div class="lesson__heading">
             <p class="lesson__number">07 · 10 分鐘</p>
-            <h2 id="authenticity-title">
-              Cloud → local：雲端比較新，不代表它自動是真的
-            </h2>
+            <h2 id="authenticity-title">雲端 → 本機：版本較新仍需要驗證</h2>
             <p>
               假設 Sheet 的 source version 是 12，本機是
-              11。勾選你已經完成的驗證，再嘗試接受這份 projection。
+              11。勾選你已完成的驗證，再嘗試接受這份投影。
             </p>
           </div>
           <div class="receipt-card">
             <div class="receipt-card__summary">
-              <div><span>Cloud source version</span><strong>12</strong></div>
-              <div><span>Local source version</span><strong>11</strong></div>
-              <div><span>Schema</span><strong>2.0.0</strong></div>
+              <div><span>雲端來源版本</span><strong>12</strong></div>
+              <div><span>本機來源版本</span><strong>11</strong></div>
+              <div><span>結構版本</span><strong>2.0.0</strong></div>
             </div>
             <fieldset class="authenticity-gates">
-              <legend>Authenticity gate</legend>
+              <legend>雲端資料驗證關卡</legend>
               <label
                 ><input
                   type="checkbox"
@@ -589,9 +647,9 @@ import { withBase } from "../../lib/paths";
                 ><input
                   type="checkbox"
                   data-authenticity-gate
-                  data-label="schema 相容"
+                  data-label="結構相容"
                   checked
-                />Schema version 可支援</label
+                />結構版本可支援</label
               >
               <label
                 ><input
@@ -605,25 +663,25 @@ import { withBase } from "../../lib/paths";
                 ><input
                   type="checkbox"
                   data-authenticity-gate
-                  data-label="checksum 正確"
-                />Checksum 與內容相符</label
+                  data-label="檢查碼正確"
+                />檢查碼（checksum）與內容相符</label
               >
               <label
                 ><input
                   type="checkbox"
                   data-authenticity-gate
                   data-label="人工確認"
-                />Operator 已確認本次匯入範圍</label
+                />操作者已確認本次匯入範圍</label
               >
             </fieldset>
-            <button id="verify-receipt" type="button">驗證這份 receipt</button>
+            <button id="verify-receipt" type="button">驗證這份記錄</button>
             <p id="receipt-result" data-state="waiting" aria-live="polite">
               尚未驗證。版本較新本身不足以接受匯入。
             </p>
           </div>
           <div class="concept-note">
             <strong
-              >Checksum 回答「內容是否一致」，不回答「來源是否值得信任」。</strong
+              >檢查碼回答「內容是否一致」，不回答「來源是否值得信任」。</strong
             >
             <p>
               因此仍要檢查來源、版本、時間與人工確認。未來若威脅模型需要證明發送者身分，再加入
@@ -646,57 +704,64 @@ import { withBase } from "../../lib/paths";
         >
           <div class="lesson__heading">
             <p class="lesson__number">08 · 15 分鐘</p>
-            <h2 id="mastery-title">整合驗收：你現在能不能參與資料架構決策？</h2>
+            <h2 id="mastery-title">整合驗收：把判斷用回本專案</h2>
             <p>
-              不考冷門語法，只檢查能否把知識用回專案。六題答對五題，就已足以和工程決策對話。
+              六題聚焦實際專案判斷。答對五題，代表你已掌握本頁的主要框架，可以進入下一階段實作。
             </p>
           </div>
           <form id="final-quiz" class="final-quiz">
             <fieldset>
-              <legend
-                >1. Sheet 與 SQLite 衝突時，目前誰是 operational authority？</legend
+              <legend>1. Sheet 與 SQLite 衝突時，目前誰是權威來源？</legend
               ><label
                 ><input type="radio" name="q1" value="cloud" />較新的 Sheet</label
               ><label
-                ><input type="radio" name="q1" value="local" />通過 migration 的
-                local SQLite</label
+                ><input
+                  type="radio"
+                  name="q1"
+                  value="local"
+                />已通過資料庫升級的本機 SQLite</label
               >
             </fieldset>
             <fieldset>
-              <legend>2. Transaction 內第二個寫入失敗，安全結果是什麼？</legend
-              ><label
+              <legend>2. 交易內第二個寫入失敗，安全結果是什麼？</legend><label
                 ><input
                   type="radio"
                   name="q2"
                   value="partial"
                 />保留第一個寫入</label
               ><label
-                ><input type="radio" name="q2" value="rollback" />整組 rollback</label
+                ><input
+                  type="radio"
+                  name="q2"
+                  value="rollback"
+                />整組復原</label
               >
             </fieldset>
             <fieldset>
-              <legend>3. Worker 當機後，什麼機制讓工作能被接手？</legend><label
-                ><input type="radio" name="q3" value="lease" />會到期的 lease</label
+              <legend>3. 處理器當機後，什麼機制讓工作能被接手？</legend><label
+                ><input
+                  type="radio"
+                  name="q3"
+                  value="lease"
+                />會到期的租約</label
               ><label
-                ><input type="radio" name="q3" value="log" />增加更多 log</label
+                ><input type="radio" name="q3" value="log" />增加更多日誌</label
               >
             </fieldset>
             <fieldset>
-              <legend>4. `Operations` Sheet 的 Bot heartbeat 是什麼？</legend
-              ><label
+              <legend>4. Operations Sheet 中的 Bot 心跳是什麼？</legend><label
                 ><input type="radio" name="q4" value="authority" />Bot
-                真實狀態的唯一 authority</label
+                真實狀態的唯一權威來源</label
               ><label
                 ><input
                   type="radio"
                   name="q4"
                   value="projection"
-                />方便遠端查看的 current projection</label
+                />方便遠端查看的最新狀態投影</label
               >
             </fieldset>
             <fieldset>
-              <legend>5. Cloud snapshot checksum 正確後，還需要什麼？</legend
-              ><label
+              <legend>5. 雲端快照的檢查碼正確後，還需要什麼？</legend><label
                 ><input
                   type="radio"
                   name="q5"
@@ -734,16 +799,13 @@ import { withBase } from "../../lib/paths";
           <div class="takeaway-sheet">
             <p class="eyebrow">帶走這三句就夠了</p>
             <ol>
+              <li>SQLite 是有明確結構與交易保護的本機資料庫。</li>
               <li>
-                SQLite 是有明確 schema 與 transaction 的本機資料庫，不是 AI
-                黑盒。
+                本機 SQLite 儲存真實狀態；Sheet 儲存讓人容易理解的受控投影。
               </li>
               <li>
-                Local SQLite 保存真實狀態；Sheet 只保存讓人容易理解的受控投影。
-              </li>
-              <li>
-                任何 cloud → local
-                都要驗證與確認，不能只因為雲端版本較新就覆蓋。
+                任何雲端 →
+                本機匯入都要經過驗證與確認，不能只因為雲端版本較新就覆蓋。
               </li>
             </ol>
           </div>
@@ -754,7 +816,7 @@ import { withBase } from "../../lib/paths";
             aria-pressed="false">標記這一節完成</button
           >
           <p class="next-lesson">
-            下一次實作課：使用 <code>discord-db-inspect</code> 查看 disposable database，再親手做四個唯讀查詢。<a
+            下一次實作課：使用 <code>discord-db-inspect</code> 查看可拋棄的練習資料庫，再親手做四個唯讀查詢。<a
               href={withBase("guide/")}>返回使用與隱私指南</a
             >。
           </p>
@@ -840,6 +902,7 @@ import { withBase } from "../../lib/paths";
   .database-object {
     position: relative;
     display: grid;
+    min-width: 0;
     overflow: hidden;
     border: 1px solid rgb(255 255 255 / 26%);
     border-radius: 1.2rem;
@@ -857,6 +920,12 @@ import { withBase } from "../../lib/paths";
     color: #f0ca83;
     font-family: var(--font-mono);
     font-size: var(--font-size-sm);
+  }
+
+  .database-object__top span,
+  .database-object__tables span {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .database-object__tables {
@@ -968,6 +1037,71 @@ import { withBase } from "../../lib/paths";
     min-width: 0;
   }
 
+  .learning-brief {
+    display: grid;
+    padding: var(--space-6);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-7);
+    background: var(--color-surface-muted);
+    gap: var(--space-5);
+  }
+
+  .learning-brief h2 {
+    max-width: 24ch;
+    font-family: Georgia, "Noto Serif TC", serif;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+  }
+
+  .outcome-list {
+    display: grid;
+    margin: 0;
+    padding-inline-start: 1.4rem;
+    gap: var(--space-3);
+  }
+
+  .outcome-list li::marker {
+    color: var(--color-action);
+    font-weight: 800;
+  }
+
+  .study-route {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2);
+  }
+
+  .study-route span {
+    padding: var(--space-3);
+    border-inline-start: 0.2rem solid var(--color-accent);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .diagnostic-quiz fieldset {
+    display: grid;
+    padding: 0;
+    border: 0;
+    gap: var(--space-3);
+  }
+
+  .diagnostic-quiz legend {
+    margin-bottom: var(--space-3);
+    font-weight: 800;
+  }
+
+  .diagnostic-quiz label {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(12rem, 1fr);
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  .diagnostic-quiz select {
+    width: 100%;
+  }
+
   .lesson {
     display: grid;
     padding-block: var(--space-7);
@@ -976,7 +1110,7 @@ import { withBase } from "../../lib/paths";
     scroll-margin-top: var(--space-4);
   }
 
-  .lesson:first-child {
+  .lesson-flow > .learning-brief + .lesson {
     padding-top: 0;
   }
 
@@ -1576,6 +1710,11 @@ import { withBase } from "../../lib/paths";
   }
 
   @media (max-width: 36rem) {
+    .study-route,
+    .diagnostic-quiz label {
+      grid-template-columns: 1fr;
+    }
+
     .database-object__tables div,
     .schema-explorer__table button,
     .queue-stage__workers div {

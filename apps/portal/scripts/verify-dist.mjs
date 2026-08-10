@@ -40,9 +40,9 @@ const sqliteLab = readFileSync(join(dist, "sqlite-lab/index.html"), "utf8");
 for (const requiredText of [
   "SQLite 學習實驗室",
   "安全查詢實驗台",
-  "Transaction",
-  "Reliable queue",
-  "Authenticity gate",
+  "交易（transaction）",
+  "可靠工作佇列（reliable queue）",
+  "雲端資料驗證關卡",
 ]) {
   if (!sqliteLab.includes(requiredText)) {
     throw new Error(

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   carrierAnswers,
   evaluateSql,
+  incorrectAnswerKeys,
   queueSnapshot,
   scoreAnswers,
   transactionSnapshot,
@@ -52,5 +53,14 @@ describe("SQLite learning lab", () => {
       total: 5,
     });
     expect(scoreAnswers({}, carrierAnswers)).toEqual({ correct: 0, total: 5 });
+  });
+
+  it("identifies the questions that need targeted review", () => {
+    expect(
+      incorrectAnswerKeys(
+        { q1: "right", q2: "wrong" },
+        { q1: "right", q2: "right", q3: "right" },
+      ),
+    ).toEqual(["q2", "q3"]);
   });
 });

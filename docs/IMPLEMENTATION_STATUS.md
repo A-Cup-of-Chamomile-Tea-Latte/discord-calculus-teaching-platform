@@ -1,6 +1,6 @@
 # Implementation status
 
-Last repository/data-layer verification: 2026-08-10 23:20 (Asia/Taipei)
+Last repository/data-layer verification: 2026-08-10 23:34 (Asia/Taipei)
 
 Last Discord live verification: 2026-07-30 20:18 (Asia/Taipei)
 
@@ -92,5 +92,10 @@ Detailed result:
   schema explorer, allowlisted synthetic SQL simulator, transaction failure comparison, reliable
   queue takeover sequence, carrier/authenticity exercises, final knowledge check and device-local
   progress. It does not open a database or send/store learner responses externally.
+- The learning environment has completed a second language and pedagogy review. It now begins
+  with explicit outcomes and an ungraded diagnostic, gives module-specific feedback for missed
+  answers, uses Taiwanese Traditional Chinese as the default explanatory language and keeps
+  English terms only where they aid technical transfer. Desktop and narrow-viewport visual
+  checks, Portal type checks, 49 tests, static build and distribution verification are green.
 - The evidence audit and implementation handoff is recorded in
   `project-exchange/15_GAS_SQLITE_DRIVE_REPOSITORY_EVIDENCE_AUDIT_2026-08-10.md`.

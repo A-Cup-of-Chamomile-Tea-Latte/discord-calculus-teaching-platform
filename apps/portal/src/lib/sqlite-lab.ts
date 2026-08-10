@@ -85,14 +85,14 @@ export function evaluateSql(input: string): LabResult {
       kind: "warning",
       title: "這個實驗台只允許唯讀查詢",
       message:
-        "修改結構或資料必須在 disposable database 另行練習；這裡不執行寫入指令。",
+        "修改結構或資料必須在可拋棄的練習資料庫另行練習；這裡不執行寫入指令。",
     };
   }
   return {
     kind: "error",
     title: "尚未辨識這個查詢",
     message:
-      "先使用上方四個範例。這個實驗台是教學模擬器，不是完整 SQLite engine。",
+      "先使用上方四個範例。這個實驗台是教學模擬器，不是完整的 SQLite 引擎。",
   };
 }
 
@@ -136,7 +136,7 @@ export function transactionSnapshot(
       databaseState: mode === "transaction" ? "一致" : "不一致",
       explanation:
         mode === "transaction"
-          ? "錯誤發生時，SQLite 準備 rollback 整組變更。"
+          ? "錯誤發生時，SQLite 準備復原整組變更。"
           : "案件已關閉，但匯出工作不存在；兩個事實互相矛盾。",
     };
   }
@@ -173,31 +173,31 @@ const queueSnapshots: QueueSnapshot[] = [
     job: "CLAIMED · lease A",
     workerA: "持有目前 token",
     workerB: "不得處理",
-    explanation: "Worker A 原子取得 claim；其他 worker 必須退讓。",
+    explanation: "處理器 A 原子取得處理權；其他處理器必須退讓。",
   },
   {
     job: "CLAIMED · lease 已到期",
     workerA: "逾時",
     workerB: "可重新 claim",
-    explanation: "A 沒有 heartbeat，lease 到期，工作不會永遠卡死。",
+    explanation: "A 沒有發出心跳，租約到期，工作不會永遠卡死。",
   },
   {
     job: "CLAIMED · lease B",
     workerA: "舊 token",
     workerB: "持有目前 token",
-    explanation: "Worker B 接手，取得新的 token 與 lease。",
+    explanation: "處理器 B 接手，取得新的憑證與租約。",
   },
   {
     job: "CLAIMED · lease B",
     workerA: "完成請求遭拒",
     workerB: "仍在處理",
-    explanation: "A 即使晚回來，也不能用過期 token 覆寫 B 的工作。",
+    explanation: "A 即使晚回來，也不能用過期憑證覆寫 B 的工作。",
   },
   {
     job: "VERIFIED",
     workerA: "退出",
     workerB: "完成",
-    explanation: "只有目前 token 的持有人能提交最終狀態。",
+    explanation: "只有目前憑證的持有人能提交最終狀態。",
   },
 ];
 
@@ -224,4 +224,13 @@ export function scoreAnswers(
     correct: entries.filter(([key, value]) => answers[key] === value).length,
     total: entries.length,
   };
+}
+
+export function incorrectAnswerKeys(
+  answers: Record<string, string>,
+  expected: Record<string, string>,
+): string[] {
+  return Object.entries(expected)
+    .filter(([key, value]) => answers[key] !== value)
+    .map(([key]) => key);
 }
