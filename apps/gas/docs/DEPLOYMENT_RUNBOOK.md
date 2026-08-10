@@ -17,6 +17,7 @@
 
 - Intended Apps Script owner/deployer：`ntusupercool@gmail.com`
 - 所有 cloud project、Sheet、deployment 與 Script Properties 都應由此專用帳號或日後正式指定的課程服務帳號管理，不使用學生個人帳號。
+- 本機需要人工瀏覽器操作時，使用 Chrome 顯示名稱 `Ding Ding` 的設定檔；不要改用其他 Chrome profile 的 session。clasp 仍使用命名 OAuth profile `ntusupercool`。
 
 ## Preconditions
 
