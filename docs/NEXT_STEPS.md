@@ -35,5 +35,6 @@ separate instruction.
    projection rows. Do not connect cloud → local automatic writes.
 7. Connect `_CommandInbox` and `_EmailOutbox` adapters only after integration tests pass.
    `providerAcceptedAt` / product state `SENT` must not be reported as inbox delivery.
-8. Use the SQLite learning guide and `discord-db-inspect` first on a disposable database; do not
-   use live row dumps as teaching material.
+8. **Interactive foundation completed:** use Portal `/sqlite-lab/` before the first hands-on
+   database session. Then run `discord-db-inspect` and four read-only queries against a disposable
+   database; do not use live row dumps as teaching material.

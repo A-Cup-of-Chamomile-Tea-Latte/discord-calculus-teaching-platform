@@ -15,6 +15,7 @@ const requiredPages = [
   "ask/index.html",
   "private-support/index.html",
   "guide/index.html",
+  "sqlite-lab/index.html",
   "status/index.html",
   "components/index.html",
 ];
@@ -34,6 +35,23 @@ for (const relativePath of requiredPages) {
   if (!htmlFiles.includes(relativePath)) {
     throw new Error(`missing required page: ${relativePath}`);
   }
+}
+const sqliteLab = readFileSync(join(dist, "sqlite-lab/index.html"), "utf8");
+for (const requiredText of [
+  "SQLite 學習實驗室",
+  "安全查詢實驗台",
+  "Transaction",
+  "Reliable queue",
+  "Authenticity gate",
+]) {
+  if (!sqliteLab.includes(requiredText)) {
+    throw new Error(
+      `sqlite-lab/index.html: missing learning module ${requiredText}`,
+    );
+  }
+}
+if (!/data-sqlite-lab/.test(sqliteLab)) {
+  throw new Error("sqlite-lab/index.html: missing interactive lab root");
 }
 let referenceCount = 0;
 for (const relativePath of htmlFiles) {

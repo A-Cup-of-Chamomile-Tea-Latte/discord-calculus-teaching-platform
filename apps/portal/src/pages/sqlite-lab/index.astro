@@ -1,0 +1,1604 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { withBase } from "../../lib/paths";
+---
+
+<BaseLayout
+  title="SQLite 學習實驗室"
+  description="用互動資料地圖、唯讀 SQL、transaction 與 reliable queue 模擬，理解微積分教學 Bot 的資料架構。"
+  currentPath="sqlite-lab"
+>
+  <div data-sqlite-lab>
+    <header class="lab-hero">
+      <div class="shell lab-hero__grid">
+        <div class="lab-hero__copy">
+          <p class="eyebrow">SQLite learning lab</p>
+          <h1>看得見資料怎麼走，<br />就不必相信黑盒。</h1>
+          <p class="lab-hero__lead">
+            這不是資料庫速成班，而是一套能直接用在本專案的心智模型。你會親手判斷資料放哪裡、看懂安全查詢、觀察失敗如何
+            rollback，並追蹤一個可靠 queue 工作。
+          </p>
+          <div class="cluster">
+            <a class="button" href="#module-map">從資料地圖開始</a>
+            <a class="button button--secondary" href="#module-query"
+              >直接動手查詢</a
+            >
+          </div>
+          <p class="lab-hero__note">
+            約 75–110
+            分鐘，可分多次完成。所有資料都是合成範例，不會連線或寫入真實資料庫。
+          </p>
+        </div>
+        <div
+          class="database-object"
+          aria-label="SQLite 是一個含有多張資料表的本機資料庫檔案"
+        >
+          <div class="database-object__top">
+            <span>course_bots.sqlite3</span><span>本機檔案</span>
+          </div>
+          <div class="database-object__tables">
+            <div><span>cases</span><small>案件真實狀態</small></div>
+            <div>
+              <span>private_dump_jobs</span><small>可靠工作 queue</small>
+            </div>
+            <div><span>schema_migrations</span><small>結構升級紀錄</small></div>
+          </div>
+          <p>一個檔案 · 明確規則 · 完整 transaction</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="shell lab-layout section">
+      <aside class="course-rail" aria-label="課程進度">
+        <div class="course-rail__progress">
+          <p class="eyebrow">你的進度</p>
+          <strong id="learning-progress-text">0 / 8 節 · 0%</strong>
+          <div class="progress-track" aria-hidden="true">
+            <span id="learning-progress-bar"></span>
+          </div>
+          <p>只存在這台裝置。</p>
+        </div>
+        <nav aria-label="章節導覽">
+          <ol>
+            <li data-module-link="map">
+              <a href="#module-map"><span>01</span>資料地圖</a>
+            </li>
+            <li data-module-link="structure">
+              <a href="#module-structure"><span>02</span>結構與限制</a>
+            </li>
+            <li data-module-link="query">
+              <a href="#module-query"><span>03</span>唯讀查詢</a>
+            </li>
+            <li data-module-link="transaction">
+              <a href="#module-transaction"><span>04</span>Transaction</a>
+            </li>
+            <li data-module-link="queue">
+              <a href="#module-queue"><span>05</span>Reliable queue</a>
+            </li>
+            <li data-module-link="carrier">
+              <a href="#module-carrier"><span>06</span>載體判斷</a>
+            </li>
+            <li data-module-link="authenticity">
+              <a href="#module-authenticity"><span>07</span>雲端驗證</a>
+            </li>
+            <li data-module-link="mastery">
+              <a href="#module-mastery"><span>08</span>整合驗收</a>
+            </li>
+          </ol>
+        </nav>
+        <button
+          id="reset-learning-progress"
+          class="button button--quiet"
+          type="button">重設學習進度</button
+        >
+      </aside>
+
+      <div class="lesson-flow">
+        <section
+          id="module-map"
+          class="lesson"
+          data-learning-module="map"
+          aria-labelledby="map-title"
+        >
+          <div class="lesson__heading">
+            <p class="lesson__number">01 · 12 分鐘</p>
+            <h2 id="map-title">先建立全局地圖：資料不必都住在同一處</h2>
+            <p>
+              資料架構不是比較哪個工具最強，而是把每種資料交給最合適的載體。點選下方節點，看它在本專案中的責任。
+            </p>
+          </div>
+
+          <div class="carrier-map" aria-label="本專案的資料載體地圖">
+            <button type="button" data-carrier="sqlite" aria-pressed="true">
+              <span class="carrier-map__index">A</span><strong
+                >Local SQLite</strong
+              ><small>真實狀態與安全寫入</small>
+            </button>
+            <span class="carrier-map__arrow" aria-hidden="true">→</span>
+            <button type="button" data-carrier="sheet" aria-pressed="false">
+              <span class="carrier-map__index">B</span><strong
+                >Google Sheets</strong
+              ><small>給人看的精簡投影</small>
+            </button>
+            <span class="carrier-map__arrow" aria-hidden="true">↘</span>
+            <button type="button" data-carrier="archive" aria-pressed="false">
+              <span class="carrier-map__index">C</span><strong>受管檔案</strong
+              ><small>大而敏感的內容</small>
+            </button>
+            <span class="carrier-map__arrow" aria-hidden="true">↗</span>
+            <button type="button" data-carrier="git" aria-pressed="false">
+              <span class="carrier-map__index">D</span><strong
+                >Git 文字檔</strong
+              ><small>規則、程式與歷史</small>
+            </button>
+          </div>
+          <div class="selected-explanation" aria-live="polite">
+            <p class="eyebrow">目前選取</p>
+            <h3 id="carrier-detail-title">
+              Local SQLite｜真實 operational state
+            </h3>
+            <p id="carrier-detail-body">
+              案件、queue 與交易一致性以本機 SQLite 為準。兩隻 Bot
+              可以用同一套明確 schema 協作，不需要另外架 database server。
+            </p>
+          </div>
+
+          <div class="concept-note">
+            <strong>先記住 authority 與 projection。</strong>
+            <p>
+              <em>Authority</em> 是發生衝突時誰說了算；<em>projection</em> 是為特定讀者整理出的部分視圖。Sheet
+              比較容易看，不表示它自動比 SQLite 更真。
+            </p>
+          </div>
+          <button
+            class="complete-button"
+            type="button"
+            data-complete-module="map"
+            aria-pressed="false">標記這一節完成</button
+          >
+        </section>
+
+        <section
+          id="module-structure"
+          class="lesson"
+          data-learning-module="structure"
+          aria-labelledby="structure-title"
+        >
+          <div class="lesson__heading">
+            <p class="lesson__number">02 · 12 分鐘</p>
+            <h2 id="structure-title">
+              SQLite 是什麼：一個檔案，加上一組不能亂來的規則
+            </h2>
+            <p>
+              它不是一張比較厲害的試算表。SQLite 會用 schema
+              定義欄位、型別與限制，再用 transaction 保護一組寫入。
+            </p>
+          </div>
+
+          <div class="definition-strip" aria-label="SQLite 核心概念">
+            <div><strong>Table</strong><span>同一類資料</span></div>
+            <div><strong>Row</strong><span>一筆案件或工作</span></div>
+            <div><strong>Column</strong><span>每筆資料的欄位</span></div>
+            <div>
+              <strong>Constraint</strong><span>資料不可違反的規則</span>
+            </div>
+            <div><strong>Index</strong><span>依實際查詢建立的捷徑</span></div>
+          </div>
+
+          <div class="schema-explorer">
+            <div class="schema-explorer__table" aria-label="cases 欄位">
+              <div class="schema-explorer__caption">
+                <strong>cases</strong><span>案件目前狀態</span>
+              </div>
+              <button type="button" data-column="case_id" aria-pressed="true"
+                ><code>case_id</code><span>TEXT · PRIMARY KEY</span></button
+              >
+              <button
+                type="button"
+                data-column="case_number"
+                aria-pressed="false"
+                ><code>case_number</code><span>TEXT · UNIQUE</span></button
+              >
+              <button type="button" data-column="status" aria-pressed="false"
+                ><code>status</code><span>TEXT · NOT NULL</span></button
+              >
+              <button
+                type="button"
+                data-column="module_code"
+                aria-pressed="false"
+                ><code>module_code</code><span>TEXT · NOT NULL</span></button
+              >
+              <button
+                type="button"
+                data-column="created_at"
+                aria-pressed="false"
+                ><code>created_at</code><span>TEXT · NOT NULL</span></button
+              >
+            </div>
+            <div class="schema-explorer__detail">
+              <p class="eyebrow">點一個欄位</p>
+              <p id="column-explanation">
+                內部 primary key。每一列都必須唯一，程式用它穩定地找到同一案件。
+              </p>
+              <hr />
+              <h3>為何目前不急著上 Postgres？</h3>
+              <p>
+                目前是單機、兩隻 Bot、低至中量寫入。SQLite
+                維運面小且已足夠。等到需要多台主機大量同時寫入、遠端高可用或資料庫帳號分權，再評估
+                Postgres，會比「先上再說」更健康。
+              </p>
+            </div>
+          </div>
+          <button
+            class="complete-button"
+            type="button"
+            data-complete-module="structure"
+            aria-pressed="false">標記這一節完成</button
+          >
+        </section>
+
+        <section
+          id="module-query"
+          class="lesson lesson--workbench"
+          data-learning-module="query"
+          aria-labelledby="query-title"
+        >
+          <div class="lesson__heading">
+            <p class="lesson__number">03 · 15 分鐘</p>
+            <h2 id="query-title">安全查詢實驗台：先用最少資料回答問題</h2>
+            <p>
+              這是瀏覽器內的 synthetic
+              模擬器，不會開啟任何真實資料庫。選一個例子、觀察它究竟讀了多少資訊。
+            </p>
+          </div>
+
+          <div class="sql-presets" aria-label="查詢範例">
+            <button type="button" data-sql-preset=".tables"
+              >有哪些 tables？</button
+            >
+            <button type="button" data-sql-preset=".schema cases"
+              >cases 長怎樣？</button
+            >
+            <button type="button" data-sql-preset="SELECT COUNT(*) FROM cases;"
+              >案件共有幾筆？</button
+            >
+            <button
+              type="button"
+              data-sql-preset="SELECT status, COUNT(*) FROM cases GROUP BY status;"
+              >各狀態有幾筆？</button
+            >
+            <button
+              type="button"
+              data-sql-preset="SELECT case_number, status, module_code FROM cases LIMIT 3;"
+              >只看三個必要欄位</button
+            >
+          </div>
+          <label for="sql-input">唯讀 SQL</label>
+          <textarea id="sql-input" spellcheck="false"
+            >SELECT COUNT(*) FROM cases;</textarea
+          >
+          <div class="workbench-actions">
+            <button id="run-sql" type="button">執行合成查詢</button>
+            <span
+              >可以試試 <code>SELECT * FROM cases;</code
+              >，看看護欄怎麼回應。</span
+            >
+          </div>
+          <div
+            id="sql-output"
+            class="sql-output"
+            data-kind="table"
+            aria-live="polite"
+          >
+            <div>
+              <p class="eyebrow">查詢結果</p>
+              <h3 id="sql-output-title">尚未執行</h3>
+              <p id="sql-output-message">按下「執行合成查詢」開始。</p>
+            </div>
+            <div id="sql-output-table" class="sql-output__table"></div>
+          </div>
+
+          <details class="lesson-detail">
+            <summary>四個真正在 terminal 會用到的唯讀指令</summary>
+            <div>
+              <p>
+                <code>.tables</code> 看有哪些表；<code>.schema cases</code> 看結構；<code
+                  >SELECT COUNT(*)</code
+                > 看數量；<code>GROUP BY status</code> 看分布。
+              </p>
+              <p>
+                先從數量與結構開始，不要習慣性使用 <code>SELECT *</code
+                >。在本專案中，真實資料也不應貼進聊天或 LLM。
+              </p>
+            </div>
+          </details>
+          <button
+            class="complete-button"
+            type="button"
+            data-complete-module="query"
+            aria-pressed="false">標記這一節完成</button
+          >
+        </section>
+
+        <section
+          id="module-transaction"
+          class="lesson"
+          data-learning-module="transaction"
+          aria-labelledby="transaction-title"
+        >
+          <div class="lesson__heading">
+            <p class="lesson__number">04 · 12 分鐘</p>
+            <h2 id="transaction-title">
+              Transaction：不是「比較不容易錯」，而是拒絕留下半套結果
+            </h2>
+            <p>
+              情境：結案時必須同時把案件改成
+              CLOSED，並建立一個匯出工作。第二個寫入前程式突然失敗，會發生什麼？
+            </p>
+          </div>
+          <div class="mode-switch" aria-label="選擇保護方式">
+            <button
+              type="button"
+              data-transaction-mode="transaction"
+              aria-pressed="true">使用 transaction</button
+            >
+            <button
+              type="button"
+              data-transaction-mode="unprotected"
+              aria-pressed="false">兩次各自寫入</button
+            >
+          </div>
+          <div class="state-stage" aria-live="polite">
+            <div class="state-stage__header">
+              <span>模擬步驟 <strong id="transaction-step">1 / 4</strong></span
+              ><span id="transaction-consistency" data-state="一致">一致</span>
+            </div>
+            <div class="state-stage__entities">
+              <div>
+                <small>cases.status</small><strong id="transaction-case"
+                  >OPEN</strong
+                >
+              </div>
+              <span aria-hidden="true">＋</span>
+              <div>
+                <small>private_dump_jobs</small><strong id="transaction-queue"
+                  >尚無工作</strong
+                >
+              </div>
+            </div>
+            <p id="transaction-explanation">
+              起點：案件仍開啟，也還沒有匯出工作。
+            </p>
+          </div>
+          <div class="workbench-actions">
+            <button id="transaction-next" type="button">下一步</button>
+            <button
+              id="transaction-reset"
+              class="button button--secondary"
+              type="button">重新播放</button
+            >
+          </div>
+          <div class="concept-note">
+            <strong>ACID 不必一次背完。</strong>
+            <p>
+              此刻先掌握
+              atomicity：一組動作要嘛全部成功，要嘛全部撤回。等你能辨識半套結果，再補
+              consistency、isolation、durability 會更容易吸收。
+            </p>
+          </div>
+          <button
+            class="complete-button"
+            type="button"
+            data-complete-module="transaction"
+            aria-pressed="false">標記這一節完成</button
+          >
+        </section>
+
+        <section
+          id="module-queue"
+          class="lesson"
+          data-learning-module="queue"
+          aria-labelledby="queue-title"
+        >
+          <div class="lesson__heading">
+            <p class="lesson__number">05 · 12 分鐘</p>
+            <h2 id="queue-title">
+              Reliable queue：如何避免兩隻 worker 重複做同一件事
+            </h2>
+            <p>
+              Claim 表示暫時取得處理權，lease 讓這個權利會到期，token
+              則證明「現在」究竟是誰持有工作。逐步播放一次 worker 接手。
+            </p>
+          </div>
+          <div class="queue-stage" aria-live="polite">
+            <div class="queue-stage__job">
+              <small>工作狀態 · <span id="queue-step">1 / 6</span></small>
+              <strong id="queue-job">PENDING</strong>
+            </div>
+            <div class="queue-stage__workers">
+              <div>
+                <span>Worker A</span><strong id="queue-worker-a">等待</strong>
+              </div>
+              <div>
+                <span>Worker B</span><strong id="queue-worker-b">等待</strong>
+              </div>
+            </div>
+            <p id="queue-explanation">工作已建立，但還沒有人取得處理權。</p>
+          </div>
+          <div class="workbench-actions">
+            <button id="queue-next" type="button">下一個狀態</button>
+            <button
+              id="queue-reset"
+              class="button button--secondary"
+              type="button">回到 PENDING</button
+            >
+          </div>
+          <dl class="term-pairs">
+            <div>
+              <dt>Idempotency</dt><dd>同一個請求重送，不會創造第二份效果。</dd>
+            </div>
+            <div><dt>Claim</dt><dd>某個 worker 原子取得目前的處理權。</dd></div>
+            <div>
+              <dt>Lease</dt><dd>處理權有期限；worker 當機後工作仍可被接手。</dd>
+            </div>
+            <div>
+              <dt>Heartbeat</dt><dd>
+                worker 還活著時延長 lease，不必一開始就鎖很久。
+              </dd>
+            </div>
+          </dl>
+          <button
+            class="complete-button"
+            type="button"
+            data-complete-module="queue"
+            aria-pressed="false">標記這一節完成</button
+          >
+        </section>
+
+        <section
+          id="module-carrier"
+          class="lesson"
+          data-learning-module="carrier"
+          aria-labelledby="carrier-title"
+        >
+          <div class="lesson__heading">
+            <p class="lesson__number">06 · 10 分鐘</p>
+            <h2 id="carrier-title">
+              載體判斷：不是「能不能放」，而是「放了會不會更難維護」
+            </h2>
+            <p>
+              為每種資料選最合適的主要載體。Google Sheet
+              可以查看很多東西，但不代表所有東西都應變成 worksheet。
+            </p>
+          </div>
+          <form id="carrier-quiz" class="carrier-quiz">
+            <label
+              ><span>案件目前 status 的真實來源</span><select
+                name="caseAuthority"
+                ><option value="">選擇載體</option><option value="sqlite"
+                  >Local SQLite</option
+                ><option value="sheet">Google Sheet</option><option
+                  value="archive">受管檔案</option
+                ><option value="git">Git</option><option value="secret"
+                  >Secret carrier</option
+                ></select
+              ></label
+            >
+            <label
+              ><span>TA 遠端查看的成員驗證摘要</span><select
+                name="memberSummary"
+                ><option value="">選擇載體</option><option value="sqlite"
+                  >Local SQLite</option
+                ><option value="sheet">Google Sheet</option><option
+                  value="archive">受管檔案</option
+                ><option value="git">Git</option><option value="secret"
+                  >Secret carrier</option
+                ></select
+              ></label
+            >
+            <label
+              ><span>原始附件與完整匯出內容</span><select name="rawAttachment"
+                ><option value="">選擇載體</option><option value="sqlite"
+                  >Local SQLite</option
+                ><option value="sheet">Google Sheet</option><option
+                  value="archive">受管檔案</option
+                ><option value="git">Git</option><option value="secret"
+                  >Secret carrier</option
+                ></select
+              ></label
+            >
+            <label
+              ><span>Schema、migration 與程式規則</span><select
+                name="migrationRule"
+                ><option value="">選擇載體</option><option value="sqlite"
+                  >Local SQLite</option
+                ><option value="sheet">Google Sheet</option><option
+                  value="archive">受管檔案</option
+                ><option value="git">Git</option><option value="secret"
+                  >Secret carrier</option
+                ></select
+              ></label
+            >
+            <label
+              ><span>Discord token</span><select name="discordToken"
+                ><option value="">選擇載體</option><option value="sqlite"
+                  >Local SQLite</option
+                ><option value="sheet">Google Sheet</option><option
+                  value="archive">受管檔案</option
+                ><option value="git">Git</option><option value="secret"
+                  >Secret carrier</option
+                ></select
+              ></label
+            >
+          </form>
+          <div class="workbench-actions">
+            <button id="check-carriers" type="button">檢查分類</button>
+            <strong id="carrier-score" aria-live="polite">尚未作答</strong>
+          </div>
+          <details class="lesson-detail">
+            <summary>什麼時候應該把 Google Sheet 拆成兩份？</summary>
+            <div>
+              <p>
+                不是頁籤很多就拆，而是讀取權限不同才拆。例如 TA 可以讀
+                CaseBoard，但不應讀 machine ledger；這是 access
+                boundary，值得用兩個檔案真正隔離。隱藏頁籤只改善介面，不是安全控制。
+              </p>
+            </div>
+          </details>
+          <button
+            class="complete-button"
+            type="button"
+            data-complete-module="carrier"
+            aria-pressed="false">標記這一節完成</button
+          >
+        </section>
+
+        <section
+          id="module-authenticity"
+          class="lesson"
+          data-learning-module="authenticity"
+          aria-labelledby="authenticity-title"
+        >
+          <div class="lesson__heading">
+            <p class="lesson__number">07 · 10 分鐘</p>
+            <h2 id="authenticity-title">
+              Cloud → local：雲端比較新，不代表它自動是真的
+            </h2>
+            <p>
+              假設 Sheet 的 source version 是 12，本機是
+              11。勾選你已經完成的驗證，再嘗試接受這份 projection。
+            </p>
+          </div>
+          <div class="receipt-card">
+            <div class="receipt-card__summary">
+              <div><span>Cloud source version</span><strong>12</strong></div>
+              <div><span>Local source version</span><strong>11</strong></div>
+              <div><span>Schema</span><strong>2.0.0</strong></div>
+            </div>
+            <fieldset class="authenticity-gates">
+              <legend>Authenticity gate</legend>
+              <label
+                ><input
+                  type="checkbox"
+                  data-authenticity-gate
+                  data-label="來源檔確認"
+                  checked
+                />來源是預期的 Server Database</label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  data-authenticity-gate
+                  data-label="schema 相容"
+                  checked
+                />Schema version 可支援</label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  data-authenticity-gate
+                  data-label="版本單調"
+                  checked
+                />Source version 單調遞增</label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  data-authenticity-gate
+                  data-label="checksum 正確"
+                />Checksum 與內容相符</label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  data-authenticity-gate
+                  data-label="人工確認"
+                />Operator 已確認本次匯入範圍</label
+              >
+            </fieldset>
+            <button id="verify-receipt" type="button">驗證這份 receipt</button>
+            <p id="receipt-result" data-state="waiting" aria-live="polite">
+              尚未驗證。版本較新本身不足以接受匯入。
+            </p>
+          </div>
+          <div class="concept-note">
+            <strong
+              >Checksum 回答「內容是否一致」，不回答「來源是否值得信任」。</strong
+            >
+            <p>
+              因此仍要檢查來源、版本、時間與人工確認。未來若威脅模型需要證明發送者身分，再加入
+              HMAC 或簽章。
+            </p>
+          </div>
+          <button
+            class="complete-button"
+            type="button"
+            data-complete-module="authenticity"
+            aria-pressed="false">標記這一節完成</button
+          >
+        </section>
+
+        <section
+          id="module-mastery"
+          class="lesson lesson--final"
+          data-learning-module="mastery"
+          aria-labelledby="mastery-title"
+        >
+          <div class="lesson__heading">
+            <p class="lesson__number">08 · 15 分鐘</p>
+            <h2 id="mastery-title">整合驗收：你現在能不能參與資料架構決策？</h2>
+            <p>
+              不考冷門語法，只檢查能否把知識用回專案。六題答對五題，就已足以和工程決策對話。
+            </p>
+          </div>
+          <form id="final-quiz" class="final-quiz">
+            <fieldset>
+              <legend
+                >1. Sheet 與 SQLite 衝突時，目前誰是 operational authority？</legend
+              ><label
+                ><input type="radio" name="q1" value="cloud" />較新的 Sheet</label
+              ><label
+                ><input type="radio" name="q1" value="local" />通過 migration 的
+                local SQLite</label
+              >
+            </fieldset>
+            <fieldset>
+              <legend>2. Transaction 內第二個寫入失敗，安全結果是什麼？</legend
+              ><label
+                ><input
+                  type="radio"
+                  name="q2"
+                  value="partial"
+                />保留第一個寫入</label
+              ><label
+                ><input type="radio" name="q2" value="rollback" />整組 rollback</label
+              >
+            </fieldset>
+            <fieldset>
+              <legend>3. Worker 當機後，什麼機制讓工作能被接手？</legend><label
+                ><input type="radio" name="q3" value="lease" />會到期的 lease</label
+              ><label
+                ><input type="radio" name="q3" value="log" />增加更多 log</label
+              >
+            </fieldset>
+            <fieldset>
+              <legend>4. `Operations` Sheet 的 Bot heartbeat 是什麼？</legend
+              ><label
+                ><input type="radio" name="q4" value="authority" />Bot
+                真實狀態的唯一 authority</label
+              ><label
+                ><input
+                  type="radio"
+                  name="q4"
+                  value="projection"
+                />方便遠端查看的 current projection</label
+              >
+            </fieldset>
+            <fieldset>
+              <legend>5. Cloud snapshot checksum 正確後，還需要什麼？</legend
+              ><label
+                ><input
+                  type="radio"
+                  name="q5"
+                  value="auto"
+                />立刻自動覆寫</label
+              ><label
+                ><input
+                  type="radio"
+                  name="q5"
+                  value="confirm"
+                />來源檢查與人工確認</label
+              >
+            </fieldset>
+            <fieldset>
+              <legend>6. 何時才需要優先評估 Postgres？</legend><label
+                ><input
+                  type="radio"
+                  name="q6"
+                  value="now"
+                />只要資料很重要就現在上</label
+              ><label
+                ><input
+                  type="radio"
+                  name="q6"
+                  value="later"
+                />多主機大量寫入、高可用或帳號分權成為真需求時</label
+              >
+            </fieldset>
+          </form>
+          <div class="workbench-actions">
+            <button id="check-final-quiz" type="button">計算理解度</button>
+            <strong id="final-score" aria-live="polite">尚未作答</strong>
+          </div>
+
+          <div class="takeaway-sheet">
+            <p class="eyebrow">帶走這三句就夠了</p>
+            <ol>
+              <li>
+                SQLite 是有明確 schema 與 transaction 的本機資料庫，不是 AI
+                黑盒。
+              </li>
+              <li>
+                Local SQLite 保存真實狀態；Sheet 只保存讓人容易理解的受控投影。
+              </li>
+              <li>
+                任何 cloud → local
+                都要驗證與確認，不能只因為雲端版本較新就覆蓋。
+              </li>
+            </ol>
+          </div>
+          <button
+            class="complete-button"
+            type="button"
+            data-complete-module="mastery"
+            aria-pressed="false">標記這一節完成</button
+          >
+          <p class="next-lesson">
+            下一次實作課：使用 <code>discord-db-inspect</code> 查看 disposable database，再親手做四個唯讀查詢。<a
+              href={withBase("guide/")}>返回使用與隱私指南</a
+            >。
+          </p>
+        </section>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  import "../../scripts/sqlite-lab";
+</script>
+
+<style>
+  [data-sqlite-lab] {
+    --lab-ink: var(--color-text);
+    --lab-paper: var(--color-surface);
+    --lab-green: var(--color-action);
+    --lab-gold: var(--color-accent);
+  }
+
+  .lab-hero {
+    position: relative;
+    overflow: hidden;
+    padding-block: clamp(3.5rem, 8vw, 6.5rem);
+    border-bottom: var(--border-thin) solid rgb(255 255 255 / 14%);
+    background:
+      radial-gradient(
+        circle at 78% 24%,
+        rgb(240 202 131 / 12%) 0 10rem,
+        transparent 10.1rem
+      ),
+      linear-gradient(135deg, #132f30, var(--color-hero));
+    color: var(--color-hero-text);
+  }
+
+  .lab-hero::after {
+    position: absolute;
+    width: 28rem;
+    height: 28rem;
+    border: 1px solid rgb(255 255 255 / 10%);
+    border-radius: 50%;
+    content: "";
+    inset: auto -10rem -18rem auto;
+    box-shadow:
+      0 0 0 5rem rgb(255 255 255 / 2%),
+      0 0 0 10rem rgb(255 255 255 / 1%);
+  }
+
+  .lab-hero__grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: var(--space-7);
+    align-items: center;
+  }
+
+  .lab-hero__copy {
+    max-width: 43rem;
+  }
+
+  .lab-hero .eyebrow {
+    color: #f0ca83;
+  }
+
+  .lab-hero h1 {
+    max-width: 14ch;
+    color: inherit;
+    font-size: clamp(2.5rem, 7vw, 5rem);
+  }
+
+  .lab-hero__lead {
+    color: rgb(255 255 255 / 84%);
+    font-size: var(--font-size-lg);
+  }
+
+  .lab-hero__note {
+    margin-block: var(--space-4) 0;
+    color: rgb(255 255 255 / 66%);
+    font-size: var(--font-size-sm);
+  }
+
+  .database-object {
+    position: relative;
+    display: grid;
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 26%);
+    border-radius: 1.2rem;
+    background: rgb(255 255 255 / 7%);
+    box-shadow: 0 2rem 6rem rgb(0 0 0 / 20%);
+    backdrop-filter: blur(0.6rem);
+  }
+
+  .database-object__top {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid rgb(255 255 255 / 18%);
+    color: #f0ca83;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+  }
+
+  .database-object__tables {
+    display: grid;
+    padding: var(--space-4);
+    gap: var(--space-2);
+  }
+
+  .database-object__tables div {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-inline-start: 0.2rem solid #f0ca83;
+    background: rgb(255 255 255 / 6%);
+  }
+
+  .database-object__tables span {
+    font-family: var(--font-mono);
+  }
+
+  .database-object__tables small {
+    color: rgb(255 255 255 / 66%);
+    text-align: end;
+  }
+
+  .database-object > p {
+    margin: 0;
+    padding: var(--space-3) var(--space-5);
+    border-top: 1px solid rgb(255 255 255 / 12%);
+    color: rgb(255 255 255 / 62%);
+    font-size: var(--font-size-sm);
+  }
+
+  .lab-layout {
+    display: grid;
+    gap: var(--space-7);
+    align-items: start;
+  }
+
+  .course-rail {
+    display: grid;
+    gap: var(--space-4);
+    padding-bottom: var(--space-4);
+    border-bottom: var(--border-thin) solid var(--color-border);
+  }
+
+  .course-rail__progress p {
+    margin-bottom: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .progress-track {
+    overflow: hidden;
+    height: 0.45rem;
+    margin-block: var(--space-3);
+    border-radius: 999px;
+    background: var(--color-surface-muted);
+  }
+
+  .progress-track span {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--color-action);
+    transition: width 240ms ease;
+  }
+
+  .course-rail nav ol {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--space-1);
+    list-style: none;
+  }
+
+  .course-rail nav a {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    text-decoration: none;
+  }
+
+  .course-rail nav a:hover {
+    background: var(--color-surface-muted);
+    color: var(--color-text);
+  }
+
+  .course-rail nav span {
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+  }
+
+  .course-rail li[data-complete="true"] a::after {
+    margin-inline-start: auto;
+    color: var(--color-success-border);
+    content: "完成";
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+  }
+
+  .lesson-flow {
+    min-width: 0;
+  }
+
+  .lesson {
+    display: grid;
+    padding-block: var(--space-7);
+    border-bottom: var(--border-thin) solid var(--color-border);
+    gap: var(--space-5);
+    scroll-margin-top: var(--space-4);
+  }
+
+  .lesson:first-child {
+    padding-top: 0;
+  }
+
+  .lesson__heading {
+    max-width: var(--reading-width);
+  }
+
+  .lesson__number {
+    margin-bottom: var(--space-2);
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    font-weight: 800;
+  }
+
+  .lesson__heading h2 {
+    font-family: Georgia, "Noto Serif TC", serif;
+    font-size: clamp(1.6rem, 4vw, 2.35rem);
+  }
+
+  .carrier-map {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  .carrier-map button {
+    display: grid;
+    min-height: 8.2rem;
+    justify-items: start;
+    align-content: space-between;
+    padding: var(--space-4);
+    border-color: var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    text-align: start;
+  }
+
+  .carrier-map button:hover,
+  .carrier-map button[aria-pressed="true"] {
+    border-color: var(--color-action);
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  .carrier-map button small {
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  .carrier-map__index {
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+  }
+
+  .carrier-map__arrow {
+    display: none;
+  }
+
+  .selected-explanation,
+  .concept-note {
+    padding: var(--space-5);
+    border-inline-start: 0.32rem solid var(--color-action);
+    background: var(--color-surface);
+  }
+
+  .selected-explanation p:last-child,
+  .concept-note p:last-child {
+    margin-bottom: 0;
+  }
+
+  .concept-note {
+    border-inline-start-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+
+  .complete-button {
+    justify-self: start;
+    border-color: var(--color-border-strong);
+    background: transparent;
+    color: var(--color-text);
+  }
+
+  .complete-button:hover,
+  .complete-button[aria-pressed="true"] {
+    border-color: var(--color-success-border);
+    background: var(--color-success-bg);
+    color: var(--color-text);
+  }
+
+  .definition-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    border-block: var(--border-thin) solid var(--color-border);
+  }
+
+  .definition-strip div {
+    display: grid;
+    padding: var(--space-4) var(--space-3);
+    gap: var(--space-1);
+  }
+
+  .definition-strip strong {
+    color: var(--color-action);
+    font-family: var(--font-mono);
+  }
+
+  .definition-strip span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .schema-explorer {
+    display: grid;
+    overflow: hidden;
+    border: var(--border-strong) solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .schema-explorer__caption {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--color-action);
+    color: var(--color-action-text);
+  }
+
+  .schema-explorer__table button {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border: 0;
+    border-bottom: var(--border-thin) solid var(--color-border);
+    border-radius: 0;
+    background: transparent;
+    color: var(--color-text);
+    text-align: start;
+  }
+
+  .schema-explorer__table button:hover,
+  .schema-explorer__table button[aria-pressed="true"] {
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  .schema-explorer__table button span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+  }
+
+  .schema-explorer__detail {
+    padding: var(--space-5);
+    background: var(--color-canvas);
+  }
+
+  .schema-explorer__detail hr {
+    margin-block: var(--space-5);
+    border: 0;
+    border-top: var(--border-thin) solid var(--color-border);
+  }
+
+  .lesson--workbench {
+    position: relative;
+  }
+
+  .sql-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .sql-presets button,
+  .mode-switch button {
+    min-height: 2.4rem;
+    padding: var(--space-2) var(--space-3);
+    border-width: var(--border-thin);
+    border-color: var(--color-border-strong);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+  }
+
+  .sql-presets button:hover,
+  .mode-switch button:hover,
+  .mode-switch button[aria-pressed="true"] {
+    border-color: var(--color-action);
+    background: var(--color-action);
+    color: var(--color-action-text);
+  }
+
+  #sql-input {
+    min-height: 7rem;
+    border-color: #33423e;
+    background: #17201e;
+    color: #e9f2ed;
+    font-family: var(--font-mono);
+    line-height: 1.6;
+  }
+
+  .workbench-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  .workbench-actions span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .sql-output {
+    display: grid;
+    min-height: 10rem;
+    padding: var(--space-5);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    gap: var(--space-4);
+  }
+
+  .sql-output[data-kind="warning"] {
+    border-color: var(--color-warning-border);
+    background: var(--color-warning-bg);
+  }
+
+  .sql-output[data-kind="error"] {
+    border-color: var(--color-danger-border);
+    background: var(--color-danger-bg);
+  }
+
+  .sql-output__table {
+    overflow-x: auto;
+  }
+
+  .sql-output__table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .sql-output__table th,
+  .sql-output__table td {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: var(--border-thin) solid var(--color-border);
+    text-align: start;
+  }
+
+  .sql-output__table pre {
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
+
+  .lesson-detail {
+    border-block: var(--border-thin) solid var(--color-border);
+  }
+
+  .lesson-detail summary {
+    padding-block: var(--space-4);
+    color: var(--color-action);
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .lesson-detail > div {
+    max-width: var(--reading-width);
+    padding-bottom: var(--space-4);
+  }
+
+  .mode-switch {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .state-stage,
+  .queue-stage {
+    display: grid;
+    overflow: hidden;
+    border: var(--border-strong) solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .state-stage__header {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: var(--border-thin) solid var(--color-border);
+    background: var(--color-surface-muted);
+  }
+
+  #transaction-consistency {
+    color: var(--color-success-border);
+    font-weight: 800;
+  }
+
+  #transaction-consistency[data-state="不一致"] {
+    color: var(--color-danger-border);
+  }
+
+  .state-stage__entities {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-6);
+  }
+
+  .state-stage__entities div {
+    display: grid;
+    min-height: 8rem;
+    align-content: center;
+    justify-items: center;
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-canvas);
+    text-align: center;
+  }
+
+  .state-stage__entities small,
+  .queue-stage small {
+    color: var(--color-text-muted);
+  }
+
+  .state-stage__entities strong,
+  .queue-stage__job strong {
+    margin-top: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-lg);
+  }
+
+  .state-stage > p,
+  .queue-stage > p {
+    margin: 0;
+    padding: var(--space-4) var(--space-5);
+    border-top: var(--border-thin) solid var(--color-border);
+  }
+
+  .queue-stage__job {
+    display: grid;
+    justify-items: center;
+    padding: var(--space-5);
+    background: var(--color-action);
+    color: var(--color-action-text);
+  }
+
+  .queue-stage__job small {
+    color: rgb(255 255 255 / 72%);
+  }
+
+  .queue-stage__workers {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-5);
+  }
+
+  .queue-stage__workers div {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .queue-stage__workers strong {
+    text-align: end;
+  }
+
+  .term-pairs {
+    display: grid;
+    margin: 0;
+    border-block: var(--border-thin) solid var(--color-border);
+  }
+
+  .term-pairs div {
+    display: grid;
+    grid-template-columns: minmax(7rem, 0.35fr) 1fr;
+    gap: var(--space-4);
+    padding-block: var(--space-3);
+    border-bottom: var(--border-thin) solid var(--color-border);
+  }
+
+  .term-pairs div:last-child {
+    border-bottom: 0;
+  }
+
+  .term-pairs dt {
+    color: var(--color-action);
+    font-family: var(--font-mono);
+    font-weight: 800;
+  }
+
+  .term-pairs dd {
+    margin: 0;
+  }
+
+  .carrier-quiz {
+    display: grid;
+    border-top: var(--border-thin) solid var(--color-border);
+  }
+
+  .carrier-quiz label {
+    display: grid;
+    gap: var(--space-2);
+    padding-block: var(--space-4);
+    border-bottom: var(--border-thin) solid var(--color-border);
+    font-weight: 700;
+  }
+
+  .carrier-quiz select {
+    font-weight: 400;
+  }
+
+  #carrier-score[data-complete="true"],
+  #final-score[data-complete="true"] {
+    color: var(--color-success-border);
+  }
+
+  .receipt-card {
+    display: grid;
+    overflow: hidden;
+    border: var(--border-strong) solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .receipt-card__summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: var(--color-action);
+    color: var(--color-action-text);
+  }
+
+  .receipt-card__summary div {
+    display: grid;
+    padding: var(--space-4);
+    border-inline-end: 1px solid rgb(255 255 255 / 20%);
+  }
+
+  .receipt-card__summary span {
+    color: rgb(255 255 255 / 70%);
+    font-size: var(--font-size-xs);
+  }
+
+  .receipt-card__summary strong {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-lg);
+  }
+
+  .authenticity-gates {
+    display: grid;
+    margin: var(--space-5);
+    padding: 0;
+    border: 0;
+    gap: var(--space-3);
+  }
+
+  .authenticity-gates legend {
+    margin-bottom: var(--space-3);
+    font-weight: 800;
+  }
+
+  .authenticity-gates label {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+  }
+
+  .receipt-card > button {
+    margin-inline: var(--space-5);
+    justify-self: start;
+  }
+
+  #receipt-result {
+    margin: var(--space-4) 0 0;
+    padding: var(--space-4) var(--space-5);
+    border-top: var(--border-thin) solid var(--color-border);
+    background: var(--color-neutral-bg);
+  }
+
+  #receipt-result[data-state="accepted"] {
+    background: var(--color-success-bg);
+    color: var(--color-success-border);
+  }
+
+  #receipt-result[data-state="rejected"] {
+    background: var(--color-danger-bg);
+    color: var(--color-danger-border);
+  }
+
+  .lesson--final {
+    border-bottom: 0;
+  }
+
+  .final-quiz {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .final-quiz fieldset {
+    display: grid;
+    margin: 0;
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    gap: var(--space-2);
+  }
+
+  .final-quiz legend {
+    padding-inline: var(--space-2);
+    font-weight: 800;
+  }
+
+  .final-quiz label {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+  }
+
+  .takeaway-sheet {
+    padding: var(--space-6);
+    border-block: var(--border-strong) solid var(--color-action);
+    background: var(--color-accent-soft);
+  }
+
+  .takeaway-sheet ol {
+    display: grid;
+    margin: 0;
+    padding-inline-start: 1.4rem;
+    gap: var(--space-3);
+  }
+
+  .next-lesson {
+    color: var(--color-text-muted);
+  }
+
+  @media (min-width: 42rem) {
+    .carrier-map {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .schema-explorer {
+      grid-template-columns: minmax(18rem, 0.85fr) 1.15fr;
+    }
+
+    .queue-stage__workers,
+    .carrier-quiz {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .carrier-quiz label:nth-child(odd) {
+      padding-inline-end: var(--space-4);
+    }
+
+    .carrier-quiz label:nth-child(even) {
+      padding-inline-start: var(--space-4);
+      border-inline-start: var(--border-thin) solid var(--color-border);
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .lab-hero__grid {
+      grid-template-columns: minmax(0, 1.2fr) minmax(24rem, 0.8fr);
+    }
+
+    .lab-layout {
+      grid-template-columns: 14rem minmax(0, 1fr);
+    }
+
+    .course-rail {
+      position: sticky;
+      top: var(--space-4);
+      border-bottom: 0;
+    }
+
+    .carrier-map {
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      align-items: center;
+    }
+
+    .carrier-map button {
+      grid-column: span 1;
+    }
+
+    .carrier-map__arrow {
+      display: block;
+      color: var(--color-border-strong);
+      font-size: var(--font-size-lg);
+      text-align: center;
+    }
+  }
+
+  @media (max-width: 36rem) {
+    .database-object__tables div,
+    .schema-explorer__table button,
+    .queue-stage__workers div {
+      flex-direction: column;
+    }
+
+    .database-object__tables small,
+    .schema-explorer__table button span,
+    .queue-stage__workers strong {
+      text-align: start;
+    }
+
+    .state-stage__entities {
+      grid-template-columns: 1fr;
+    }
+
+    .receipt-card__summary {
+      grid-template-columns: 1fr;
+    }
+
+    .term-pairs div {
+      grid-template-columns: 1fr;
+      gap: var(--space-1);
+    }
+  }
+</style>

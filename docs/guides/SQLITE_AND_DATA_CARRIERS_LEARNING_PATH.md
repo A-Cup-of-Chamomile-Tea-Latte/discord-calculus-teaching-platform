@@ -2,6 +2,8 @@
 
 這份路線的目標不是把你訓練成資料庫工程師，而是讓你能獨立回答三件事：資料在哪裡、哪個版本說了算、程式失敗時資料會不會亂掉。
 
+本機 Portal 現已提供 `/sqlite-lab/` 互動版本：包含資料地圖、合成 SQL、transaction、reliable queue、載體分類、cloud authenticity gate、整合小測與只存在瀏覽器的進度紀錄。本文件保留作為可搜尋的小抄。
+
 ## SQLite 是什麼
 
 SQLite 是一個嵌入在程式裡的小型關聯式資料庫。它通常把資料表、索引與交易狀態放在一個 `.sqlite3` 檔案中，不需要另外架一台 database server。

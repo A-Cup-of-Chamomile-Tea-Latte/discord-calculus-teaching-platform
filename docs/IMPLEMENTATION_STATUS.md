@@ -1,6 +1,6 @@
 # Implementation status
 
-Last repository/data-layer verification: 2026-08-10 22:49 (Asia/Taipei)
+Last repository/data-layer verification: 2026-08-10 23:20 (Asia/Taipei)
 
 Last Discord live verification: 2026-07-30 20:18 (Asia/Taipei)
 
@@ -88,5 +88,9 @@ Detailed result:
   the explicit in-Sheet menu confirmation; no Email or real-data sync has been enabled.
 - Canonical runtime now provides `discord-db-inspect`, which opens SQLite read-only and reports
   schema version, tables, columns and row counts without querying or printing row values.
+- Portal now includes a local-only `/sqlite-lab/` interactive learning environment: carrier map,
+  schema explorer, allowlisted synthetic SQL simulator, transaction failure comparison, reliable
+  queue takeover sequence, carrier/authenticity exercises, final knowledge check and device-local
+  progress. It does not open a database or send/store learner responses externally.
 - The evidence audit and implementation handoff is recorded in
   `project-exchange/15_GAS_SQLITE_DRIVE_REPOSITORY_EVIDENCE_AUDIT_2026-08-10.md`.
