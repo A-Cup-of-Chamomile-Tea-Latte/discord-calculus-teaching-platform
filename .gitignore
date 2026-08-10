@@ -45,6 +45,7 @@ apps/portal/dist/
 # Apps Script local/deployment state
 apps/gas/.clasp.json
 apps/gas/.clasp.local.json
+apps/gas/.clasp.*.json
 apps/gas/deployment*.json
 
 # Real/local exports and operator data; fixtures stay tracked

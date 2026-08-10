@@ -10,13 +10,18 @@ npm run test --workspace @calculus/gas
 npm run build --workspace @calculus/gas
 ```
 
-Build 使用 esbuild 將 `src/index.ts` bundle 為 `dist/Code.js`，公開 Apps Script 所需的全域 `doGet` / `doPost`，並複製 `appsscript.json`。所有 tests 都是 pure local logic，不需要 Google credential、clasp login 或 network。
+Build 使用 esbuild 產生兩個共用 domain code、但 entrypoint 分離的 bundle：
+
+- `dist/standalone/`：`doGet`／`doPost` 與跨檔案 bootstrap，供獨立 GAS 使用。
+- `dist/bound/`：`onOpen`、dry-run 與人工確認後 apply，供 `Server Database` 附著 GAS 使用；不包含 Web App route。
+
+所有 tests 都是 pure local logic；build 本身不需要 Google credential、clasp login 或 network。
 
 Task 16 另公開 `bootstrapSheetsDryRun` 與 `bootstrapSheetsApply` operator functions；fixture mode會在任何 `SpreadsheetApp.openById` 前拒絕執行。Schema catalog與non-storage boundary見 `docs/SHEETS_SCHEMA.md`。
 
 Sheets schema `1.3.0` 已新增本機 `CommandQueue` 與 metadata-only `EmailQueue`
 contracts。兩者都要求 idempotency key，並支援 claim/lease 與 retry metadata；
-`EmailQueue` 不保存收件內容、驗證碼或 credential。這些 schema 目前尚未套用至外部 Spreadsheet。
+`EmailQueue` 不保存收件內容、驗證碼或 credential。附著 target 會在試算表開啟時加入「微積分模組管理」選單；apply 前一定先顯示 dry-run 摘要並要求確認。
 
 ## Runtime configuration
 
@@ -26,7 +31,7 @@ contracts。兩者都要求 idempotency key，並支援 claim/lease 與 retry me
 - `APP_ENVIRONMENT`：未設定時為 `fixture`。
 - `SPREADSHEET_ID`：fixture mode 不需要；切到 `false` 前必須提供。
 
-不要把以上 runtime values 寫進 source、`.clasp.json` 或 repository。`.clasp.json.example` 只有 placeholder；真實 `.clasp.json` 已被 root `.gitignore` 排除。
+不要把以上 runtime values 寫進 source、`.clasp.json` 或 repository。兩份 example 只有 placeholder；真實 `.clasp.standalone.json`／`.clasp.bound.json` 已被 root `.gitignore` 排除。
 
 ## Routes
 
@@ -40,7 +45,7 @@ contracts。兩者都要求 idempotency key，並支援 claim/lease 與 retry me
 
 GAS `ContentService` 無法直接設定任意 HTTP status；JSON response 以 `status` 欄位表達 application status。正式 API consumer 必須同時檢查 envelope，而不是只看 HTTP 200。
 
-未來人工部署步驟與 owner/deployer 見 `docs/DEPLOYMENT_RUNBOOK.md`。本專案目前沒有 cloud project 或 deployment ID。
+部署步驟與 owner/deployer 見 `docs/DEPLOYMENT_RUNBOOK.md`。兩個既有空白 cloud project 已由 owner 建立；真實 Script ID 與 deployment ID 不進 Git 或報告。
 
 Case API contracts、provider ports、CORS/redirect與rate-limit策略見`docs/CASE_API.md`。
 

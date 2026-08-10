@@ -1,6 +1,17 @@
-# GAS deployment runbook (future, manual only)
+# GAS deployment runbook
 
-Task 15 只建立 local scaffold。沒有執行下列任何外部動作。
+本機 scaffold 現在可產生獨立與附著兩種 target。2026-08-10 已由 owner 建立空白的
+`獨立 GAS` 與附著於 `Server Database` 的 GAS；Script ID、deployment ID 與 credentials
+只保存在 gitignored local state。
+
+## Target ownership
+
+| Target     | Cloud container   | Responsibilities                                 |
+| ---------- | ----------------- | ------------------------------------------------ |
+| standalone | `獨立 GAS`        | Web App/API、跨檔案操作、外部整合入口            |
+| bound      | `Server Database` | 試算表管理選單、active spreadsheet dry-run/apply |
+
+兩者共用同一份 schema/domain source；不得各自手改出兩套 business rules。
 
 ## Intended ownership
 
@@ -14,16 +25,17 @@ Task 15 只建立 local scaffold。沒有執行下列任何外部動作。
 3. 由授權者確認 Google account、Sheet owner、資料 retention、web-app access policy 與 incident owner。
 4. 確認 repository secret scan 為 0 findings，且 fixture data 不含真實個資。
 
-## Future manual actions requiring explicit approval
+## Controlled deployment sequence
 
 1. 以 `ntusupercool@gmail.com` 登入 clasp；不要共用個人 `.clasprc.json`。
-2. 建立獨立 Apps Script project 與受控 Sheet，記錄 owner/用途/rollback；不要改動其他現有 project。
-3. 將 `.clasp.json.example` 複製成被 gitignore 的 `.clasp.json`，只在本機填入真實 script ID。
+2. 只使用已確認的 Drive 專案資料夾、`獨立 GAS` 與 `Server Database`；不要改動其他 project。
+3. 使用被 gitignore 的 `.clasp.standalone.json` 與 `.clasp.bound.json`，只在本機填入真實 script ID。
 4. 在 Apps Script Project Settings 設定 Script Properties；不要把 values 寫入 source 或 shell history。
-5. 本機執行 typecheck/test/build，檢查 `dist/Code.js` 與 `dist/appsscript.json`。
-6. 經 code review 後才執行 `clasp push`；先建立 development deployment，再做 fixture-only smoke test。
-7. 另行審查 web-app `execute as` / `who has access`；scaffold manifest 安全預設 `MYSELF`，任何擴大都需 security/privacy approval。
-8. 確認 request validation、quota、logging redaction、rollback version 與 deployment URL inventory 後，才可考慮 production deployment。
+5. 本機執行 typecheck/test/build，分別檢查 `dist/standalone/` 與 `dist/bound/`。
+6. 先唯讀 pull 至 ignored inventory、確認遠端是空白 scaffold，再執行 scoped `clasp push`。
+7. push 後建立 immutable version；standalone 先做 fixture-only smoke test，bound 先從選單做 dry-run。
+8. 另行審查 web-app `execute as` / `who has access`；scaffold manifest 安全預設 `MYSELF`，任何擴大都需 security/privacy approval。
+9. 確認 request validation、quota、logging redaction、rollback version 與 deployment URL inventory 後，才可考慮 production deployment。
 
 ## Rollback
 

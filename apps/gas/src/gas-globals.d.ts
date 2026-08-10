@@ -45,7 +45,22 @@ interface GasSpreadsheet {
   insertSheet(name: string): GasSheet;
 }
 
+interface GasMenu {
+  addItem(caption: string, functionName: string): GasMenu;
+  addSeparator(): GasMenu;
+  addToUi(): void;
+}
+
+interface GasUi {
+  Button: { YES: unknown };
+  ButtonSet: { OK: unknown; YES_NO: unknown };
+  createMenu(caption: string): GasMenu;
+  alert(title: string, prompt: string, buttons: unknown): unknown;
+}
+
 declare const SpreadsheetApp: {
+  getActiveSpreadsheet(): GasSpreadsheet;
+  getUi(): GasUi;
   openById(spreadsheetId: string): GasSpreadsheet;
 };
 

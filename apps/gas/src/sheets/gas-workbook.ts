@@ -87,8 +87,19 @@ export function bootstrapRuntimeSpreadsheet(dryRun = true): BootstrapResult {
     throw new Error("Cloud spreadsheet bootstrap is disabled in fixture mode");
   }
   if (!config.spreadsheetId) throw new Error("SPREADSHEET_ID is required");
-  return bootstrapWorkbook(
-    new GasWorkbookAdapter(SpreadsheetApp.openById(config.spreadsheetId)),
-    { dryRun },
+  return bootstrapSpreadsheet(
+    SpreadsheetApp.openById(config.spreadsheetId),
+    dryRun,
   );
+}
+
+export function bootstrapActiveSpreadsheet(dryRun = true): BootstrapResult {
+  return bootstrapSpreadsheet(SpreadsheetApp.getActiveSpreadsheet(), dryRun);
+}
+
+function bootstrapSpreadsheet(
+  spreadsheet: GasSpreadsheet,
+  dryRun: boolean,
+): BootstrapResult {
+  return bootstrapWorkbook(new GasWorkbookAdapter(spreadsheet), { dryRun });
 }
