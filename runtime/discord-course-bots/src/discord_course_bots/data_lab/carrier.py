@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from discord_course_bots.repository import Repository
+from discord_course_bots.data_lab.repository import DataLabRepository
 
 LAB_DIRECTORY_NAME = "phase2b-data-lab"
 STAGING_DATABASE_NAME = "staging.sqlite3"
@@ -94,10 +94,10 @@ def ensure_staging_carrier(root: Path, *, create: bool = True) -> LabPaths:
     return paths
 
 
-def open_staging_repository(paths: LabPaths) -> Repository:
+def open_staging_repository(paths: LabPaths) -> DataLabRepository:
     assert_staging_paths(paths)
     load_staging_config(paths)
-    repository = Repository(paths.database)
+    repository = DataLabRepository(paths.database)
     repository.set_config("environment", "STAGING")
     repository.set_config("synthetic_only", 1)
     repository.set_config("live_discord_enabled", 0)
