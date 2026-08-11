@@ -66,6 +66,7 @@ interface GasUi {
   ButtonSet: { OK: unknown; YES_NO: unknown };
   createMenu(caption: string): GasMenu;
   alert(title: string, prompt: string, buttons: unknown): unknown;
+  showSidebar(output: GasHtmlOutput): void;
 }
 
 declare const SpreadsheetApp: {

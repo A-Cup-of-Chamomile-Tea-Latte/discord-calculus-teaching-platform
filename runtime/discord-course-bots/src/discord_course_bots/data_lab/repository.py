@@ -191,6 +191,9 @@ class DataLabRepository(Repository):
             ("OPERATIONS", "global", "UPDATE_OPERATIONS", "OPERATIONS"),
         )
         for aggregate_type, aggregate_ref, outbox_event, scope in works:
+            projection_id = (
+                f"prj-{event_id}-history" if scope == "HISTORY" else f"prj-{uuid.uuid4().hex}"
+            )
             db.execute(
                 """
                 INSERT INTO projection_outbox(
@@ -199,7 +202,7 @@ class DataLabRepository(Repository):
                 ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
                 """,
                 (
-                    f"prj-{uuid.uuid4().hex}",
+                    projection_id,
                     aggregate_type,
                     aggregate_ref,
                     outbox_event,

@@ -1,5 +1,7 @@
 import type { CompactMigrationResult } from "./sheets/bootstrap";
 import { migrateActiveSpreadsheet } from "./sheets/gas-workbook";
+import { queueLabCommand, type LabAction } from "./bridge/commands";
+import { GasWorkbookAdapter } from "./sheets/gas-workbook";
 
 const MENU_NAME = "微積分模組管理";
 
@@ -27,7 +29,51 @@ export function onOpen(): void {
     .addItem("檢查精簡資料庫遷移（不修改）", "boundCompactDatabaseDryRun")
     .addSeparator()
     .addItem("套用精簡資料庫遷移…", "boundCompactDatabaseApply")
+    .addSeparator()
+    .addItem("資料聯動實驗室", "boundOpenDataLab")
     .addToUi();
+}
+
+const LAB_HTML = `<!doctype html>
+<html lang="zh-Hant"><head><base target="_top"><style>
+body{font:14px/1.55 system-ui,sans-serif;color:#16302b;padding:18px;background:#faf8f2}
+h1{font-size:20px;margin:0 0 4px}.badge{display:inline-block;padding:4px 8px;border:1px solid #ad6b12;border-radius:99px;color:#8a4f05;font-weight:700}
+p{margin:8px 0 14px}.actions{display:grid;gap:8px}button{padding:10px 12px;text-align:left;border:1px solid #b9c2bd;border-radius:8px;background:white;cursor:pointer}button:hover{border-color:#15594c}
+#result{margin-top:14px;padding:10px;background:#eef3f0;border-radius:8px;white-space:pre-wrap}.small{font-size:12px;color:#586762}
+</style></head><body><span class="badge">STAGING / SYNTHETIC ONLY</span><h1>資料聯動實驗室</h1>
+<p>不操作 Discord、不碰 live DB。每次只會建立一筆固定類型的假命令。</p><div class="actions">
+<button onclick="queue('CREATE_BASIC')">建立基本假案件</button>
+<button onclick="target('CLOSE_CASE')">關閉指定假案件</button>
+<button onclick="target('REOPEN_CASE')">重開指定假案件</button>
+<button onclick="queue('REPLAY_LAST')">重送上一筆假命令</button>
+<button onclick="queue('STALE_VERSION_TEST')">提交 stale-version 測試</button>
+<button onclick="queue('BAD_CHECKSUM_TEST')">提交 bad-checksum 測試</button></div>
+<div id="result">尚未建立命令。</div><p class="small">下一步：本機執行 discord-data-bridge fetch --once --dry-run</p>
+<script>function target(a){const r=prompt('輸入 TST- 開頭的假案件編號');if(r)queue(a,r)}function queue(a,t=null){document.getElementById('result').textContent='建立中…';google.script.run.withSuccessHandler(r=>document.getElementById('result').textContent='已建立 '+r.jobRef+'\n狀態：'+r.status).withFailureHandler(e=>document.getElementById('result').textContent='未建立：'+e.message).boundQueueDataLabCommand(a,t)}</script>
+</body></html>`;
+
+export function boundOpenDataLab(): void {
+  SpreadsheetApp.getUi().showSidebar(
+    HtmlService.createHtmlOutput(LAB_HTML).setTitle("資料聯動實驗室"),
+  );
+}
+
+export function boundQueueDataLabCommand(
+  action: LabAction,
+  targetCaseRef: string | null,
+) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10_000)) throw new Error("COMMAND_LOCK_UNAVAILABLE");
+  try {
+    return queueLabCommand(
+      new GasWorkbookAdapter(SpreadsheetApp.getActiveSpreadsheet()),
+      action,
+      targetCaseRef,
+      new Date().toISOString(),
+    );
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 export function boundCompactDatabaseDryRun(): CompactMigrationResult {

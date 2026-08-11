@@ -16,6 +16,26 @@ const definitions = {
       { name: "doPost", parameters: "event", arguments: "event" },
       { name: "bootstrapSheetsDryRun", parameters: "", arguments: "" },
       { name: "bootstrapSheetsApply", parameters: "", arguments: "" },
+      {
+        name: "standaloneBridgePreview",
+        parameters: "envelope",
+        arguments: "envelope",
+      },
+      {
+        name: "standaloneBridgeApply",
+        parameters: "envelope, confirmationNonce",
+        arguments: "envelope, confirmationNonce",
+      },
+      {
+        name: "standaloneBridgeClaimCommand",
+        parameters: "workerId",
+        arguments: "workerId",
+      },
+      {
+        name: "standaloneBridgeAckCommand",
+        parameters: "commandId, claimToken, resultCode",
+        arguments: "commandId, claimToken, resultCode",
+      },
     ],
   },
   bound: {
@@ -25,6 +45,12 @@ const definitions = {
       { name: "onOpen", parameters: "", arguments: "" },
       { name: "boundCompactDatabaseDryRun", parameters: "", arguments: "" },
       { name: "boundCompactDatabaseApply", parameters: "", arguments: "" },
+      { name: "boundOpenDataLab", parameters: "", arguments: "" },
+      {
+        name: "boundQueueDataLabCommand",
+        parameters: "action, targetCaseRef",
+        arguments: "action, targetCaseRef",
+      },
     ],
   },
 };

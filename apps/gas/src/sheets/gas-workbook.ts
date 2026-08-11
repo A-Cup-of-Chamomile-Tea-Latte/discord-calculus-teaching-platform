@@ -8,7 +8,7 @@ import {
 } from "./bootstrap";
 import { SHEET_SCHEMAS } from "./schema";
 
-class GasSheetAdapter implements SheetPort {
+export class GasSheetAdapter implements SheetPort {
   constructor(private readonly sheet: GasSheet) {}
 
   getHeaders(): string[] {
@@ -89,7 +89,7 @@ class GasSheetAdapter implements SheetPort {
   }
 }
 
-class GasWorkbookAdapter implements WorkbookPort {
+export class GasWorkbookAdapter implements WorkbookPort {
   constructor(private readonly spreadsheet: GasSpreadsheet) {}
 
   getSheet(name: string): SheetPort | null {
