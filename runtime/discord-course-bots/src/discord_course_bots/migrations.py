@@ -165,6 +165,126 @@ def _apply_private_dump_job_leases(connection: sqlite3.Connection) -> None:
     )
 
 
+PHASE2B_BRIDGE_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS case_lifecycle_events (
+        event_id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        case_ref TEXT NOT NULL CHECK(case_ref LIKE 'TST-%'),
+        event_type TEXT NOT NULL CHECK(event_type IN ('OPEN', 'CLOSE', 'REOPEN')),
+        previous_status TEXT,
+        new_status TEXT NOT NULL,
+        source_kind TEXT NOT NULL CHECK(source_kind IN ('LOCAL_FIXTURE', 'CLOUD_COMMAND')),
+        correlation_id TEXT NOT NULL,
+        occurred_at TEXT NOT NULL,
+        synthetic INTEGER NOT NULL CHECK(synthetic IN (0, 1) AND synthetic = 1)
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS case_lifecycle_events_case_time
+    ON case_lifecycle_events(case_ref, occurred_at)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS inbound_commands (
+        command_id TEXT PRIMARY KEY CHECK(command_id LIKE 'CMD-TST-%'),
+        idempotency_key TEXT NOT NULL UNIQUE,
+        command_type TEXT NOT NULL CHECK(command_type IN (
+            'CREATE_SYNTHETIC_CASE',
+            'CLOSE_SYNTHETIC_CASE',
+            'REOPEN_SYNTHETIC_CASE',
+            'REPLAY_LAST_SYNTHETIC_COMMAND'
+        )),
+        payload_ref TEXT NOT NULL CHECK(payload_ref IN (
+            'fixture://public/basic-v1',
+            'fixture://public/close-reopen-v1',
+            'fixture://failure/stale-version-v1',
+            'fixture://failure/bad-checksum-v1'
+        )),
+        target_case_ref TEXT,
+        source_version INTEGER NOT NULL CHECK(source_version > 0),
+        envelope_sha256 TEXT NOT NULL CHECK(
+            length(envelope_sha256) = 64
+            AND envelope_sha256 NOT GLOB '*[^0-9a-f]*'
+        ),
+        source_fingerprint TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('FETCHED', 'VALIDATED', 'APPLIED', 'REJECTED')),
+        fetched_at TEXT NOT NULL,
+        validated_at TEXT,
+        applied_at TEXT,
+        rejected_at TEXT,
+        result_code TEXT,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS projection_outbox (
+        projection_id TEXT PRIMARY KEY,
+        aggregate_type TEXT NOT NULL CHECK(aggregate_type IN ('PUBLIC_CASE', 'OPERATIONS')),
+        aggregate_ref TEXT NOT NULL,
+        event_type TEXT NOT NULL CHECK(event_type IN (
+            'UPSERT_CURRENT_STATE', 'APPEND_HISTORY', 'UPDATE_OPERATIONS'
+        )),
+        projection_scope TEXT NOT NULL CHECK(projection_scope IN (
+            'OVERVIEW', 'CASEBOARD', 'HISTORY', 'OPERATIONS'
+        )),
+        source_version INTEGER NOT NULL CHECK(source_version > 0),
+        payload_sha256 TEXT CHECK(
+            payload_sha256 IS NULL OR (
+                length(payload_sha256) = 64
+                AND payload_sha256 NOT GLOB '*[^0-9a-f]*'
+            )
+        ),
+        status TEXT NOT NULL CHECK(status IN (
+            'PENDING', 'CLAIMED', 'COMPLETED', 'RETRYABLE_FAILURE', 'PERMANENT_FAILURE'
+        )),
+        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+        next_attempt_at TEXT,
+        claimed_by TEXT,
+        claim_token TEXT,
+        lease_expires_at TEXT,
+        last_error_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS projection_outbox_claimable
+    ON projection_outbox(status, next_attempt_at, lease_expires_at, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS projection_outbox_current_state
+    ON projection_outbox(aggregate_ref, projection_scope, source_version)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sync_state (
+        stream_name TEXT PRIMARY KEY,
+        last_remote_source_version INTEGER NOT NULL DEFAULT 0,
+        last_remote_checksum TEXT,
+        last_local_projection_version INTEGER NOT NULL DEFAULT 0,
+        last_local_projection_checksum TEXT,
+        last_success_at TEXT,
+        receipt_ref TEXT,
+        updated_at TEXT NOT NULL
+    )
+    """,
+)
+
+
+def _apply_phase2b_data_bridge(connection: sqlite3.Connection) -> None:
+    for statement in PHASE2B_BRIDGE_STATEMENTS:
+        connection.execute(statement)
+    now = utc_now_iso()
+    for stream_name in ("cloud-command-inbox", "local-sheet-projection"):
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO sync_state(stream_name, updated_at)
+            VALUES (?, ?)
+            """,
+            (stream_name, now),
+        )
+
+
 MIGRATIONS = (
     Migration(
         1,
@@ -186,6 +306,13 @@ MIGRATIONS = (
             "failure_kind updated_at; claimable index; legacy backfill; v1"
         ),
         _apply_private_dump_job_leases,
+    ),
+    Migration(
+        4,
+        "phase2b-glassbox-data-bridge",
+        "\n".join(statement.strip() for statement in PHASE2B_BRIDGE_STATEMENTS)
+        + "\nfixed sync streams cloud-command-inbox local-sheet-projection; v1",
+        _apply_phase2b_data_bridge,
     ),
 )
 

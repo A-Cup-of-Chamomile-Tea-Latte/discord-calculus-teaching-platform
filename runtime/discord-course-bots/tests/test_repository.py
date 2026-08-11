@@ -30,6 +30,10 @@ def test_fresh_database_has_versioned_migration_ledger(tmp_path: Path) -> None:
         "cases",
         "private_support",
         "private_dump_jobs",
+        "case_lifecycle_events",
+        "inbound_commands",
+        "projection_outbox",
+        "sync_state",
     }
 
 
