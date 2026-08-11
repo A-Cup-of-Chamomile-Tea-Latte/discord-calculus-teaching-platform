@@ -1,6 +1,6 @@
 # Implementation status
 
-Last repository/data-layer verification: 2026-08-10 23:34 (Asia/Taipei)
+Last repository/data-layer verification: 2026-08-11 (Asia/Taipei)
 
 Last Discord live verification: 2026-07-30 20:18 (Asia/Taipei)
 
@@ -70,10 +70,21 @@ Detailed result:
   outbox or Google sync columns. `PRAGMA user_version` is `0`.
 - A canonical tracked runtime now exists at `runtime/discord-course-bots/`, but the live
   LaunchAgents have not been cut over to it. Its disposable-database implementation has a
-  checksum-verified migration ledger through version 3 and a Private Support dump queue with
+  checksum-verified migration ledger through version 4 and a Private Support dump queue with
   atomic claim, lease/heartbeat, safe error codes, retry/backoff and stale-token protection.
-- The version-3 implementation is covered by isolated tests only; it has not migrated or opened
+- The version-4 implementation is covered by disposable staging tests only; it has not migrated or opened
   the live SQLite file.
+- **Phase 2A is complete in tracked code:** the canonical runtime, checksum migration ledger and
+  reusable atomic claim/lease/retry queue are implemented. Live LaunchAgents remain on the prior
+  local-only runtime pending a separate cutover instruction.
+- **Phase 2B is implemented locally in synthetic staging scope:** `.local/phase2b-data-lab/`
+  provides a fail-closed carrier, fixture/wizard ingest, lifecycle ledger, inbound command ledger,
+  projection outbox, sync state, dry-run/nonce/apply protocol, observer CLI and fake GAS transport.
+  GAS source includes owner-only projection preview/apply and command claim/ack functions plus a
+  fixed-action Sheet sidebar. No daemon, trigger, public endpoint or live Discord path was added.
+- **Cloud smoke is intentionally blocked:** the repository does not contain the required bound
+  compact-migration dry-run/apply/second-dry-run receipt. Transport path C was therefore used;
+  no real Sheet row was read or changed during Phase 2B implementation.
 - The tracked monorepo contains a broader fixture-first contract and GAS prototype. It must not
   be described as the live bot database.
 - GAS Sheets schema `2.0.0` replaces the overbuilt 21-tab prototype with five human views
@@ -96,6 +107,6 @@ Detailed result:
   with explicit outcomes and an ungraded diagnostic, gives module-specific feedback for missed
   answers, uses Taiwanese Traditional Chinese as the default explanatory language and keeps
   English terms only where they aid technical transfer. Desktop and narrow-viewport visual
-  checks, Portal type checks, 49 tests, static build and distribution verification are green.
+  checks, Portal type checks, 53 tests, static build and distribution verification are green.
 - The evidence audit and implementation handoff is recorded in
   `project-exchange/15_GAS_SQLITE_DRIVE_REPOSITORY_EVIDENCE_AUDIT_2026-08-10.md`.

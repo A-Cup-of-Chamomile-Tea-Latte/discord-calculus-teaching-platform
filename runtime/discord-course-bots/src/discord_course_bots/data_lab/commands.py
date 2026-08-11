@@ -151,7 +151,9 @@ def fetch_once(
             "sourceVersion": result.source_version,
             "safeResultCode": "COMMAND_NOOP" if result.no_op else "COMMAND_APPLIED",
             "localMutation": not result.no_op,
-            "cloudMutation": True,
+            "cloudMutation": bool(getattr(transport, "is_cloud", True)),
+            "transportMutation": True,
+            "transport": getattr(transport, "transport_name", "UNKNOWN"),
         }
     finally:
         repository.close()

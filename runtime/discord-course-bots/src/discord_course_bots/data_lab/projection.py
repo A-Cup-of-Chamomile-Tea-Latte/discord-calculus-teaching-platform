@@ -194,6 +194,7 @@ def project_once(
             "pendingWorkCount": len(pending_ids),
             "dryRun": not apply,
             "cloudMutation": False,
+            "transport": getattr(transport, "transport_name", "UNKNOWN"),
         }
         if not apply:
             stored_bundle = paths.projection_bundles / (
@@ -239,7 +240,8 @@ def project_once(
             **asdict(receipt),
             "completedWorkCount": len(claims),
             "dryRun": False,
-            "cloudMutation": True,
+            "cloudMutation": bool(getattr(transport, "is_cloud", True)),
+            "transport": getattr(transport, "transport_name", "UNKNOWN"),
         }
     finally:
         repository.close()

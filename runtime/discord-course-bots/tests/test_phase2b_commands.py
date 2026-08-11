@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from discord_course_bots.data_lab.carrier import ensure_staging_carrier
+from discord_course_bots.data_lab.carrier import ensure_staging_carrier, open_staging_repository
 from discord_course_bots.data_lab.commands import fetch_once
 from discord_course_bots.data_lab.contracts import build_command_envelope
 from discord_course_bots.data_lab.service import file_sha256
@@ -107,3 +107,41 @@ def test_expired_claim_can_be_reclaimed_but_stale_token_cannot_ack() -> None:
     assert second.claim_token != first.claim_token
     assert not transport.ack_command("CMD-TST-001", first.claim_token, "APPLIED")
     assert transport.ack_command("CMD-TST-001", second.claim_token, "APPLIED")
+
+
+def test_replay_command_records_noop_without_new_lifecycle_event(tmp_path: Path) -> None:
+    root_path = root(tmp_path)
+    transport = FakeGasTransport(FINGERPRINT)
+    transport.queue_command(command())
+    first_preview = fetch_once(root_path, transport, apply=False)
+    fetch_once(
+        root_path,
+        transport,
+        apply=True,
+        confirmation_nonce=str(first_preview["confirmationNonce"]),
+    )
+    replay = build_command_envelope(
+        command_id="CMD-TST-002",
+        command_type="REPLAY_LAST_SYNTHETIC_COMMAND",
+        payload_ref=BASIC,
+        target_case_ref=None,
+        idempotency_key="idem-replay-002",
+        source_version=2,
+        requested_at="2026-08-11T06:02:00Z",
+        source_fingerprint=FINGERPRINT,
+    )
+    transport.queue_command(replay)
+    replay_preview = fetch_once(root_path, transport, apply=False)
+    receipt = fetch_once(
+        root_path,
+        transport,
+        apply=True,
+        confirmation_nonce=str(replay_preview["confirmationNonce"]),
+    )
+    assert receipt["status"] == "NO_OP"
+    repository = open_staging_repository(ensure_staging_carrier(root_path))
+    try:
+        assert repository.counts()["case_lifecycle_events"] == 1
+        assert repository.counts()["inbound_commands"] == 2
+    finally:
+        repository.close()

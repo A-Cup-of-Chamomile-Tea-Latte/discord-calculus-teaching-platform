@@ -60,6 +60,8 @@ def test_projection_apply_reuses_preview_bundle_and_completes_work(tmp_path: Pat
     )
     assert receipt["status"] == "APPLIED"
     assert receipt["completedWorkCount"] == 4
+    assert receipt["cloudMutation"] is False
+    assert receipt["transport"] == "FAKE_LOCAL"
     assert transport.mutation_count == 1
     assert len(transport.views["CaseBoard"]) == 1
     assert len(transport.views["History"]) == 1

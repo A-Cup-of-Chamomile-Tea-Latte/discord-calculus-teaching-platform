@@ -29,12 +29,16 @@ separate instruction.
    backup/dry-run/cutover gate.
 4. **Completed in disposable databases:** checksum-verified migrations and a reliable Private
    Support dump job queue. The existing live DB remains untouched.
-5. In Chrome profile `Ding Ding`, run the bound menu compact-migration dry-run. Apply only if it
-   reports no blocker, then rerun dry-run and expect no-op. Five machine tabs should be hidden.
-6. Build the local → Sheets projection adapter and authenticity receipt before inserting any real
-   projection rows. Do not connect cloud → local automatic writes.
-7. Connect `_CommandInbox` and `_EmailOutbox` adapters only after integration tests pass.
+5. **USER ACTION REQUIRED — the single next step:** in Chrome profile `Ding Ding`, run the bound
+   menu compact-migration dry-run, apply only if it reports no blocker, then rerun dry-run and
+   capture the compact dry-run/apply/no-op receipt. Do not enter the Phase 2B sidebar yet.
+6. **Completed in synthetic code/fake transport:** the local → Sheets projection adapter,
+   authenticity receipt, one-shot CLI, fixed-action `_CommandInbox` flow and GAS preview/apply/
+   claim/ack functions. A real cloud smoke test remains blocked until step 5 is evidenced.
+7. `_EmailOutbox` remains outside Phase 2B. Do not connect it or automatic cloud → local writes.
    `providerAcceptedAt` / product state `SENT` must not be reported as inbox delivery.
 8. **Interactive foundation completed:** use Portal `/sqlite-lab/` before the first hands-on
    database session. Then run `discord-db-inspect` and four read-only queries against a disposable
    database; do not use live row dumps as teaching material.
+
+Phase 2B operator guide: `docs/PHASE2B_DATA_LAB_GUIDE.md`.

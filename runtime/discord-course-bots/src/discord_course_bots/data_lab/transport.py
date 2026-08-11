@@ -49,6 +49,9 @@ def confirmation_nonce(envelope: dict[str, Any]) -> str:
 class FakeGasTransport:
     """Deterministic in-process replacement used because cloud Gate 1 is closed."""
 
+    is_cloud = False
+    transport_name = "FAKE_LOCAL"
+
     def __init__(self, expected_fingerprint: str) -> None:
         self.expected_fingerprint = expected_fingerprint
         self.views: dict[str, list[dict[str, Any]]] = {

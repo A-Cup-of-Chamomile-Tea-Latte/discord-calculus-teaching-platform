@@ -266,6 +266,62 @@ class DataLabRepository(Repository):
         if source_version <= int(stream["last_remote_source_version"]):
             raise DataLabConflict("SYNC_STALE_VERSION")
         command_type = str(envelope["commandType"])
+        if command_type == "REPLAY_LAST_SYNTHETIC_COMMAND":
+            last = self._connection.execute(
+                """
+                SELECT target_case_ref FROM inbound_commands
+                WHERE status = 'APPLIED' AND command_type != 'REPLAY_LAST_SYNTHETIC_COMMAND'
+                ORDER BY applied_at DESC LIMIT 1
+                """
+            ).fetchone()
+            if last is None:
+                raise DataLabConflict("REPLAY_SOURCE_COMMAND_MISSING")
+            target_ref = str(last["target_case_ref"])
+            now = utc_now_iso()
+            with self.immediate_transaction() as db:
+                db.execute(
+                    """
+                    INSERT INTO inbound_commands(
+                        command_id, idempotency_key, command_type, payload_ref,
+                        target_case_ref, source_version, envelope_sha256,
+                        source_fingerprint, status, fetched_at, validated_at,
+                        applied_at, result_code, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'APPLIED', ?, ?, ?, 'REPLAY_NOOP', ?)
+                    """,
+                    (
+                        envelope["commandId"],
+                        envelope["idempotencyKey"],
+                        command_type,
+                        envelope["payloadRef"],
+                        target_ref,
+                        source_version,
+                        checksum,
+                        envelope["sourceFingerprint"],
+                        now,
+                        now,
+                        now,
+                        now,
+                    ),
+                )
+                db.execute(
+                    """
+                    UPDATE sync_state
+                    SET last_remote_source_version = ?, last_remote_checksum = ?,
+                        last_success_at = ?, receipt_ref = ?, updated_at = ?
+                    WHERE stream_name = 'cloud-command-inbox'
+                    """,
+                    (source_version, checksum, now, envelope["commandId"], now),
+                )
+            row = self.case_by_ref(target_ref)
+            return TransitionResult(
+                target_ref,
+                None,
+                "UNKNOWN" if row is None else str(row["status"]),
+                source_version,
+                str(envelope["commandId"]),
+                0,
+                True,
+            )
         target_ref = envelope.get("targetCaseRef") or fixture["caseRef"]
         target_fixture = dict(fixture)
         target_fixture["caseRef"] = target_ref
