@@ -78,10 +78,12 @@ function commandRows(workbook: WorkbookPort): SheetRecord[] {
 
 function nextVersion(workbook: WorkbookPort): number {
   const rows = commandRows(workbook);
-  return rows.reduce((maximum, row) => {
-    const match = /^CMD-TST-v(\d+)-/.exec(String(row.jobRef ?? ""));
-    return Math.max(maximum, match ? Number(match[1]) : 0);
-  }, 0) + 1;
+  return (
+    rows.reduce((maximum, row) => {
+      const match = /^CMD-TST-v(\d+)-/.exec(String(row.jobRef ?? ""));
+      return Math.max(maximum, match ? Number(match[1]) : 0);
+    }, 0) + 1
+  );
 }
 
 export function queueLabCommand(
@@ -195,11 +197,7 @@ export function claimLabCommand(
     updatedAt: now,
   };
   sheet.upsertRowByPrimaryKey("jobRef", jobRef, updated);
-  const envelope = buildEnvelope(
-    updated,
-    fingerprint,
-    sha256,
-  );
+  const envelope = buildEnvelope(updated, fingerprint, sha256);
   return { envelope, claimToken, leaseExpiresAt };
 }
 

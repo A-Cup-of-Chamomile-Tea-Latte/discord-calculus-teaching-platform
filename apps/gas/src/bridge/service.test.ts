@@ -12,7 +12,10 @@ import {
 
 const fingerprint = "SYNTHETIC-SHEET-FINGERPRINT";
 const fakeSha = (value: string): string =>
-  [...value].reduce((sum, character) => sum + character.charCodeAt(0), 0).toString(16).padStart(64, "0");
+  [...value]
+    .reduce((sum, character) => sum + character.charCodeAt(0), 0)
+    .toString(16)
+    .padStart(64, "0");
 
 function envelope(): ProjectionEnvelope {
   const value: ProjectionEnvelope = {
@@ -48,7 +51,10 @@ function envelope(): ProjectionEnvelope {
     },
     checksum: "",
   };
-  value.checksum = checksumFor(value as unknown as Record<string, unknown>, fakeSha);
+  value.checksum = checksumFor(
+    value as unknown as Record<string, unknown>,
+    fakeSha,
+  );
   return value;
 }
 
@@ -69,7 +75,14 @@ describe("Phase 2B GAS bridge", () => {
     expect(preview.status).toBe("PREVIEW");
     expect(JSON.stringify([...workbook.sheets.entries()])).toBe(before);
     expect(() =>
-      applyProjection(workbook, input, "wrong", fingerprint, fakeSha, input.generatedAt),
+      applyProjection(
+        workbook,
+        input,
+        "wrong",
+        fingerprint,
+        fakeSha,
+        input.generatedAt,
+      ),
     ).toThrow("CONFIRMATION_NONCE_MISMATCH");
     const applied = applyProjection(
       workbook,
@@ -82,7 +95,10 @@ describe("Phase 2B GAS bridge", () => {
     expect(applied.status).toBe("APPLIED");
     expect(workbook.getSheet("CaseBoard")?.rows).toHaveLength(1);
     expect(workbook.getSheet("_SyncState")?.rows).toContainEqual(
-      expect.objectContaining({ syncKey: "phase2b.local-projection", status: "SUCCESS" }),
+      expect.objectContaining({
+        syncKey: "phase2b.local-projection",
+        status: "SUCCESS",
+      }),
     );
   });
 
@@ -91,14 +107,28 @@ describe("Phase 2B GAS bridge", () => {
     bootstrapWorkbook(workbook, { dryRun: false });
     const input = envelope();
     const preview = previewProjection(workbook, input, fingerprint, fakeSha);
-    applyProjection(workbook, input, preview.confirmationNonce!, fingerprint, fakeSha, input.generatedAt);
-    expect(previewProjection(workbook, input, fingerprint, fakeSha).status).toBe("NO_OP");
+    applyProjection(
+      workbook,
+      input,
+      preview.confirmationNonce!,
+      fingerprint,
+      fakeSha,
+      input.generatedAt,
+    );
+    expect(
+      previewProjection(workbook, input, fingerprint, fakeSha).status,
+    ).toBe("NO_OP");
     const conflict = { ...input, checksum: "f".repeat(64) };
-    expect(() => previewProjection(workbook, conflict, fingerprint, fakeSha)).toThrow(
-      "SYNC_BAD_CHECKSUM",
-    );
-    expect(() => previewProjection(workbook, { ...input, sourceFingerprint: "wrong" }, fingerprint, fakeSha)).toThrow(
-      "SYNC_WRONG_TARGET",
-    );
+    expect(() =>
+      previewProjection(workbook, conflict, fingerprint, fakeSha),
+    ).toThrow("SYNC_BAD_CHECKSUM");
+    expect(() =>
+      previewProjection(
+        workbook,
+        { ...input, sourceFingerprint: "wrong" },
+        fingerprint,
+        fakeSha,
+      ),
+    ).toThrow("SYNC_WRONG_TARGET");
   });
 });

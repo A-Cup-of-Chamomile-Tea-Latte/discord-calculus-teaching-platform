@@ -73,9 +73,11 @@ export function checksumFor(
 }
 
 function syncRecord(workbook: WorkbookPort): SheetRecord | null {
-  return workbook
-    .getSheet("_SyncState")
-    ?.getRowByPrimaryKey("syncKey", "phase2b.local-projection") ?? null;
+  return (
+    workbook
+      .getSheet("_SyncState")
+      ?.getRowByPrimaryKey("syncKey", "phase2b.local-projection") ?? null
+  );
 }
 
 function syncKey(environment: string): string {
@@ -104,7 +106,10 @@ function validate(
         ? "SYNC_NON_SYNTHETIC_REFUSED"
         : "SYNC_SYNTHETIC_MODE_MISMATCH",
     );
-  if (checksumFor(envelope as unknown as Record<string, unknown>, sha256) !== envelope.checksum)
+  if (
+    checksumFor(envelope as unknown as Record<string, unknown>, sha256) !==
+    envelope.checksum
+  )
     throw new Error("SYNC_BAD_CHECKSUM");
   if (
     envelope.scopes.length !== ALLOWED_SCOPES.length ||
@@ -144,7 +149,9 @@ export function previewProjection(
     status: state === "NO_OP" ? "NO_OP" : "PREVIEW",
     sourceVersion: envelope.sourceVersion,
     checksum: envelope.checksum,
-    confirmationNonce: sha256(`${canonicalJson(envelope as unknown as Record<string, unknown>)}\nPHASE2B_APPLY`).slice(0, 24),
+    confirmationNonce: sha256(
+      `${canonicalJson(envelope as unknown as Record<string, unknown>)}\nPHASE2B_APPLY`,
+    ).slice(0, 24),
     rowCounts: { ...envelope.rowCounts },
     safeResultCode: state === "NO_OP" ? "SYNC_NOOP" : "SYNC_PREVIEW_READY",
   };
@@ -189,7 +196,9 @@ export function applyProjection(
     syncKey: targetSyncKey,
     direction: "LOCAL_TO_CLOUD",
     sourceName:
-      expectedEnvironment === "PRODUCTION" ? "runtime.sqlite3" : "staging.sqlite3",
+      expectedEnvironment === "PRODUCTION"
+        ? "runtime.sqlite3"
+        : "staging.sqlite3",
     sourceVersion: envelope.sourceVersion,
     sourceChecksum: envelope.checksum,
     cursorRef: null,

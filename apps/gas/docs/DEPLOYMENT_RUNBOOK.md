@@ -8,7 +8,7 @@
 
 | Target     | Cloud container   | Responsibilities                                 |
 | ---------- | ----------------- | ------------------------------------------------ |
-| standalone | `獨立 GAS`        | Web App/API、跨檔案操作、外部整合入口            |
+| standalone | `獨立 GAS`        | owner-only Execution API Bridge、跨檔案操作      |
 | bound      | `Server Database` | 試算表管理選單、active spreadsheet dry-run/apply |
 
 兩者共用同一份 schema/domain source；不得各自手改出兩套 business rules。
@@ -23,7 +23,7 @@
 
 1. 完成 Tasks 16–19 的 schema/API/nonce/email skeleton 與 local tests。
 2. 完成 Task 29 security/privacy review、Task 30 CI 與 Task 33 go/no-go。
-3. 由授權者確認 Google account、Sheet owner、資料 retention、web-app access policy 與 incident owner。
+3. 由授權者確認 Google account、Sheet owner、資料 retention、Execution API access policy 與 incident owner。
 4. 確認 repository secret scan 為 0 findings，且 fixture data 不含真實個資。
 
 ## Controlled deployment sequence
@@ -34,9 +34,9 @@
 4. 在 Apps Script Project Settings 設定 Script Properties；不要把 values 寫入 source 或 shell history。
 5. 本機執行 typecheck/test/build，分別檢查 `dist/standalone/` 與 `dist/bound/`。
 6. 先唯讀 pull 至 ignored inventory、確認遠端是空白 scaffold，再執行 scoped `clasp push`。
-7. push 後建立 immutable version；standalone 先做 fixture-only smoke test，bound 先從選單做 dry-run。
-8. 另行審查 web-app `execute as` / `who has access`；scaffold manifest 安全預設 `MYSELF`，任何擴大都需 security/privacy approval。
-9. 確認 request validation、quota、logging redaction、rollback version 與 deployment URL inventory 後，才可考慮 production deployment。
+7. push 後建立 immutable version；standalone 建立 API executable deployment，先做 synthetic-only `scripts.run` health／preview／apply／no-work smoke test，bound 先從選單做 dry-run。
+8. Standalone 維持 `executionApi.access=MYSELF`，不建立公開 Web App。任何擴大 access 或新增 HTTP endpoint 都需另做 security／privacy approval。
+9. 確認 request validation、quota、logging redaction、rollback version 與 deployment inventory 後，才可考慮 production target。
 
 ## Rollback
 

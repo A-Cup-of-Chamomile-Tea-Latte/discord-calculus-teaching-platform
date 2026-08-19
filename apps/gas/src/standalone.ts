@@ -1,9 +1,4 @@
-export {
-  bootstrapSheetsApply,
-  bootstrapSheetsDryRun,
-  doGet,
-  doPost,
-} from "./index";
+export { bootstrapSheetsApply, bootstrapSheetsDryRun } from "./index";
 
 import {
   applyProjection,
@@ -54,7 +49,9 @@ export function bridgeConfigureTarget(
     throw new Error("BRIDGE_MODE_MISMATCH");
 
   const spreadsheet = SpreadsheetApp.openById(normalizedId);
-  const present = new Set(spreadsheet.getSheets().map((sheet) => sheet.getName()));
+  const present = new Set(
+    spreadsheet.getSheets().map((sheet) => sheet.getName()),
+  );
   const missing = REQUIRED_BRIDGE_SHEETS.filter((name) => !present.has(name));
   if (missing.length > 0) throw new Error("BRIDGE_SCHEMA_INCOMPLETE");
 
@@ -86,7 +83,8 @@ function bridgeTarget(): BridgeTarget {
   const environment = properties.getProperty("BRIDGE_ENVIRONMENT") ?? "STAGING";
   const syntheticOnly =
     (properties.getProperty("BRIDGE_SYNTHETIC_ONLY") ?? "true") === "true";
-  if (!spreadsheetId || !fingerprint) throw new Error("BRIDGE_TARGET_NOT_CONFIGURED");
+  if (!spreadsheetId || !fingerprint)
+    throw new Error("BRIDGE_TARGET_NOT_CONFIGURED");
   if (environment !== "STAGING" && environment !== "PRODUCTION")
     throw new Error("BRIDGE_ENVIRONMENT_INVALID");
   if ((environment === "STAGING") !== syntheticOnly)
@@ -195,10 +193,3 @@ export function bridgeAckCommand(
     lock.releaseLock();
   }
 }
-
-// Transitional aliases are kept only so an older immutable staging deployment
-// can be compared during cutover. New deployments expose the concise names.
-export const standaloneBridgePreview = bridgePreview;
-export const standaloneBridgeApply = bridgeApply;
-export const standaloneBridgeClaimCommand = bridgeClaimCommand;
-export const standaloneBridgeAckCommand = bridgeAckCommand;

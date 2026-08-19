@@ -13,7 +13,11 @@ export interface DigestDecision {
   safeErrorCode: string | null;
 }
 
-function rows(workbook: WorkbookPort, sheetName: string, key: string): SheetRecord[] {
+function rows(
+  workbook: WorkbookPort,
+  sheetName: string,
+  key: string,
+): SheetRecord[] {
   const sheet = workbook.getSheet(sheetName);
   if (!sheet) return [];
   return sheet
@@ -28,13 +32,17 @@ function ageMinutes(timestamp: unknown, now: Date): number {
   return Number.isFinite(parsed) ? (now.getTime() - parsed) / 60_000 : Infinity;
 }
 
-export function classifyStatus(workbook: WorkbookPort, now: Date): DigestDecision {
+export function classifyStatus(
+  workbook: WorkbookPort,
+  now: Date,
+): DigestDecision {
   const operations = rows(workbook, "Operations", "operationKey");
   const overview = rows(workbook, "Overview", "metricKey");
   const bridge = operations.find((row) => row.operationKey === "data-bridge");
   const freshest = operations.reduce<SheetRecord | null>((current, row) => {
     if (!current) return row;
-    return Date.parse(String(row.checkedAt)) > Date.parse(String(current.checkedAt))
+    return Date.parse(String(row.checkedAt)) >
+      Date.parse(String(current.checkedAt))
       ? row
       : current;
   }, null);
@@ -55,17 +63,22 @@ export function classifyStatus(workbook: WorkbookPort, now: Date): DigestDecisio
         : "NORMAL";
   const open = overview.find((row) => row.metricKey === "cases.open");
   const hasCases = Number(open?.metricValue ?? 0) > 0;
-  const safeCode = operations.find((row) => row.safeErrorCode)?.safeErrorCode ?? null;
+  const safeCode =
+    operations.find((row) => row.safeErrorCode)?.safeErrorCode ?? null;
   return {
     level,
     subjectState:
       level === "NORMAL" ? "正常" : level === "ATTENTION" ? "注意" : "異常",
     action:
-      level === "NORMAL" ? "無" : "- Bot 已超過預期時間沒有回報，請登入主機檢查。",
+      level === "NORMAL"
+        ? "無"
+        : "- Bot 已超過預期時間沒有回報，請登入主機檢查。",
     botState: level === "CRITICAL" ? "有異常" : "正常",
     syncState: age > 15 ? "延遲" : "正常",
     caseState: hasCases ? "目前有待處理案件。" : "案件目前無需特別處理",
-    lastUpdated: String(bridge?.lastHeartbeatAt ?? freshest?.checkedAt ?? "沒有資料"),
+    lastUpdated: String(
+      bridge?.lastHeartbeatAt ?? freshest?.checkedAt ?? "沒有資料",
+    ),
     safeErrorCode: safeCode === null ? null : String(safeCode),
   };
 }

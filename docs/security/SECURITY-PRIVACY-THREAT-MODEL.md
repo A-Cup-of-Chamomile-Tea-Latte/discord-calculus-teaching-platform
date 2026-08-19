@@ -5,9 +5,11 @@
 - Owners: 教學團隊、隱私負責人、系統維護者
 - Related ADRs: ADR-0002、ADR-0004、ADR-0006–0012
 
+> 這是 2026-07-23 的原型期基線，不是目前部署清單。Discord 測試 Guild、Mac bots、精簡 Sheet、owner-only Execution API 與 Desktop OAuth 的後續狀態見 [`docs/IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md)。本文的未解風險仍可作正式試用 gate；「目前沒有外部連線」等歷史敘述不可再當成現況。
+
 ## 結論
 
-目前 repository 只使用虛構 fixtures，沒有已部署 Portal/GAS、沒有連線正式 Discord/Sheets/email，也沒有自動 AI 分析。這使多數高風險目前沒有對真實學生產生暴露，但不表示它們已解決。
+本模型建立於 2026-07-23。當時 repository 只使用虛構 fixtures，尚未部署 Portal／GAS，也未連線 Discord／Sheets／email 或自動 AI 分析。這段基線說明不能取代後續實作狀態；風險項目仍須在正式學生試用前逐項複核。
 
 本審查找到 15 項高度、5 項中度風險。其中公開案件查詢、GAS 部署者權限、Sheets/Private Support 存取、跨網域驗證、正式 bot 權限、raw export 保護、consent snapshot/撤回、email 濫用防護與 rate limit 都是上線前的 blocker。本文不宣稱法律合規，也不宣稱 production readiness。
 

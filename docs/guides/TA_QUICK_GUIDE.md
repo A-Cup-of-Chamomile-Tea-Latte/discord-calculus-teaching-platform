@@ -1,6 +1,6 @@
-# 助教快速指南（草案）
+# 助教快速指南
 
-> 這是 fixture-first 操作與治理草案，不是正式課程 SOP。目前 bots、GAS、Sheets、email 與 Discord live adapter 未連正式服務。
+> 這是試用前操作指南，不是授課單位核准的正式 SOP。Discord 測試 Guild、兩隻 Mac bots 與精簡 Sheet／GAS Bridge 已完成實機或虛構案件驗證；Portal、email、Linux host、live cutover 與正式學生試用仍未放行。
 
 ## 一般案件 triage
 
@@ -27,7 +27,7 @@
 - 只由授權管理者對明確選定的 general-case thread 執行。
 - raw export 是敏感 local data，不得 commit、公開或直接送往 AI。
 - 必須依序通過 consent/anonymizer 與 human review checklist。
-- 匯入前先跑 `--adapter dry-run`；正式 Sheets adapter 目前未配置。
+- 舊的 CLI Sheets importer 只作 dry-run／CSV／mock，不得繞過 SQLite 與可靠 outbox 直接寫正式 Sheet。現行投影由受控 Bridge 執行。
 - 具體指令、checkpoint、idempotency 與失敗處理見 [操作員流程](../OPERATOR_WORKFLOW.md)。
 
 ## 系統不可用或疑似事故

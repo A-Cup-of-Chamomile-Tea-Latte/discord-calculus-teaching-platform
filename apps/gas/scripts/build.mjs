@@ -12,8 +12,6 @@ const definitions = {
     entryPoint: "src/standalone.ts",
     manifest: "appsscript.json",
     wrappers: [
-      { name: "doGet", parameters: "event", arguments: "event" },
-      { name: "doPost", parameters: "event", arguments: "event" },
       { name: "bootstrapSheetsDryRun", parameters: "", arguments: "" },
       { name: "bootstrapSheetsApply", parameters: "", arguments: "" },
       {
@@ -23,8 +21,7 @@ const definitions = {
       },
       {
         name: "bridgeConfigureTarget",
-        parameters:
-          "spreadsheetId, fingerprint, environment, syntheticOnly",
+        parameters: "spreadsheetId, fingerprint, environment, syntheticOnly",
         arguments: "spreadsheetId, fingerprint, environment, syntheticOnly",
       },
       {
@@ -119,6 +116,26 @@ for (const target of targets) {
   for (const { name, parameters } of definition.wrappers) {
     if (!bundledCode.includes(`function ${name}(${parameters})`)) {
       throw new Error(`${target} Apps Script bundle does not expose ${name}`);
+    }
+  }
+  if (target === "standalone") {
+    const globalFooter = bundledCode.slice(
+      bundledCode.lastIndexOf("})();") + 4,
+    );
+    const forbiddenGlobals = [
+      "doGet",
+      "doPost",
+      "standaloneBridgePreview",
+      "standaloneBridgeApply",
+      "standaloneBridgeClaimCommand",
+      "standaloneBridgeAckCommand",
+    ];
+    for (const name of forbiddenGlobals) {
+      if (globalFooter.includes(`function ${name}(`)) {
+        throw new Error(
+          `standalone Apps Script bundle unexpectedly exposes retired global ${name}`,
+        );
+      }
     }
   }
   if (/REPLACE_WITH_SCRIPT_ID|scriptId/.test(bundledCode)) {

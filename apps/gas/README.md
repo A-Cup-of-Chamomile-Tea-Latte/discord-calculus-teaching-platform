@@ -1,6 +1,6 @@
-# Apps Script
+# Apps Script 與精簡 Sheet Bridge
 
-Google Sheets 原型／行政 API 的 clasp-compatible 本機 scaffold。它不作高頻訊息資料庫、不保存原始 secrets，也**不是 Discord Gateway host**；Discord bots 必須在另一個可維持長連線的 Python runtime 執行。
+本目錄管理精簡 Google Sheets 投影、附著式管理選單與 owner-only Apps Script Execution API。它不作高頻訊息資料庫、不保存原始 secrets，也**不是 Discord Gateway host**；Discord bots 必須在另一個可維持長連線的 Python runtime 執行。
 
 ## Local commands
 
@@ -12,12 +12,12 @@ npm run build --workspace @calculus/gas
 
 Build 使用 esbuild 產生兩個共用 domain code、但 entrypoint 分離的 bundle：
 
-- `dist/standalone/`：`doGet`／`doPost` 與跨檔案 bootstrap，供獨立 GAS 使用。
+- `dist/standalone/`：owner-only Execution API Bridge 與跨檔案 bootstrap，供獨立 GAS 使用；不暴露 `doGet`／`doPost` Web App 入口。
 - `dist/bound/`：`onOpen`、dry-run 與人工確認後 apply，供 `Server Database` 附著 GAS 使用；不包含 Web App route。
 
 所有 tests 都是 pure local logic；build 本身不需要 Google credential、clasp login 或 network。
 
-Standalone 另公開 `bootstrapSheetsDryRun` 與 `bootstrapSheetsApply` operator functions；fixture mode會在任何 `SpreadsheetApp.openById` 前拒絕執行。Schema catalog與non-storage boundary見 `docs/SHEETS_SCHEMA.md`。
+Standalone 公開 `bootstrapSheetsDryRun`、`bootstrapSheetsApply` 與 `bridge*` operator functions；目前 deployment 採 `executionApi.access=MYSELF`，由已授權的 Desktop OAuth client 呼叫 `scripts.run`。Schema catalog 與 non-storage boundary 見 `docs/SHEETS_SCHEMA.md`。
 
 Sheets schema `2.0.0` 採 compact cloud projection：五個 human views 與五個預設隱藏的 machine views。附著 target 會在試算表開啟時加入「微積分模組管理」選單；遷移先做完整 preflight，只要任何舊受管頁籤有不明資料就零 mutation。通過後才建立精簡頁籤、刪除確認為空的 21 個舊受管頁籤並套用基本呈現格式。
 
@@ -31,7 +31,16 @@ Sheets schema `2.0.0` 採 compact cloud projection：五個 human views 與五�
 
 不要把以上 runtime values 寫進 source、`.clasp.json` 或 repository。兩份 example 只有 placeholder；真實 `.clasp.standalone.json`／`.clasp.bound.json` 已被 root `.gitignore` 排除。
 
-## Routes
+## 現行 Bridge functions
+
+- `bridgeConfigureTarget`：先檢查 canonical 10-tab schema，再設定目標與指紋。
+- `bridgeHealth`：回報環境、synthetic-only gate 與 schema 版本。
+- `bridgePreview`／`bridgeApply`：兩階段投影，apply 需要 preview nonce。
+- `bridgePeekCommands`／`bridgeClaimCommand`／`bridgeAckCommand`：只允許 STAGING synthetic command lab；PRODUCTION fail closed。
+
+`src/router.ts` 與 `src/index.ts` 的 HTTP router 只保留作 fixture contract regression test，不會被 standalone deployment 暴露。
+
+## 歷史 fixture router
 
 - `GET /`：fixture scaffold HTML 說明。
 - `GET /health`：不含 secrets 的健康狀態，明確回報 `discordGatewayHost: false`。

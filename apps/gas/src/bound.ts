@@ -111,7 +111,8 @@ export function boundCompactDatabaseApply():
 
 const DIGEST_HANDLER = "boundStatusDigestDispatcher";
 
-export function boundInstallStatusDigest(): { installed: true } | { cancelled: true } {
+export function boundInstallStatusDigest():
+  { installed: true } | { cancelled: true } {
   const ui = SpreadsheetApp.getUi();
   const decision = ui.alert(
     "安裝狀態摘要排程",
@@ -125,13 +126,17 @@ export function boundInstallStatusDigest(): { installed: true } | { cancelled: t
     SpreadsheetApp.getActiveSpreadsheet().getId(),
   );
   for (const trigger of ScriptApp.getProjectTriggers()) {
-    if (trigger.getHandlerFunction() === DIGEST_HANDLER) ScriptApp.deleteTrigger(trigger);
+    if (trigger.getHandlerFunction() === DIGEST_HANDLER)
+      ScriptApp.deleteTrigger(trigger);
   }
   ScriptApp.newTrigger(DIGEST_HANDLER).timeBased().everyMinutes(5).create();
   return { installed: true };
 }
 
-export function boundStatusDigestDispatcher(): { status: string; slot?: string } {
+export function boundStatusDigestDispatcher(): {
+  status: string;
+  slot?: string;
+} {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(1_000)) return { status: "LOCKED" };
   try {
@@ -140,10 +145,12 @@ export function boundStatusDigestDispatcher(): { status: string; slot?: string }
     if (!slot) return { status: "NO_SLOT" };
     const properties = PropertiesService.getScriptProperties();
     const receiptKey = `STATUS_DIGEST_${slot}`;
-    if (properties.getProperty(receiptKey)) return { status: "ALREADY_ATTEMPTED", slot };
+    if (properties.getProperty(receiptKey))
+      return { status: "ALREADY_ATTEMPTED", slot };
     const recipients = properties.getProperty("STATUS_EMAIL_RECIPIENTS");
     const spreadsheetId = properties.getProperty("STATUS_SPREADSHEET_ID");
-    if (!recipients || !spreadsheetId) return { status: "NOT_CONFIGURED", slot };
+    if (!recipients || !spreadsheetId)
+      return { status: "NOT_CONFIGURED", slot };
     properties.setProperty(receiptKey, "ATTEMPTING");
     const decision = classifyStatus(
       new GasWorkbookAdapter(SpreadsheetApp.openById(spreadsheetId)),

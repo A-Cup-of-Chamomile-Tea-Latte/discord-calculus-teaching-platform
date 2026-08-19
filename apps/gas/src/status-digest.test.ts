@@ -33,13 +33,16 @@ describe("status digest watchdog", () => {
     expect(classifyStatus(workbook("2026-08-19T11:20:00Z"), now).level).toBe(
       "CRITICAL",
     );
-    expect(classifyStatus(workbook("2026-08-19T11:59:00Z", "OAUTH_REVOKED"), now).level).toBe(
-      "CRITICAL",
-    );
+    expect(
+      classifyStatus(workbook("2026-08-19T11:59:00Z", "OAUTH_REVOKED"), now)
+        .level,
+    ).toBe("CRITICAL");
   });
 
   it("keeps the message short and free of process details", () => {
-    const body = digestBody(classifyStatus(workbook("2026-08-19T11:55:00Z"), now));
+    const body = digestBody(
+      classifyStatus(workbook("2026-08-19T11:55:00Z"), now),
+    );
     expect(body).toContain("整體狀態：正常");
     expect(body).not.toContain("PID");
     expect(body).not.toContain("memory");
