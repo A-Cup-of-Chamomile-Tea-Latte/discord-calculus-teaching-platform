@@ -36,8 +36,27 @@ class AppsScriptApiConfig:
 
 
 def _safe_code(value: object, fallback: str) -> str:
+    if value is None:
+        return fallback
     text = SAFE_CODE.sub("_", str(value).upper()).strip("_")[:64]
     return text or fallback
+
+
+def _operation_error_code(error: object) -> str:
+    if not isinstance(error, dict):
+        return "GOOGLE_OPERATION_FAILED"
+    status = error.get("status")
+    if status:
+        return _safe_code(status, "GOOGLE_OPERATION_FAILED")
+    details = error.get("details")
+    if isinstance(details, list):
+        for detail in details:
+            if isinstance(detail, dict) and detail.get("errorMessage"):
+                message = str(detail["errorMessage"])
+                if message.startswith("Error: "):
+                    message = message.removeprefix("Error: ")
+                return _safe_code(message, "GAS_EXECUTION_FAILED")
+    return _safe_code(error.get("message"), "GAS_EXECUTION_FAILED")
 
 
 class AppsScriptApiTransport:
@@ -90,6 +109,8 @@ class AppsScriptApiTransport:
         except urllib.error.HTTPError as error:
             if error.code in {401, 403}:
                 raise AppsScriptApiError("GOOGLE_AUTHORIZATION_REFUSED") from error
+            if error.code == 404:
+                raise AppsScriptApiError("GOOGLE_DEPLOYMENT_NOT_FOUND") from error
             if error.code == 429:
                 raise AppsScriptApiError("GOOGLE_RATE_LIMITED") from error
             raise AppsScriptApiError(f"GOOGLE_HTTP_{error.code}") from error
@@ -97,9 +118,7 @@ class AppsScriptApiTransport:
             raise AppsScriptApiError("GOOGLE_TRANSPORT_UNAVAILABLE") from error
 
         if "error" in body:
-            raise AppsScriptApiError(
-                _safe_code(body["error"].get("status"), "GOOGLE_OPERATION_FAILED")
-            )
+            raise AppsScriptApiError(_operation_error_code(body["error"]))
         operation = body.get("response", {})
         if "error" in operation:
             details = operation["error"].get("details", [])

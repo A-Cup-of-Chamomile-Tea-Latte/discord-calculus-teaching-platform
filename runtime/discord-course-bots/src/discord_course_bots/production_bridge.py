@@ -6,6 +6,7 @@ import logging
 import os
 import random
 import signal
+import sys
 import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -326,18 +327,28 @@ def main() -> None:
     transport = AppsScriptApiTransport(
         AppsScriptApiConfig(settings.deployment_id, settings.credential_path)
     )
-    if args.command == "health":
-        print(json.dumps(transport.health(), ensure_ascii=False, sort_keys=True))
-        return
-    if args.command == "once":
+    try:
+        if args.command == "health":
+            print(json.dumps(transport.health(), ensure_ascii=False, sort_keys=True))
+            return
+        if args.command == "once":
+            print(
+                json.dumps(
+                    project_once(settings, transport, apply=not args.dry_run),
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
+            )
+            return
+    except AppsScriptApiError as error:
         print(
             json.dumps(
-                project_once(settings, transport, apply=not args.dry_run),
-                ensure_ascii=False,
+                {"status": "ERROR", "safeResultCode": error.code},
                 sort_keys=True,
-            )
+            ),
+            file=sys.stderr,
         )
-        return
+        raise SystemExit(2) from None
     daemon = BridgeDaemon(settings, transport)
     signal.signal(signal.SIGTERM, daemon.request_stop)
     signal.signal(signal.SIGINT, daemon.request_stop)
