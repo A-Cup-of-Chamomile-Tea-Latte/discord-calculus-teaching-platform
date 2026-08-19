@@ -1,0 +1,24 @@
+[Unit]
+Description=Calculus Discord governed dump bot
+After=network-online.target calculus-course-assistant.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=calculus-bot
+Group=calculus-bot
+WorkingDirectory=/opt/calculus-discord/current/runtime/discord-course-bots
+EnvironmentFile=/etc/calculus-discord/dump-bot.env
+ExecStart=/opt/calculus-discord/current/runtime/discord-course-bots/.venv/bin/dump-bot online
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=45s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/calculus-discord
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,24 @@
+[Unit]
+Description=Calculus Discord course assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=calculus-bot
+Group=calculus-bot
+WorkingDirectory=/opt/calculus-discord/current/runtime/discord-course-bots
+EnvironmentFile=/etc/calculus-discord/course-assistant.env
+ExecStart=/opt/calculus-discord/current/runtime/discord-course-bots/.venv/bin/course-assistant
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=45s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/calculus-discord
+
+[Install]
+WantedBy=multi-user.target
