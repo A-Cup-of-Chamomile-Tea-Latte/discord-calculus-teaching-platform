@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from discord_course_bots.logging_config import configure_logging
 from discord_course_bots.repository import Repository
@@ -51,6 +51,13 @@ class CourseAssistantBot(commands.Bot):
             await self.close()
             return
         LOGGER.info("course_assistant online as %s in %s", self.user, expected.name)
+        self.repo.update_service_health(
+            service_key="course-assistant",
+            service="course_assistant",
+            component="discord-gateway",
+        )
+        if not self.health_heartbeat.is_running():
+            self.health_heartbeat.start()
         for row in self.repo.tracked_cases():
             thread_id = int(row["thread_id"])
             channel = self.get_channel(thread_id)
@@ -65,6 +72,18 @@ class CourseAssistantBot(commands.Bot):
                     await self.service.reconcile_title(channel)
                 except discord.HTTPException:
                     LOGGER.exception("Startup reconciliation failed for %s", channel.id)
+
+    @tasks.loop(seconds=60)
+    async def health_heartbeat(self) -> None:
+        self.repo.update_service_health(
+            service_key="course-assistant",
+            service="course_assistant",
+            component="discord-gateway",
+        )
+
+    @health_heartbeat.before_loop
+    async def before_health_heartbeat(self) -> None:
+        await self.wait_until_ready()
 
     async def on_thread_create(self, thread: discord.Thread) -> None:
         try:

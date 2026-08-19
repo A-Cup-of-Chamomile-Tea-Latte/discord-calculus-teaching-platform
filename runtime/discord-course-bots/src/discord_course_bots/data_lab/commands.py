@@ -140,9 +140,7 @@ def fetch_once(
                 "cloudMutation": False,
             }
         remote_code = "NO_OP" if result.no_op else "APPLIED"
-        if not transport.ack_command(
-            str(envelope["commandId"]), claim.claim_token, remote_code
-        ):
+        if not transport.ack_command(str(envelope["commandId"]), claim.claim_token, remote_code):
             raise RuntimeError("REMOTE_ACK_FAILED")
         return {
             "status": "NO_OP" if result.no_op else "APPLIED",

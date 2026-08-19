@@ -52,8 +52,16 @@ class FakeGasTransport:
     is_cloud = False
     transport_name = "FAKE_LOCAL"
 
-    def __init__(self, expected_fingerprint: str) -> None:
+    def __init__(
+        self,
+        expected_fingerprint: str,
+        *,
+        expected_environment: str = "STAGING",
+        expected_synthetic_only: bool = True,
+    ) -> None:
         self.expected_fingerprint = expected_fingerprint
+        self.expected_environment = expected_environment
+        self.expected_synthetic_only = expected_synthetic_only
         self.views: dict[str, list[dict[str, Any]]] = {
             "Overview": [],
             "CaseBoard": [],
@@ -66,7 +74,12 @@ class FakeGasTransport:
         self.commands: list[dict[str, Any]] = []
 
     def preview(self, envelope: dict[str, Any]) -> PreviewReceipt:
-        validate_common_envelope(envelope, self.expected_fingerprint)
+        validate_common_envelope(
+            envelope,
+            self.expected_fingerprint,
+            expected_environment=self.expected_environment,
+            expected_synthetic_only=self.expected_synthetic_only,
+        )
         version = int(envelope["sourceVersion"])
         checksum = str(envelope["checksum"])
         if version < self.source_version:
@@ -129,9 +142,7 @@ class FakeGasTransport:
         if not 1 <= limit <= 50:
             raise ValueError("command batch must be between 1 and 50")
         return [
-            dict(row["envelope"])
-            for row in self.commands
-            if row["status"] in {"QUEUED", "CLAIMED"}
+            dict(row["envelope"]) for row in self.commands if row["status"] in {"QUEUED", "CLAIMED"}
         ][:limit]
 
     def claim_command(

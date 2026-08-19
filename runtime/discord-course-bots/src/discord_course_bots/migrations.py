@@ -285,6 +285,70 @@ def _apply_phase2b_data_bridge(connection: sqlite3.Connection) -> None:
         )
 
 
+PHASE2C_PRODUCTION_STATEMENTS = (
+    """
+    CREATE TABLE case_lifecycle_events_v5 (
+        event_id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        case_ref TEXT NOT NULL,
+        event_type TEXT NOT NULL CHECK(event_type IN ('OPEN', 'CLOSE', 'REOPEN')),
+        previous_status TEXT,
+        new_status TEXT NOT NULL,
+        source_kind TEXT NOT NULL CHECK(source_kind IN (
+            'LOCAL_FIXTURE', 'CLOUD_COMMAND', 'DISCORD'
+        )),
+        correlation_id TEXT NOT NULL,
+        occurred_at TEXT NOT NULL,
+        synthetic INTEGER NOT NULL CHECK(synthetic IN (0, 1))
+    )
+    """,
+    """
+    INSERT INTO case_lifecycle_events_v5(
+        event_id, case_id, case_ref, event_type, previous_status, new_status,
+        source_kind, correlation_id, occurred_at, synthetic
+    )
+    SELECT event_id, case_id, case_ref, event_type, previous_status, new_status,
+           source_kind, correlation_id, occurred_at, synthetic
+    FROM case_lifecycle_events
+    """,
+    "DROP TABLE case_lifecycle_events",
+    "ALTER TABLE case_lifecycle_events_v5 RENAME TO case_lifecycle_events",
+    """
+    CREATE INDEX case_lifecycle_events_case_time
+    ON case_lifecycle_events(case_ref, occurred_at)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS service_health (
+        service_key TEXT PRIMARY KEY,
+        service TEXT NOT NULL,
+        component TEXT NOT NULL,
+        status TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        version TEXT,
+        last_heartbeat_at TEXT,
+        queue_depth INTEGER,
+        last_success_at TEXT,
+        safe_error_code TEXT,
+        next_action TEXT,
+        checked_at TEXT NOT NULL
+    )
+    """,
+)
+
+
+def _apply_phase2c_production_bridge(connection: sqlite3.Connection) -> None:
+    for statement in PHASE2C_PRODUCTION_STATEMENTS:
+        connection.execute(statement)
+    now = utc_now_iso()
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO sync_state(stream_name, updated_at)
+        VALUES ('production-local-sheet-projection', ?)
+        """,
+        (now,),
+    )
+
+
 MIGRATIONS = (
     Migration(
         1,
@@ -313,6 +377,13 @@ MIGRATIONS = (
         "\n".join(statement.strip() for statement in PHASE2B_BRIDGE_STATEMENTS)
         + "\nfixed sync streams cloud-command-inbox local-sheet-projection; v1",
         _apply_phase2b_data_bridge,
+    ),
+    Migration(
+        5,
+        "phase2c-production-events-health-and-projection-stream",
+        "\n".join(statement.strip() for statement in PHASE2C_PRODUCTION_STATEMENTS)
+        + "\nproduction-local-sheet-projection stream; v1",
+        _apply_phase2c_production_bridge,
     ),
 )
 

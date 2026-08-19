@@ -30,7 +30,13 @@ def _coalesced(rows: list[Any]) -> list[Any]:
     return [*latest.values(), *history]
 
 
-def _caseboard_row(repository: DataLabRepository, case_ref: str, version: int) -> dict[str, Any]:
+def _caseboard_row(
+    repository: DataLabRepository,
+    case_ref: str,
+    version: int,
+    *,
+    synthetic_only: bool,
+) -> dict[str, Any]:
     row = repository.case_by_ref(case_ref)
     if row is None:
         raise RuntimeError("PROJECTION_CASE_MISSING")
@@ -39,62 +45,99 @@ def _caseboard_row(repository: DataLabRepository, case_ref: str, version: int) -
         "caseNumber": case_ref,
         "moduleCode": str(row["module_code"]),
         "status": str(row["status"]),
-        "assignedAlias": "SYN-LAB-TA",
+        "assignedAlias": "SYN-LAB-TA" if synthetic_only else None,
         "actionNeeded": "NONE" if row["status"] == "CLOSED" else "REVIEW",
         "lastStudentAt": None,
         "lastStaffAt": None,
         "nextDeadlineAt": None,
-        "analysisEligible": False,
+        "analysisEligible": False if synthetic_only else bool(row["ai_content_permission"]),
         "updatedAt": str(row["closed_at"] or row["created_at"]),
         "sourceVersion": version,
         "sourceChecksum": f"pending-v{version}",
     }
 
 
-def _overview_rows(repository: DataLabRepository, now: str) -> list[dict[str, Any]]:
+def _overview_rows(
+    repository: DataLabRepository,
+    now: str,
+    *,
+    environment: str,
+    synthetic_only: bool,
+) -> list[dict[str, Any]]:
+    condition = "case_number LIKE 'TST-%'" if synthetic_only else "case_number NOT LIKE 'TST-%'"
     counts = repository._connection.execute(  # noqa: SLF001
-        "SELECT status, COUNT(*) AS count FROM cases WHERE case_number LIKE 'TST-%' GROUP BY status"
+        f"SELECT status, COUNT(*) AS count FROM cases WHERE {condition} GROUP BY status"
     ).fetchall()
     values = {str(row["status"]): int(row["count"]) for row in counts}
     return [
         {
-            "metricKey": "synthetic.openCases",
-            "metricValue": str(values.get("OPEN", 0)),
-            "status": "STAGING",
-            "description": "Synthetic open cases",
+            "metricKey": "cases.open",
+            "metricValue": str(values.get("OPEN", 0) + values.get("TRACKED", 0)),
+            "status": environment,
+            "description": "目前待處理案件",
             "asOf": now,
-            "sourceReceipt": "PHASE2B-STAGING",
+            "sourceReceipt": f"{environment}-SQLITE",
         },
         {
-            "metricKey": "synthetic.closedCases",
+            "metricKey": "cases.closed",
             "metricValue": str(values.get("CLOSED", 0)),
-            "status": "STAGING",
-            "description": "Synthetic closed cases",
+            "status": environment,
+            "description": "目前已結案件",
             "asOf": now,
-            "sourceReceipt": "PHASE2B-STAGING",
+            "sourceReceipt": f"{environment}-SQLITE",
         },
     ]
 
 
-def _operations_row(repository: DataLabRepository, now: str) -> dict[str, Any]:
+def _operations_rows(
+    repository: DataLabRepository,
+    now: str,
+    *,
+    environment: str,
+    synthetic_only: bool,
+) -> list[dict[str, Any]]:
     depth = repository._connection.execute(  # noqa: SLF001
         "SELECT COUNT(*) FROM projection_outbox WHERE status != 'COMPLETED'"
     ).fetchone()[0]
-    return {
-        "schemaVersion": "2.0.0",
-        "operationKey": "phase2b.syntheticBridge",
-        "service": "calculus-data-bridge",
-        "component": "projection-outbox",
-        "status": "STAGING",
-        "mode": "SYNTHETIC_ONLY",
-        "version": "phase-2b",
-        "lastHeartbeatAt": None,
-        "queueDepth": int(depth),
-        "lastSuccessAt": None,
-        "safeErrorCode": None,
-        "nextAction": "operator-preview",
-        "checkedAt": now,
-    }
+    health_rows = repository._connection.execute(  # noqa: SLF001
+        "SELECT * FROM service_health ORDER BY service_key"
+    ).fetchall()
+    if not health_rows:
+        return [
+            {
+                "schemaVersion": "2.0.0",
+                "operationKey": "data-bridge",
+                "service": "calculus-data-bridge",
+                "component": "projection-outbox",
+                "status": "HEALTHY",
+                "mode": "SYNTHETIC_ONLY" if synthetic_only else "PRODUCTION",
+                "version": "phase-2c",
+                "lastHeartbeatAt": now,
+                "queueDepth": int(depth),
+                "lastSuccessAt": None,
+                "safeErrorCode": None,
+                "nextAction": "none",
+                "checkedAt": now,
+            }
+        ]
+    return [
+        {
+            "schemaVersion": "2.0.0",
+            "operationKey": str(health["service_key"]),
+            "service": str(health["service"]),
+            "component": str(health["component"]),
+            "status": str(health["status"]),
+            "mode": str(health["mode"]),
+            "version": health["version"],
+            "lastHeartbeatAt": health["last_heartbeat_at"],
+            "queueDepth": int(depth) if health["service_key"] == "data-bridge" else 0,
+            "lastSuccessAt": health["last_success_at"],
+            "safeErrorCode": health["safe_error_code"],
+            "nextAction": health["next_action"],
+            "checkedAt": str(health["checked_at"]),
+        }
+        for health in health_rows
+    ]
 
 
 def _history_row(repository: DataLabRepository, outbox: Any) -> dict[str, Any]:
@@ -117,7 +160,11 @@ def _history_row(repository: DataLabRepository, outbox: Any) -> dict[str, Any]:
         "eventType": str(event["event_type"]),
         "subjectType": "PUBLIC_CASE",
         "subjectRef": str(event["case_ref"]),
-        "summaryCode": f"SYNTHETIC_CASE_{event['event_type']}",
+        "summaryCode": (
+            f"SYNTHETIC_CASE_{event['event_type']}"
+            if int(event["synthetic"]) == 1
+            else f"PUBLIC_CASE_{event['event_type']}"
+        ),
         "fromState": event["previous_status"],
         "toState": str(event["new_status"]),
         "occurredAt": str(event["occurred_at"]),
@@ -127,7 +174,11 @@ def _history_row(repository: DataLabRepository, outbox: Any) -> dict[str, Any]:
 
 
 def build_pending_envelope(
-    repository: DataLabRepository, fingerprint: str
+    repository: DataLabRepository,
+    fingerprint: str,
+    *,
+    environment: str = "STAGING",
+    synthetic_only: bool = True,
 ) -> tuple[dict[str, Any] | None, list[str]]:
     pending = repository.pending_projection_rows(50)
     if not pending:
@@ -145,19 +196,36 @@ def build_pending_envelope(
         scope = str(row["projection_scope"])
         if scope == "CASEBOARD":
             rows["CaseBoard"].append(
-                _caseboard_row(repository, str(row["aggregate_ref"]), int(row["source_version"]))
+                _caseboard_row(
+                    repository,
+                    str(row["aggregate_ref"]),
+                    int(row["source_version"]),
+                    synthetic_only=synthetic_only,
+                )
             )
         elif scope == "HISTORY":
             rows["History"].append(_history_row(repository, row))
         elif scope == "OVERVIEW":
-            rows["Overview"] = _overview_rows(repository, now)
+            rows["Overview"] = _overview_rows(
+                repository,
+                now,
+                environment=environment,
+                synthetic_only=synthetic_only,
+            )
         elif scope == "OPERATIONS":
-            rows["Operations"] = [_operations_row(repository, now)]
+            rows["Operations"] = _operations_rows(
+                repository,
+                now,
+                environment=environment,
+                synthetic_only=synthetic_only,
+            )
     envelope = build_projection_envelope(
         source_version=version,
         generated_at=now,
         source_fingerprint=fingerprint,
         rows=rows,
+        environment=environment,
+        synthetic_only=synthetic_only,
     )
     return envelope, [str(row["projection_id"]) for row in pending]
 

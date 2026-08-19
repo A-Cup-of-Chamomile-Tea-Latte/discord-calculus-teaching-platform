@@ -25,9 +25,7 @@ def _print(value: dict[str, Any]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Phase 2B synthetic staging data lab")
-    parser.add_argument(
-        "--lab-root", type=Path, default=Path(".local/phase2b-data-lab")
-    )
+    parser.add_argument("--lab-root", type=Path, default=Path(".local/phase2b-data-lab"))
     commands = parser.add_subparsers(dest="command", required=True)
     ingest = commands.add_parser("ingest")
     ingest.add_argument("--fixture", required=True)

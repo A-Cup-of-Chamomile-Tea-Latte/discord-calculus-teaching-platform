@@ -9,6 +9,8 @@ description = "Tracked Discord runtime for the calculus teaching support test gu
 requires-python = ">=3.12,<3.15"
 dependencies = [
   "discord.py==2.7.1",
+  "google-auth>=2.40,<3",
+  "google-auth-oauthlib>=1.2,<2",
   "python-dotenv>=1.1,<2",
 ]
 
@@ -26,6 +28,8 @@ discord-bot-invites = "discord_course_bots.invites:main"
 discord-db-inspect = "discord_course_bots.inspect_db:main"
 discord-data-lab = "discord_course_bots.data_lab.cli_lab:main"
 discord-data-bridge = "discord_course_bots.data_lab.cli_bridge:main"
+discord-production-bridge = "discord_course_bots.production_bridge:main"
+discord-google-oauth-bootstrap = "discord_course_bots.google_oauth_bootstrap:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

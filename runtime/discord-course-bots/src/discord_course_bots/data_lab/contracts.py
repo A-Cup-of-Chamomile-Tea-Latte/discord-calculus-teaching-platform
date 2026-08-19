@@ -75,15 +75,25 @@ def abbreviated_checksum(value: str | None) -> str | None:
     return None if value is None else value[:12]
 
 
-def validate_common_envelope(envelope: dict[str, Any], expected_fingerprint: str) -> None:
+def validate_common_envelope(
+    envelope: dict[str, Any],
+    expected_fingerprint: str,
+    *,
+    expected_environment: str = ENVIRONMENT,
+    expected_synthetic_only: bool = True,
+) -> None:
     if envelope.get("sourceFingerprint") != expected_fingerprint:
         raise EnvelopeValidationError("SYNC_WRONG_TARGET")
     if envelope.get("schemaVersion") != SCHEMA_VERSION:
         raise EnvelopeValidationError("SYNC_SCHEMA_VERSION_UNSUPPORTED")
-    if envelope.get("environment") != ENVIRONMENT:
+    if envelope.get("environment") != expected_environment:
         raise EnvelopeValidationError("SYNC_WRONG_ENVIRONMENT")
-    if envelope.get("syntheticOnly") is not True:
-        raise EnvelopeValidationError("SYNC_NON_SYNTHETIC_REFUSED")
+    if envelope.get("syntheticOnly") is not expected_synthetic_only:
+        raise EnvelopeValidationError(
+            "SYNC_NON_SYNTHETIC_REFUSED"
+            if expected_synthetic_only
+            else "SYNC_SYNTHETIC_MODE_MISMATCH"
+        )
     checksum = envelope.get("checksum")
     if not isinstance(checksum, str) or checksum != checksum_for(envelope):
         raise EnvelopeValidationError("SYNC_BAD_CHECKSUM")
@@ -145,13 +155,15 @@ def build_projection_envelope(
     generated_at: str,
     source_fingerprint: str,
     rows: dict[str, list[dict[str, Any]]],
+    environment: str = ENVIRONMENT,
+    synthetic_only: bool = True,
 ) -> dict[str, Any]:
     scopes = ["Overview", "CaseBoard", "Operations", "History"]
     return with_checksum(
         {
             "schemaVersion": SCHEMA_VERSION,
-            "environment": ENVIRONMENT,
-            "syntheticOnly": True,
+            "environment": environment,
+            "syntheticOnly": synthetic_only,
             "sourceVersion": source_version,
             "generatedAt": utc_z(generated_at),
             "sourceFingerprint": source_fingerprint,

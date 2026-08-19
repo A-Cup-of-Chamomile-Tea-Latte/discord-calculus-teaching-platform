@@ -32,18 +32,21 @@ def table_names(connection: sqlite3.Connection) -> set[str]:
     }
 
 
-def test_empty_database_reaches_v4_with_fixed_streams(tmp_path: Path) -> None:
+def test_empty_database_reaches_v5_with_fixed_streams(tmp_path: Path) -> None:
     repo = Repository(tmp_path / "empty.sqlite3")
-    assert repo.schema_version == 4
+    assert repo.schema_version == 5
     assert table_names(repo._connection) >= EXPECTED_V4_TABLES
     streams = repo._connection.execute("SELECT stream_name FROM sync_state ORDER BY stream_name")
     assert [str(row[0]) for row in streams] == [
         "cloud-command-inbox",
         "local-sheet-projection",
+        "production-local-sheet-projection",
     ]
 
 
-def test_v3_to_v4_preserves_existing_data(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_v3_to_latest_preserves_existing_data(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     path = tmp_path / "upgrade.sqlite3"
     connection = sqlite3.connect(path)
     monkeypatch.setattr(migrations, "MIGRATIONS", MIGRATIONS[:3])
@@ -56,7 +59,7 @@ def test_v3_to_v4_preserves_existing_data(tmp_path: Path, monkeypatch: pytest.Mo
     monkeypatch.setattr(migrations, "MIGRATIONS", MIGRATIONS)
 
     repo = Repository(path)
-    assert repo.schema_version == 4
+    assert repo.schema_version == 5
     assert repo.get_config("sentinel") == "yes"
     assert table_names(repo._connection) >= EXPECTED_V4_TABLES
 

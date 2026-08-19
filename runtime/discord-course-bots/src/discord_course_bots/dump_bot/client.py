@@ -70,6 +70,14 @@ class DumpClient(discord.Client):
             return
         LOGGER.info("dump_bot online as %s in %s", self.user, guild.name)
 
+        self.repo.update_service_health(
+            service_key="dump-bot",
+            service="dump_bot",
+            component="discord-gateway",
+        )
+        if not self.health_heartbeat.is_running():
+            self.health_heartbeat.start()
+
         if self.mode == "online":
             if not self.private_dump_worker.is_running():
                 self.private_dump_worker.start()
@@ -237,6 +245,18 @@ class DumpClient(discord.Client):
                 heartbeat.cancel()
                 with suppress(asyncio.CancelledError):
                     await heartbeat
+
+    @tasks.loop(seconds=60)
+    async def health_heartbeat(self) -> None:
+        self.repo.update_service_health(
+            service_key="dump-bot",
+            service="dump_bot",
+            component="discord-gateway",
+        )
+
+    @health_heartbeat.before_loop
+    async def before_health_heartbeat(self) -> None:
+        await self.wait_until_ready()
 
     async def _renew_private_dump_lease(self, channel_id: int, claim_token: str) -> None:
         while True:

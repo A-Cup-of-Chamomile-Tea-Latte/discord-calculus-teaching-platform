@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -190,6 +191,7 @@ class Repository:
             case_number = generate_case_number()
             try:
                 with self.transaction() as db:
+                    now = utc_now_iso()
                     db.execute(
                         """
                         INSERT INTO cases(
@@ -208,9 +210,18 @@ class Repository:
                             int(ai_content_permission),
                             canonical_title,
                             canonical_title,
-                            utc_now_iso(),
+                            now,
                             json.dumps(initial_snapshot, ensure_ascii=False, sort_keys=True),
                         ),
+                    )
+                    self._record_public_case_transition(
+                        db,
+                        case_id=case_id,
+                        case_number=case_number,
+                        event_type="OPEN",
+                        previous_status=None,
+                        new_status="TRACKED",
+                        occurred_at=now,
                     )
             except sqlite3.IntegrityError as exc:
                 if "cases.case_number" not in str(exc):
@@ -233,14 +244,29 @@ class Repository:
 
     def close_case(self, thread_id: int) -> sqlite3.Row | None:
         with self.transaction() as db:
-            db.execute(
+            now = utc_now_iso()
+            result = db.execute(
                 """
                 UPDATE cases
                 SET status = 'CLOSED', closed_at = ?
                 WHERE thread_id = ? AND status = 'TRACKED'
                 """,
-                (utc_now_iso(), thread_id),
+                (now, thread_id),
             )
+            if result.rowcount == 1:
+                row = db.execute(
+                    "SELECT case_id, case_number FROM cases WHERE thread_id = ?",
+                    (thread_id,),
+                ).fetchone()
+                self._record_public_case_transition(
+                    db,
+                    case_id=str(row["case_id"]),
+                    case_number=str(row["case_number"]),
+                    event_type="CLOSE",
+                    previous_status="TRACKED",
+                    new_status="CLOSED",
+                    occurred_at=now,
+                )
         return self.get_case_by_thread(thread_id)
 
     def reopen_case(self, thread_id: int) -> sqlite3.Row | None:
@@ -255,13 +281,174 @@ class Repository:
             )
             if result.rowcount != 1:
                 return None
-            return db.execute("SELECT * FROM cases WHERE thread_id = ?", (thread_id,)).fetchone()
+            row = db.execute("SELECT * FROM cases WHERE thread_id = ?", (thread_id,)).fetchone()
+            self._record_public_case_transition(
+                db,
+                case_id=str(row["case_id"]),
+                case_number=str(row["case_number"]),
+                event_type="REOPEN",
+                previous_status="CLOSED",
+                new_status="TRACKED",
+                occurred_at=utc_now_iso(),
+            )
+            return row
+
+    def _record_public_case_transition(
+        self,
+        db: sqlite3.Connection,
+        *,
+        case_id: str,
+        case_number: str,
+        event_type: str,
+        previous_status: str | None,
+        new_status: str,
+        occurred_at: str,
+    ) -> None:
+        stream = db.execute(
+            "SELECT last_local_projection_version FROM sync_state "
+            "WHERE stream_name = 'production-local-sheet-projection'"
+        ).fetchone()
+        if stream is None:
+            raise RuntimeError("PRODUCTION_SYNC_STREAM_MISSING")
+        version = int(stream[0]) + 1
+        db.execute(
+            "UPDATE sync_state SET last_local_projection_version = ?, updated_at = ? "
+            "WHERE stream_name = 'production-local-sheet-projection'",
+            (version, occurred_at),
+        )
+        event_id = f"evt-{uuid.uuid4().hex}"
+        db.execute(
+            """
+            INSERT INTO case_lifecycle_events(
+                event_id, case_id, case_ref, event_type, previous_status, new_status,
+                source_kind, correlation_id, occurred_at, synthetic
+            ) VALUES (?, ?, ?, ?, ?, ?, 'DISCORD', ?, ?, 0)
+            """,
+            (
+                event_id,
+                case_id,
+                case_number,
+                event_type,
+                previous_status,
+                new_status,
+                f"discord:{event_id}",
+                occurred_at,
+            ),
+        )
+        work = (
+            (f"prj-{event_id}-case", "UPSERT_CURRENT_STATE", "CASEBOARD"),
+            (f"prj-{event_id}-history", "APPEND_HISTORY", "HISTORY"),
+            (f"prj-{event_id}-overview", "UPSERT_CURRENT_STATE", "OVERVIEW"),
+            (f"prj-{event_id}-operations", "UPDATE_OPERATIONS", "OPERATIONS"),
+        )
+        for projection_id, outbox_event, scope in work:
+            db.execute(
+                """
+                INSERT INTO projection_outbox(
+                    projection_id, aggregate_type, aggregate_ref, event_type,
+                    projection_scope, source_version, status, created_at, updated_at
+                ) VALUES (?, 'PUBLIC_CASE', ?, ?, ?, ?, 'PENDING', ?, ?)
+                """,
+                (
+                    projection_id,
+                    case_number,
+                    outbox_event,
+                    scope,
+                    version,
+                    occurred_at,
+                    occurred_at,
+                ),
+            )
 
     def update_case_title(self, thread_id: int, title: str) -> None:
         with self.transaction() as db:
             db.execute(
                 "UPDATE cases SET canonical_title = ? WHERE thread_id = ?",
                 (title, thread_id),
+            )
+
+    def update_service_health(
+        self,
+        *,
+        service_key: str,
+        service: str,
+        component: str,
+        status: str = "HEALTHY",
+        mode: str = "PRODUCTION",
+        safe_error_code: str | None = None,
+    ) -> None:
+        now = utc_now_iso()
+        with self.immediate_transaction() as db:
+            current = db.execute(
+                "SELECT status, safe_error_code, checked_at FROM service_health "
+                "WHERE service_key = ?",
+                (service_key,),
+            ).fetchone()
+            changed = (
+                current is None
+                or str(current["status"]) != status
+                or (current["safe_error_code"] or None) != safe_error_code
+            )
+            last_published = None
+            if current is not None:
+                last_published = datetime.fromisoformat(str(current["checked_at"]))
+                if last_published.tzinfo is None:
+                    last_published = last_published.replace(tzinfo=UTC)
+            publish_due = (
+                last_published is None
+                or (datetime.now(UTC) - last_published.astimezone(UTC)).total_seconds() >= 300
+            )
+            db.execute(
+                """
+                INSERT INTO service_health(
+                    service_key, service, component, status, mode, version,
+                    last_heartbeat_at, last_success_at, safe_error_code, next_action, checked_at
+                ) VALUES (?, ?, ?, ?, ?, 'phase-2c', ?, ?, ?, ?, ?)
+                ON CONFLICT(service_key) DO UPDATE SET
+                    service=excluded.service, component=excluded.component,
+                    status=excluded.status, mode=excluded.mode,
+                    last_heartbeat_at=excluded.last_heartbeat_at,
+                    last_success_at=excluded.last_success_at,
+                    safe_error_code=excluded.safe_error_code,
+                    next_action=excluded.next_action,
+                    checked_at=excluded.checked_at
+                """,
+                (
+                    service_key,
+                    service,
+                    component,
+                    status,
+                    mode,
+                    now,
+                    now if status == "HEALTHY" else None,
+                    safe_error_code,
+                    "none" if safe_error_code is None else "inspect service",
+                    now,
+                ),
+            )
+            if not changed and not publish_due:
+                return
+            row = db.execute(
+                "SELECT last_local_projection_version FROM sync_state "
+                "WHERE stream_name = 'production-local-sheet-projection'"
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("PRODUCTION_SYNC_STREAM_MISSING")
+            version = int(row[0]) + 1
+            db.execute(
+                "UPDATE sync_state SET last_local_projection_version = ?, updated_at = ? "
+                "WHERE stream_name = 'production-local-sheet-projection'",
+                (version, now),
+            )
+            db.execute(
+                """
+                INSERT INTO projection_outbox(
+                    projection_id, aggregate_type, aggregate_ref, event_type,
+                    projection_scope, source_version, status, created_at, updated_at
+                ) VALUES (?, 'OPERATIONS', ?, 'UPDATE_OPERATIONS', 'OPERATIONS',
+                          ?, 'PENDING', ?, ?)
+                """,
+                (f"prj-health-{service_key}-{version}", service_key, version, now, now),
             )
 
     def create_private_support(

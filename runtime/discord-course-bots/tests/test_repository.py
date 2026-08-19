@@ -34,6 +34,7 @@ def test_fresh_database_has_versioned_migration_ledger(tmp_path: Path) -> None:
         "inbound_commands",
         "projection_outbox",
         "sync_state",
+        "service_health",
     }
 
 
