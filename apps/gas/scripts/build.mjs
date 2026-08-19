@@ -17,22 +17,32 @@ const definitions = {
       { name: "bootstrapSheetsDryRun", parameters: "", arguments: "" },
       { name: "bootstrapSheetsApply", parameters: "", arguments: "" },
       {
-        name: "standaloneBridgePreview",
+        name: "bridgeHealth",
+        parameters: "",
+        arguments: "",
+      },
+      {
+        name: "bridgePreview",
         parameters: "envelope",
         arguments: "envelope",
       },
       {
-        name: "standaloneBridgeApply",
+        name: "bridgeApply",
         parameters: "envelope, confirmationNonce",
         arguments: "envelope, confirmationNonce",
       },
       {
-        name: "standaloneBridgeClaimCommand",
+        name: "bridgePeekCommands",
+        parameters: "limit",
+        arguments: "limit",
+      },
+      {
+        name: "bridgeClaimCommand",
         parameters: "workerId",
         arguments: "workerId",
       },
       {
-        name: "standaloneBridgeAckCommand",
+        name: "bridgeAckCommand",
         parameters: "commandId, claimToken, resultCode",
         arguments: "commandId, claimToken, resultCode",
       },
@@ -46,6 +56,8 @@ const definitions = {
       { name: "boundCompactDatabaseDryRun", parameters: "", arguments: "" },
       { name: "boundCompactDatabaseApply", parameters: "", arguments: "" },
       { name: "boundOpenDataLab", parameters: "", arguments: "" },
+      { name: "boundInstallStatusDigest", parameters: "", arguments: "" },
+      { name: "boundStatusDigestDispatcher", parameters: "", arguments: "" },
       {
         name: "boundQueueDataLabCommand",
         parameters: "action, targetCaseRef",

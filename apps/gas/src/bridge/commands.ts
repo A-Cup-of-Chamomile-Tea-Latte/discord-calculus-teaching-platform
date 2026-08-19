@@ -151,6 +151,20 @@ function buildEnvelope(
   return envelope;
 }
 
+export function peekLabCommands(
+  workbook: WorkbookPort,
+  limit: number,
+  fingerprint: string,
+  sha256: Sha256,
+): CommandEnvelope[] {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50)
+    throw new Error("COMMAND_BATCH_INVALID");
+  return commandRows(workbook)
+    .filter((row) => row.status === "QUEUED" || row.status === "CLAIMED")
+    .slice(0, limit)
+    .map((row) => buildEnvelope(row, fingerprint, sha256));
+}
+
 export function claimLabCommand(
   workbook: WorkbookPort,
   workerId: string,

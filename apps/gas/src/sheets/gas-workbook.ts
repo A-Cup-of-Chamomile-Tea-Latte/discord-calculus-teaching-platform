@@ -112,17 +112,41 @@ export class GasWorkbookAdapter implements WorkbookPort {
 }
 
 function configureCompactPresentation(spreadsheet: GasSpreadsheet): void {
+  const widths: Record<string, number> = {
+    description: 280,
+    actionNeeded: 150,
+    nextAction: 180,
+    service: 170,
+    component: 170,
+    summaryCode: 190,
+    courseAlias: 150,
+  };
   for (const definition of SHEET_SCHEMAS) {
     const sheet = spreadsheet.getSheetByName(definition.name);
     if (!sheet) continue;
     const columnCount = sheet.getLastColumn();
     if (columnCount > 0) {
-      sheet
+      const header = sheet
         .getRange(1, 1, 1, columnCount)
         .setFontWeight("bold")
-        .setBackground("#f1f3f4");
+        .setFontColor("#ffffff")
+        .setBackground("#18594c")
+        .setHorizontalAlignment("center")
+        .setWrap(true);
       sheet.setFrozenRows(1);
-      sheet.autoResizeColumns(1, columnCount);
+      sheet.setRowHeight(1, 34);
+      const headers = definition.columns.map((column) => column.name);
+      headers.forEach((name, index) =>
+        sheet.setColumnWidth(index + 1, widths[name] ?? 140),
+      );
+      if (
+        definition.audience === "HUMAN" &&
+        sheet.getLastRow() > 1 &&
+        !sheet.getFilter()
+      ) {
+        sheet.getRange(1, 1, sheet.getLastRow(), columnCount).createFilter();
+      }
+      void header;
     }
     if (definition.audience === "MACHINE" && !sheet.isSheetHidden()) {
       sheet.hideSheet();

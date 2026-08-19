@@ -2,6 +2,7 @@ import type { CompactMigrationResult } from "./sheets/bootstrap";
 import { migrateActiveSpreadsheet } from "./sheets/gas-workbook";
 import { queueLabCommand, type LabAction } from "./bridge/commands";
 import { GasWorkbookAdapter } from "./sheets/gas-workbook";
+import { classifyStatus, digestBody, latestDueSlot } from "./status-digest";
 
 const MENU_NAME = "微積分模組管理";
 
@@ -31,6 +32,8 @@ export function onOpen(): void {
     .addItem("套用精簡資料庫遷移…", "boundCompactDatabaseApply")
     .addSeparator()
     .addItem("資料聯動實驗室", "boundOpenDataLab")
+    .addSeparator()
+    .addItem("安裝狀態摘要排程…", "boundInstallStatusDigest")
     .addToUi();
 }
 
@@ -104,4 +107,62 @@ export function boundCompactDatabaseApply():
   const result = migrateActiveSpreadsheet(false);
   ui.alert("精簡資料庫遷移已套用", summarize(result), ui.ButtonSet.OK);
   return result;
+}
+
+const DIGEST_HANDLER = "boundStatusDigestDispatcher";
+
+export function boundInstallStatusDigest(): { installed: true } | { cancelled: true } {
+  const ui = SpreadsheetApp.getUi();
+  const decision = ui.alert(
+    "安裝狀態摘要排程",
+    "將建立每 5 分鐘一次的輕量檢查；只有 07:00、13:30、19:00 三個時段會寄一封簡潔摘要。收件人需先設於 Script Property：STATUS_EMAIL_RECIPIENTS。",
+    ui.ButtonSet.YES_NO,
+  );
+  if (decision !== ui.Button.YES) return { cancelled: true };
+  const properties = PropertiesService.getScriptProperties();
+  properties.setProperty(
+    "STATUS_SPREADSHEET_ID",
+    SpreadsheetApp.getActiveSpreadsheet().getId(),
+  );
+  for (const trigger of ScriptApp.getProjectTriggers()) {
+    if (trigger.getHandlerFunction() === DIGEST_HANDLER) ScriptApp.deleteTrigger(trigger);
+  }
+  ScriptApp.newTrigger(DIGEST_HANDLER).timeBased().everyMinutes(5).create();
+  return { installed: true };
+}
+
+export function boundStatusDigestDispatcher(): { status: string; slot?: string } {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1_000)) return { status: "LOCKED" };
+  try {
+    const now = new Date();
+    const slot = latestDueSlot(now);
+    if (!slot) return { status: "NO_SLOT" };
+    const properties = PropertiesService.getScriptProperties();
+    const receiptKey = `STATUS_DIGEST_${slot}`;
+    if (properties.getProperty(receiptKey)) return { status: "ALREADY_ATTEMPTED", slot };
+    const recipients = properties.getProperty("STATUS_EMAIL_RECIPIENTS");
+    const spreadsheetId = properties.getProperty("STATUS_SPREADSHEET_ID");
+    if (!recipients || !spreadsheetId) return { status: "NOT_CONFIGURED", slot };
+    properties.setProperty(receiptKey, "ATTEMPTING");
+    const decision = classifyStatus(
+      new GasWorkbookAdapter(SpreadsheetApp.openById(spreadsheetId)),
+      now,
+    );
+    const label = slot.slice(-4, -2) + ":" + slot.slice(-2);
+    try {
+      MailApp.sendEmail(
+        recipients,
+        `[微積分 Bot] ${decision.subjectState}｜${label}`,
+        digestBody(decision),
+      );
+      properties.setProperty(receiptKey, "PROVIDER_ACCEPTED");
+      return { status: "PROVIDER_ACCEPTED", slot };
+    } catch (error) {
+      properties.setProperty(receiptKey, "ATTEMPTED_FAILED");
+      throw error;
+    }
+  } finally {
+    lock.releaseLock();
+  }
 }

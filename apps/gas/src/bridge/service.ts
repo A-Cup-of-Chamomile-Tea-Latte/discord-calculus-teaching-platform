@@ -78,20 +78,32 @@ function syncRecord(workbook: WorkbookPort): SheetRecord | null {
     ?.getRowByPrimaryKey("syncKey", "phase2b.local-projection") ?? null;
 }
 
+function syncKey(environment: string): string {
+  return environment === "PRODUCTION"
+    ? "phase2c.production-projection"
+    : "phase2b.local-projection";
+}
+
 function validate(
   workbook: WorkbookPort,
   envelope: ProjectionEnvelope,
   fingerprint: string,
   sha256: Sha256,
+  expectedEnvironment = "STAGING",
+  expectedSyntheticOnly = true,
 ): "NEW" | "NO_OP" {
   if (envelope.sourceFingerprint !== fingerprint)
     throw new Error("SYNC_WRONG_TARGET");
   if (envelope.schemaVersion !== "2.0.0")
     throw new Error("SYNC_SCHEMA_VERSION_UNSUPPORTED");
-  if (envelope.environment !== "STAGING")
+  if (envelope.environment !== expectedEnvironment)
     throw new Error("SYNC_WRONG_ENVIRONMENT");
-  if (envelope.syntheticOnly !== true)
-    throw new Error("SYNC_NON_SYNTHETIC_REFUSED");
+  if (envelope.syntheticOnly !== expectedSyntheticOnly)
+    throw new Error(
+      expectedSyntheticOnly
+        ? "SYNC_NON_SYNTHETIC_REFUSED"
+        : "SYNC_SYNTHETIC_MODE_MISMATCH",
+    );
   if (checksumFor(envelope as unknown as Record<string, unknown>, sha256) !== envelope.checksum)
     throw new Error("SYNC_BAD_CHECKSUM");
   if (
@@ -99,7 +111,10 @@ function validate(
     envelope.scopes.some((scope, index) => scope !== ALLOWED_SCOPES[index])
   )
     throw new Error("SYNC_SCOPE_REFUSED");
-  const current = syncRecord(workbook);
+  const current =
+    workbook
+      .getSheet("_SyncState")
+      ?.getRowByPrimaryKey("syncKey", syncKey(expectedEnvironment)) ?? null;
   if (!current) return "NEW";
   const version = Number(current.sourceVersion ?? 0);
   const checksum = String(current.sourceChecksum ?? "");
@@ -114,8 +129,17 @@ export function previewProjection(
   envelope: ProjectionEnvelope,
   fingerprint: string,
   sha256: Sha256,
+  expectedEnvironment = "STAGING",
+  expectedSyntheticOnly = true,
 ): BridgeReceipt {
-  const state = validate(workbook, envelope, fingerprint, sha256);
+  const state = validate(
+    workbook,
+    envelope,
+    fingerprint,
+    sha256,
+    expectedEnvironment,
+    expectedSyntheticOnly,
+  );
   return {
     status: state === "NO_OP" ? "NO_OP" : "PREVIEW",
     sourceVersion: envelope.sourceVersion,
@@ -133,8 +157,17 @@ export function applyProjection(
   fingerprint: string,
   sha256: Sha256,
   now: string,
+  expectedEnvironment = "STAGING",
+  expectedSyntheticOnly = true,
 ): BridgeReceipt {
-  const preview = previewProjection(workbook, envelope, fingerprint, sha256);
+  const preview = previewProjection(
+    workbook,
+    envelope,
+    fingerprint,
+    sha256,
+    expectedEnvironment,
+    expectedSyntheticOnly,
+  );
   if (confirmationNonce !== preview.confirmationNonce)
     throw new Error("CONFIRMATION_NONCE_MISMATCH");
   if (preview.status === "NO_OP") return preview;
@@ -150,11 +183,13 @@ export function applyProjection(
   }
   const sync = workbook.getSheet("_SyncState");
   if (!sync) throw new Error("SYNC_STATE_SHEET_MISSING");
-  sync.upsertRowByPrimaryKey("syncKey", "phase2b.local-projection", {
+  const targetSyncKey = syncKey(expectedEnvironment);
+  sync.upsertRowByPrimaryKey("syncKey", targetSyncKey, {
     schemaVersion: "2.0.0",
-    syncKey: "phase2b.local-projection",
+    syncKey: targetSyncKey,
     direction: "LOCAL_TO_CLOUD",
-    sourceName: "staging.sqlite3",
+    sourceName:
+      expectedEnvironment === "PRODUCTION" ? "runtime.sqlite3" : "staging.sqlite3",
     sourceVersion: envelope.sourceVersion,
     sourceChecksum: envelope.checksum,
     cursorRef: null,
