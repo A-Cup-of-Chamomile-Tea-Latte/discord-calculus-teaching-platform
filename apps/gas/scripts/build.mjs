@@ -22,6 +22,12 @@ const definitions = {
         arguments: "",
       },
       {
+        name: "bridgeConfigureTarget",
+        parameters:
+          "spreadsheetId, fingerprint, environment, syntheticOnly",
+        arguments: "spreadsheetId, fingerprint, environment, syntheticOnly",
+      },
+      {
         name: "bridgePreview",
         parameters: "envelope",
         arguments: "envelope",

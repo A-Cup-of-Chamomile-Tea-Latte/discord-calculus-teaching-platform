@@ -9,6 +9,7 @@ interface GasHtmlOutput {
 interface GasScriptProperties {
   getProperty(key: string): string | null;
   setProperty(key: string, value: string): GasScriptProperties;
+  deleteProperty(key: string): GasScriptProperties;
 }
 
 declare const ContentService: {

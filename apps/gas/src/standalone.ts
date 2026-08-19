@@ -17,12 +17,62 @@ import {
   peekLabCommands,
 } from "./bridge/commands";
 import { GasWorkbookAdapter } from "./sheets/gas-workbook";
+import { SHEET_SCHEMAS } from "./sheets/schema";
 
 interface BridgeTarget {
   workbook: GasWorkbookAdapter;
   fingerprint: string;
   environment: "STAGING" | "PRODUCTION";
   syntheticOnly: boolean;
+}
+
+const REQUIRED_BRIDGE_SHEETS = SHEET_SCHEMAS.map((sheet) => sheet.name);
+
+export function bridgeConfigureTarget(
+  spreadsheetId: string,
+  fingerprint: string,
+  environment: string,
+  syntheticOnly: boolean,
+) {
+  const normalizedId = String(spreadsheetId ?? "").trim();
+  const normalizedFingerprint = String(fingerprint ?? "")
+    .trim()
+    .toLowerCase();
+  const normalizedEnvironment = String(environment ?? "")
+    .trim()
+    .toUpperCase();
+  if (!/^[A-Za-z0-9_-]{20,}$/.test(normalizedId))
+    throw new Error("BRIDGE_SPREADSHEET_ID_INVALID");
+  if (!/^[a-f0-9]{64}$/.test(normalizedFingerprint))
+    throw new Error("BRIDGE_FINGERPRINT_INVALID");
+  if (
+    normalizedEnvironment !== "STAGING" &&
+    normalizedEnvironment !== "PRODUCTION"
+  )
+    throw new Error("BRIDGE_ENVIRONMENT_INVALID");
+  if ((normalizedEnvironment === "STAGING") !== Boolean(syntheticOnly))
+    throw new Error("BRIDGE_MODE_MISMATCH");
+
+  const spreadsheet = SpreadsheetApp.openById(normalizedId);
+  const present = new Set(spreadsheet.getSheets().map((sheet) => sheet.getName()));
+  const missing = REQUIRED_BRIDGE_SHEETS.filter((name) => !present.has(name));
+  if (missing.length > 0) throw new Error("BRIDGE_SCHEMA_INCOMPLETE");
+
+  const properties = PropertiesService.getScriptProperties();
+  properties
+    .setProperty("BRIDGE_SPREADSHEET_ID", normalizedId)
+    .setProperty("BRIDGE_SPREADSHEET_FINGERPRINT", normalizedFingerprint)
+    .setProperty("BRIDGE_ENVIRONMENT", normalizedEnvironment)
+    .setProperty("BRIDGE_SYNTHETIC_ONLY", String(Boolean(syntheticOnly)))
+    .deleteProperty("PHASE2B_SPREADSHEET_ID")
+    .deleteProperty("PHASE2B_SPREADSHEET_FINGERPRINT");
+  return {
+    ok: true,
+    configured: true,
+    environment: normalizedEnvironment,
+    syntheticOnly: Boolean(syntheticOnly),
+    schemaVersion: "2.0.0",
+  };
 }
 
 function bridgeTarget(): BridgeTarget {
