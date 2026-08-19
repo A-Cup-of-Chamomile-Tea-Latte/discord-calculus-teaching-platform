@@ -1,112 +1,59 @@
 # Implementation status
 
-Last repository/data-layer verification: 2026-08-11 (Asia/Taipei)
+Last repository／data-bridge verification: 2026-08-19 19:16 (Asia/Taipei)
 
-Last Discord live verification: 2026-07-30 20:18 (Asia/Taipei)
+Last Mac runtime process verification: 2026-08-19 19:15 (Asia/Taipei)
 
 Canonical root: `/Users/chamomiletea/Documents/Curricular/115-1/Calculus TA/Discord_微積分模組教學優化專案`
 
-## Current status
+Current branch: `codex/phase-2c-24h-production-integration`
 
-At the last Discord live verification, the allowlisted test Guild was connected and the two
-runtime bots were online:
+## Current runtime
 
-- `DC-Calculus-Manager` (`course_assistant`)
-- `DC-Calculus-Archive` (`dump_bot`)
+- `course_assistant` and `dump_bot` are active as single LaunchAgent instances on the Mac.
+- Their logs use `~/Library/Logs/DiscordCalculus/`; the prior Documents log path was removed from the LaunchAgent configuration because macOS TCC caused exit 78.
+- No live cutover has occurred. The Mac remains the only production writer until the operator sends the exact `GO-LIVE-CUTOVER` gate.
+- The tracked runtime is `runtime/discord-course-bots/`; remote systemd deployment is ready in code but has not started because no SSH／Tailscale target has been supplied.
 
-The former fixture-only Discord provisioning planner has been replaced by one allowlisted,
-rerunnable live CLI. The requested infrastructure is fully applied, live verify is green and a
-second apply produced zero mutations.
+## Discord infrastructure
 
-## Applied Discord infrastructure
+- The allowlisted Guild has the requested Admin, Staff／TA, Verified Member and Guest roles.
+- Information, Question, Community, Private Support, Voice Chat and Staff categories and their managed channels are applied.
+- Old bootstrap categories, channels, roles and test data were removed after live verification.
+- `dump_bot` remains read-only or hidden on active managed channels.
 
-- Roles created: `Admin`, `Staff / TA`, `Verified Member`, `Guest`.
-- Categories created: Information, Question, Community, Private Support, Voice Chat and Staff.
-- All 15 requested child channels created, including the three managed Question forums.
-- `welcome` fixed message and `伺服器使用總則 / Server Guidelines` forum post created.
-- BOT LAB, old test PRIVATE SUPPORT, old bootstrap roles/data and the approved old default
-  Information/Text/Voice categories were removed.
-- `dump_bot` is effectively read-only or hidden on all currently active managed channels.
-- `/lab bootstrap` is no longer registered by the runtime bot.
+## Data authority and SQLite
 
-The final role order is:
+- Local SQLite is the sole operational authority. Google Sheets is a compact projection and temporary recovery／sharing surface.
+- The tracked SQLite schema is at migration v5 with a checksum ledger, lifecycle events, reliable outbox／queue, service health and production projection stream.
+- Case create／close／reopen and their projection-outbox rows are committed in the same transaction.
+- Google failure degrades only the bridge; Discord can continue writing to SQLite and pending projection work remains durable.
 
-`Admin > Staff / TA > DC-Calculus-Manager > Verified Member > Guest > DC-Calculus-Archive`.
+## Google Sheets and GAS
 
-`Staff / TA` has Manage Messages and voice-member moderation. Advisory: the `Admin` role itself
-does not carry those bits; this does not restrict the current Guild owner, but they should be
-added before assigning Admin to a non-owner.
-
-## Commands
-
-```bash
-.venv/bin/python -m tools.discord_provisioning inventory --guild-id <TEST_GUILD_ID>
-.venv/bin/python -m tools.discord_provisioning apply --guild-id <TEST_GUILD_ID> --reset-lab
-.venv/bin/python -m tools.discord_provisioning verify --guild-id <TEST_GUILD_ID>
-```
-
-The live runtime currently uses the Python environment under
-`.local/discord-course-bots-runtime/.venv`; the repository `.venv` also contains the required
-dependencies.
+- Sheet schema `2.0.0` is applied to `Server Database`.
+- Migration receipt: 44 planned changes → 44 applied → second dry-run no-op.
+- The workbook contains five visible human views (`Overview`, `CaseBoard`, `Members`, `Operations`, `History`) and five hidden machine views. The prior 21 empty managed tabs were removed.
+- The standalone GAS is a real owner-only `executionApi` deployment under the shared standard GCP project. The historical `webapp` manifest was replaced.
+- Desktop OAuth uses only the Google Sheets scope. Client and refresh credential files live under ignored `.local/phase2c-oauth/` with mode `0600`.
+- `bridgeConfigureTarget` validates the canonical 10-tab schema before writing Script Properties and removes the legacy `PHASE2B_*` target properties.
+- Real `scripts.run` receipts are green: health, synthetic preview, synthetic apply, outbox completion and idempotent no-work replay.
+- Bound GAS status-digest code and tests are complete, but its trigger remains disabled until a remote heartbeat is stable; enabling it now would create false stale alerts.
 
 ## Verification
 
-- Live resource replay: zero mutations on the second completed apply.
-- Live verify: passed with zero errors and zero warnings.
-- Root Python suite: 164 tests expected after removal of obsolete provisioning tests.
-- Runtime bot suite: 25 passed; 28 known Python 3.14 / pytest-asyncio deprecation warnings.
-- Ruff and secret scan: passed.
+- Runtime: 74 tests passed; Ruff check and format passed.
+- GAS: 58 tests passed; typecheck and standalone build passed.
+- Mac Bot single-instance check passed.
+- Compact Sheet migration and local real-cloud synthetic round-trip passed.
+- Secret scan findings: 0 tracked credentials. `.local/` remains Git-ignored.
 
-Detailed result:
-`docs/reports/DISCORD_INFRASTRUCTURE_PROVISIONING_REPORT_2026-07-30.md`
+## Remaining gates
 
-## Data-layer evidence audit
+- SSH／Tailscale host identity: blocked pending operator input.
+- Remote staging and real-cloud smoke: blocked pending SSH.
+- Remote SQLite backup／restore rehearsal: blocked pending remote staging.
+- Live cutover: not started; requires exact `GO-LIVE-CUTOVER`.
+- Post-cutover observation: not started; must run for a real 24 hours.
 
-- The live runtime source is local-only under `.local/discord-course-bots-runtime/`; it is not
-  fully identified by the current Git HEAD.
-- Its executable SQLite initializer currently creates five tables: `runtime_config`, `drafts`,
-  `cases`, `private_support` and `private_dump_jobs`.
-- The live schema has no foreign keys, schema migration table, deadline, claim/lease, retry,
-  outbox or Google sync columns. `PRAGMA user_version` is `0`.
-- A canonical tracked runtime now exists at `runtime/discord-course-bots/`, but the live
-  LaunchAgents have not been cut over to it. Its disposable-database implementation has a
-  checksum-verified migration ledger through version 4 and a Private Support dump queue with
-  atomic claim, lease/heartbeat, safe error codes, retry/backoff and stale-token protection.
-- The version-4 implementation is covered by disposable staging tests only; it has not migrated or opened
-  the live SQLite file.
-- **Phase 2A is complete in tracked code:** the canonical runtime, checksum migration ledger and
-  reusable atomic claim/lease/retry queue are implemented. Live LaunchAgents remain on the prior
-  local-only runtime pending a separate cutover instruction.
-- **Phase 2B is implemented locally in synthetic staging scope:** `.local/phase2b-data-lab/`
-  provides a fail-closed carrier, fixture/wizard ingest, lifecycle ledger, inbound command ledger,
-  projection outbox, sync state, dry-run/nonce/apply protocol, observer CLI and fake GAS transport.
-  GAS source includes owner-only projection preview/apply and command claim/ack functions plus a
-  fixed-action Sheet sidebar. No daemon, trigger, public endpoint or live Discord path was added.
-- **Cloud smoke is intentionally blocked:** the repository does not contain the required bound
-  compact-migration dry-run/apply/second-dry-run receipt. Transport path C was therefore used;
-  no real Sheet row was read or changed during Phase 2B implementation.
-- The tracked monorepo contains a broader fixture-first contract and GAS prototype. It must not
-  be described as the live bot database.
-- GAS Sheets schema `2.0.0` replaces the overbuilt 21-tab prototype with five human views
-  (`Overview`, `CaseBoard`, `Members`, `Operations`, `History`) and five hidden machine views.
-  It stores sufficient statistics and opaque references only; raw messages, names, student IDs,
-  email addresses, attachments, logs and credentials remain outside Sheets.
-- The compact migration performs a full preflight. Any data row in an old managed tab, or any
-  operator-owned legacy `Settings` key, blocks all mutations. Only exact empty legacy tabs may be
-  deleted; unknown tabs are preserved. Local tests cover apply, blocker, preservation and no-op.
-- Both GAS projects are at immutable version 3 with exact push/pull-back fingerprints. The
-  standalone owner-only fixture deployment is on v3. The bound Sheet operator apply is awaiting
-  the explicit in-Sheet menu confirmation; no Email or real-data sync has been enabled.
-- Canonical runtime now provides `discord-db-inspect`, which opens SQLite read-only and reports
-  schema version, tables, columns and row counts without querying or printing row values.
-- Portal now includes a local-only `/sqlite-lab/` interactive learning environment: carrier map,
-  schema explorer, allowlisted synthetic SQL simulator, transaction failure comparison, reliable
-  queue takeover sequence, carrier/authenticity exercises, final knowledge check and device-local
-  progress. It does not open a database or send/store learner responses externally.
-- The learning environment has completed a second language and pedagogy review. It now begins
-  with explicit outcomes and an ungraded diagnostic, gives module-specific feedback for missed
-  answers, uses Taiwanese Traditional Chinese as the default explanatory language and keeps
-  English terms only where they aid technical transfer. Desktop and narrow-viewport visual
-  checks, Portal type checks, 53 tests, static build and distribution verification are green.
-- The evidence audit and implementation handoff is recorded in
-  `project-exchange/15_GAS_SQLITE_DRIVE_REPOSITORY_EVIDENCE_AUDIT_2026-08-10.md`.
+Detailed current report: `project-exchange/18_PHASE_2C_24H_HOST_PRODUCTION_INTEGRATION_REPORT_2026-08-19.md`.
