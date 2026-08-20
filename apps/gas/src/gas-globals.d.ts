@@ -27,6 +27,7 @@ declare const PropertiesService: {
 
 interface GasRange {
   createFilter(): unknown;
+  getFormulas(): string[][];
   getValues(): unknown[][];
   setBackground(color: string): GasRange;
   setFontColor(color: string): GasRange;
@@ -39,6 +40,7 @@ interface GasRange {
 interface GasSheet {
   appendRow(values: unknown[]): GasSheet;
   autoResizeColumns(startColumn: number, numberOfColumns: number): GasSheet;
+  deleteRow(rowPosition: number): GasSheet;
   getLastColumn(): number;
   getLastRow(): number;
   getName(): string;

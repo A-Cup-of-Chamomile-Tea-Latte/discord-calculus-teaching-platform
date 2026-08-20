@@ -23,6 +23,14 @@ export class InMemorySheet implements SheetPort {
     return [...this.headers];
   }
 
+  getRows(): SheetRecord[] {
+    return this.rows.map((row) => ({ ...row }));
+  }
+
+  hasDataFormulas(): boolean {
+    return false;
+  }
+
   getDataRowCount(): number {
     return this.rows.length;
   }
@@ -61,6 +69,15 @@ export class InMemorySheet implements SheetPort {
     if (!changed) return "unchanged";
     this.rows[index] = { ...current, ...record };
     return "updated";
+  }
+
+  deleteRowByPrimaryKey(primaryKey: string, value: string): boolean {
+    const index = this.rows.findIndex(
+      (candidate) => String(candidate[primaryKey] ?? "") === value,
+    );
+    if (index < 0) return false;
+    this.rows.splice(index, 1);
+    return true;
   }
 
   appendFixtureRow(record: Record<string, SheetCell>): void {

@@ -11,6 +11,8 @@ export type SheetRecord = Record<string, SheetCell>;
 
 export interface SheetPort {
   getHeaders(): string[];
+  getRows(): SheetRecord[];
+  hasDataFormulas(): boolean;
   getDataRowCount(): number;
   getColumnValues(header: string): string[];
   appendHeaders(headers: readonly string[]): void;
@@ -20,6 +22,7 @@ export interface SheetPort {
     value: string,
     record: SheetRecord,
   ): "inserted" | "updated" | "unchanged";
+  deleteRowByPrimaryKey(primaryKey: string, value: string): boolean;
 }
 
 export interface WorkbookPort {

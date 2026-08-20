@@ -35,6 +35,16 @@ const definitions = {
         arguments: "envelope, confirmationNonce",
       },
       {
+        name: "bridgeSyntheticCleanupDryRun",
+        parameters: "",
+        arguments: "",
+      },
+      {
+        name: "bridgeSyntheticCleanupApply",
+        parameters: "confirmationNonce",
+        arguments: "confirmationNonce",
+      },
+      {
         name: "bridgePeekCommands",
         parameters: "limit",
         arguments: "limit",

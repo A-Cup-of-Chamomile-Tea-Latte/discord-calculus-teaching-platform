@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { bootstrapWorkbook } from "../sheets/bootstrap";
 import { InMemoryWorkbook } from "../sheets/in-memory-workbook";
 import {
+  applySyntheticCleanup,
+  previewSyntheticCleanup,
+} from "../sheets/synthetic-cleanup";
+import {
   applyProjection,
   canonicalJson,
   checksumFor,
@@ -26,7 +30,7 @@ function envelope(): ProjectionEnvelope {
     generatedAt: "2026-08-11T06:00:00Z",
     sourceFingerprint: fingerprint,
     scopes: ["Overview", "CaseBoard", "Operations", "History"],
-    rowCounts: { Overview: 0, CaseBoard: 1, Operations: 0, History: 0 },
+    rowCounts: { Overview: 0, CaseBoard: 1, Operations: 0, History: 1 },
     rows: {
       Overview: [],
       CaseBoard: [
@@ -47,7 +51,21 @@ function envelope(): ProjectionEnvelope {
         },
       ],
       Operations: [],
-      History: [],
+      History: [
+        {
+          schemaVersion: "2.0.0",
+          eventRef: "SYNTHETIC-EVENT-001",
+          eventType: "OPEN",
+          subjectType: "CASE",
+          subjectRef: "TST-BASIC-001",
+          summaryCode: "SYNTHETIC_CASE_OPEN",
+          fromState: null,
+          toState: "TRACKED",
+          occurredAt: "2026-08-11T06:00:00Z",
+          source: "LOCAL_FIXTURE",
+          sourceReceipt: "fixture-receipt-001",
+        },
+      ],
     },
     checksum: "",
   };
@@ -130,5 +148,79 @@ describe("Phase 2B GAS bridge", () => {
         fakeSha,
       ),
     ).toThrow("SYNC_WRONG_TARGET");
+  });
+
+  it("retries a partial Sheet write without duplicating History", () => {
+    const workbook = new InMemoryWorkbook();
+    bootstrapWorkbook(workbook, { dryRun: false });
+    const input = envelope();
+    const syncSheet = workbook.getSheet("_SyncState");
+    if (!syncSheet) throw new Error("test setup failed");
+    const originalUpsert = syncSheet.upsertRowByPrimaryKey.bind(syncSheet);
+    let failOnce = true;
+    syncSheet.upsertRowByPrimaryKey = (...arguments_) => {
+      if (failOnce) {
+        failOnce = false;
+        throw new Error("SYNTHETIC_PARTIAL_FAILURE");
+      }
+      return originalUpsert(...arguments_);
+    };
+
+    const preview = previewProjection(workbook, input, fingerprint, fakeSha);
+    expect(() =>
+      applyProjection(
+        workbook,
+        input,
+        preview.confirmationNonce!,
+        fingerprint,
+        fakeSha,
+        input.generatedAt,
+      ),
+    ).toThrow("SYNTHETIC_PARTIAL_FAILURE");
+    expect(workbook.getSheet("History")?.rows).toHaveLength(1);
+    expect(workbook.getSheet("_SyncState")?.rows).toHaveLength(0);
+
+    const retryPreview = previewProjection(
+      workbook,
+      input,
+      fingerprint,
+      fakeSha,
+    );
+    const retried = applyProjection(
+      workbook,
+      input,
+      retryPreview.confirmationNonce!,
+      fingerprint,
+      fakeSha,
+      input.generatedAt,
+    );
+    expect(retried.status).toBe("APPLIED");
+    expect(workbook.getSheet("History")?.rows).toHaveLength(1);
+    expect(workbook.getSheet("_SyncState")?.rows).toHaveLength(1);
+  });
+
+  it("keeps the sync watermark after cleanup so an old envelope stays no-op", () => {
+    const workbook = new InMemoryWorkbook();
+    bootstrapWorkbook(workbook, { dryRun: false });
+    const input = envelope();
+    const preview = previewProjection(workbook, input, fingerprint, fakeSha);
+    applyProjection(
+      workbook,
+      input,
+      preview.confirmationNonce!,
+      fingerprint,
+      fakeSha,
+      input.generatedAt,
+    );
+    const cleanup = previewSyntheticCleanup(workbook, fakeSha);
+    expect(cleanup.status).toBe("PREVIEW");
+    applySyntheticCleanup(workbook, cleanup.confirmationNonce!, fakeSha);
+
+    expect(workbook.getSheet("CaseBoard")?.rows).toHaveLength(0);
+    expect(workbook.getSheet("History")?.rows).toHaveLength(0);
+    expect(workbook.getSheet("_SyncState")?.rows).toHaveLength(1);
+    expect(
+      previewProjection(workbook, input, fingerprint, fakeSha).status,
+    ).toBe("NO_OP");
   });
 });

@@ -23,6 +23,8 @@ from discord_course_bots.queue_engine import (
 from discord_course_bots.repository_time import utc_now_iso
 
 CASE_NUMBER_MAX_ATTEMPTS = 5
+SQLITE_TIMEOUT_SECONDS = 5.0
+SQLITE_BUSY_TIMEOUT_MILLISECONDS = 5_000
 SAFE_JOB_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 PRIVATE_DUMP_QUEUE = ReliableQueueSpec(
     table="private_dump_jobs",
@@ -40,10 +42,15 @@ class Repository:
     def __init__(self, path: Path) -> None:
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
-        self._connection = sqlite3.connect(path, check_same_thread=False)
+        self._connection = sqlite3.connect(
+            path,
+            timeout=SQLITE_TIMEOUT_SECONDS,
+            check_same_thread=False,
+        )
         self._connection.row_factory = sqlite3.Row
         self._connection.execute("PRAGMA foreign_keys = ON")
         self._connection.execute("PRAGMA journal_mode = WAL")
+        self._connection.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MILLISECONDS}")
         self._migrate()
 
     @contextmanager

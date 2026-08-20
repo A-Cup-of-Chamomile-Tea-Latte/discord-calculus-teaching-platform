@@ -13,6 +13,10 @@ import {
 } from "./bridge/commands";
 import { GasWorkbookAdapter } from "./sheets/gas-workbook";
 import { SHEET_SCHEMAS } from "./sheets/schema";
+import {
+  applySyntheticCleanup,
+  previewSyntheticCleanup,
+} from "./sheets/synthetic-cleanup";
 
 interface BridgeTarget {
   workbook: GasWorkbookAdapter;
@@ -137,6 +141,33 @@ export function bridgeApply(
       new Date().toISOString(),
       target.environment,
       target.syntheticOnly,
+    );
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function assertSyntheticCleanupTarget(target: BridgeTarget): void {
+  if (target.environment !== "STAGING" || !target.syntheticOnly)
+    throw new Error("CLEANUP_REQUIRES_SYNTHETIC_STAGING");
+}
+
+export function bridgeSyntheticCleanupDryRun() {
+  const target = bridgeTarget();
+  assertSyntheticCleanupTarget(target);
+  return previewSyntheticCleanup(target.workbook, gasSha256);
+}
+
+export function bridgeSyntheticCleanupApply(confirmationNonce: string) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10_000)) throw new Error("CLEANUP_LOCK_UNAVAILABLE");
+  try {
+    const target = bridgeTarget();
+    assertSyntheticCleanupTarget(target);
+    return applySyntheticCleanup(
+      target.workbook,
+      String(confirmationNonce ?? ""),
+      gasSha256,
     );
   } finally {
     lock.releaseLock();

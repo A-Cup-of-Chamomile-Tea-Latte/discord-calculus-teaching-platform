@@ -19,6 +19,33 @@ export class GasSheetAdapter implements SheetPort {
     );
   }
 
+  getRows(): SheetRecord[] {
+    const headers = this.getHeaders();
+    const rowCount = this.getDataRowCount();
+    if (headers.length === 0 || rowCount === 0) return [];
+    return this.sheet
+      .getRange(2, 1, rowCount, headers.length)
+      .getValues()
+      .map((row) =>
+        Object.fromEntries(
+          headers.map((header, index) => [
+            header,
+            (row[index] ?? null) as string | number | boolean | null,
+          ]),
+        ),
+      );
+  }
+
+  hasDataFormulas(): boolean {
+    const columnCount = this.sheet.getLastColumn();
+    const rowCount = this.getDataRowCount();
+    if (columnCount === 0 || rowCount === 0) return false;
+    return this.sheet
+      .getRange(2, 1, rowCount, columnCount)
+      .getFormulas()
+      .some((row) => row.some((formula) => formula !== ""));
+  }
+
   getDataRowCount(): number {
     return Math.max(0, this.sheet.getLastRow() - 1);
   }
@@ -86,6 +113,18 @@ export class GasSheetAdapter implements SheetPort {
     const offset = rows.findIndex((row) => String(row[keyIndex]) === value);
     this.sheet.getRange(offset + 2, 1, 1, headers.length).setValues([output]);
     return "updated";
+  }
+
+  deleteRowByPrimaryKey(primaryKey: string, value: string): boolean {
+    const headers = this.getHeaders();
+    const keyIndex = headers.indexOf(primaryKey);
+    const rowCount = this.getDataRowCount();
+    if (keyIndex < 0 || rowCount === 0) return false;
+    const keys = this.sheet.getRange(2, keyIndex + 1, rowCount, 1).getValues();
+    const offset = keys.findIndex((row) => String(row[0] ?? "") === value);
+    if (offset < 0) return false;
+    this.sheet.deleteRow(offset + 2);
+    return true;
   }
 }
 

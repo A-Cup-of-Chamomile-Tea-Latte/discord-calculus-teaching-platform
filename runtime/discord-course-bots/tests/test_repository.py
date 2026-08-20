@@ -1,12 +1,14 @@
 import json
 import sqlite3
+import threading
+import time
 from pathlib import Path
 
 import pytest
 
 from discord_course_bots.domain.titles import cycle_title
 from discord_course_bots.migrations import MIGRATIONS, MigrationError
-from discord_course_bots.repository import Repository
+from discord_course_bots.repository import SQLITE_BUSY_TIMEOUT_MILLISECONDS, Repository
 
 
 def test_fresh_database_has_versioned_migration_ledger(tmp_path: Path) -> None:
@@ -36,6 +38,36 @@ def test_fresh_database_has_versioned_migration_ledger(tmp_path: Path) -> None:
         "sync_state",
         "service_health",
     }
+
+
+def test_repository_sets_explicit_busy_timeout(tmp_path: Path) -> None:
+    repo = Repository(tmp_path / "busy-timeout.sqlite3")
+    configured = int(repo._connection.execute("PRAGMA busy_timeout").fetchone()[0])
+    assert configured == SQLITE_BUSY_TIMEOUT_MILLISECONDS
+
+
+def test_repository_waits_for_short_writer_contention(tmp_path: Path) -> None:
+    database_path = tmp_path / "contention.sqlite3"
+    repo = Repository(database_path)
+    locker = sqlite3.connect(database_path, check_same_thread=False)
+    locker.execute("PRAGMA busy_timeout = 1000")
+    locker.execute("BEGIN IMMEDIATE")
+
+    def release_lock() -> None:
+        time.sleep(0.15)
+        locker.rollback()
+        locker.close()
+
+    release = threading.Thread(target=release_lock)
+    release.start()
+    started = time.monotonic()
+    repo.set_config("contention.probe", "released")
+    elapsed = time.monotonic() - started
+    release.join(timeout=2)
+
+    assert repo.get_config("contention.probe") == "released"
+    assert elapsed >= 0.1
+    assert elapsed < 2
 
 
 def test_repeated_migration_is_idempotent(tmp_path: Path) -> None:
