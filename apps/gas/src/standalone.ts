@@ -10,6 +10,8 @@ import {
   ackLabCommand,
   claimLabCommand,
   peekLabCommands,
+  queueLabCommand,
+  type LabAction,
 } from "./bridge/commands";
 import { GasWorkbookAdapter } from "./sheets/gas-workbook";
 import { SHEET_SCHEMAS } from "./sheets/schema";
@@ -157,14 +159,34 @@ export function bridgeApply(
   }
 }
 
-function assertSyntheticCleanupTarget(target: BridgeTarget): void {
+function assertSyntheticStagingTarget(target: BridgeTarget): void {
   if (target.environment !== "STAGING" || !target.syntheticOnly)
-    throw new Error("CLEANUP_REQUIRES_SYNTHETIC_STAGING");
+    throw new Error("SYNTHETIC_STAGING_REQUIRED");
+}
+
+export function bridgeQueueSyntheticCommand(
+  action: LabAction,
+  targetCaseRef: string | null,
+) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10_000)) throw new Error("COMMAND_LOCK_UNAVAILABLE");
+  try {
+    const target = bridgeTarget();
+    assertSyntheticStagingTarget(target);
+    return queueLabCommand(
+      target.workbook,
+      action,
+      targetCaseRef,
+      new Date().toISOString(),
+    );
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 export function bridgeSyntheticCleanupDryRun() {
   const target = bridgeTarget();
-  assertSyntheticCleanupTarget(target);
+  assertSyntheticStagingTarget(target);
   return previewSyntheticCleanup(target.workbook, gasSha256);
 }
 
@@ -173,7 +195,7 @@ export function bridgeSyntheticCleanupApply(confirmationNonce: string) {
   if (!lock.tryLock(10_000)) throw new Error("CLEANUP_LOCK_UNAVAILABLE");
   try {
     const target = bridgeTarget();
-    assertSyntheticCleanupTarget(target);
+    assertSyntheticStagingTarget(target);
     return applySyntheticCleanup(
       target.workbook,
       String(confirmationNonce ?? ""),

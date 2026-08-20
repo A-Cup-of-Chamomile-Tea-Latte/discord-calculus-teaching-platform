@@ -55,6 +55,11 @@ const definitions = {
         arguments: "limit",
       },
       {
+        name: "bridgeQueueSyntheticCommand",
+        parameters: "action, targetCaseRef",
+        arguments: "action, targetCaseRef",
+      },
+      {
         name: "bridgeClaimCommand",
         parameters: "workerId",
         arguments: "workerId",
