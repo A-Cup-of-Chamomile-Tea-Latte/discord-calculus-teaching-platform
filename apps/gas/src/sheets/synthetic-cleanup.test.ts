@@ -56,6 +56,7 @@ function seededWorkbook(): InMemoryWorkbook {
     source: "CLOUD_COMMAND",
   });
   workbook.getSheet("_CommandInbox")?.appendFixtureRow({
+    schemaVersion: "2.0.0",
     jobRef: "CMD-TST-CLEANUP-001",
     payloadRef: "fixture://case/basic",
     idempotencyKey: "phase2b:cleanup",
@@ -85,7 +86,8 @@ describe("synthetic Sheet cleanup", () => {
 
     expect(preview.status).toBe("PREVIEW");
     expect(preview.totalRemovable).toBe(5);
-    expect(preview.totalPreservedUnknown).toBe(3);
+    expect(preview.totalRetainedProtected).toBe(1);
+    expect(preview.totalPreservedUnknown).toBe(2);
     expect(JSON.stringify([...workbook.sheets.entries()])).toBe(before);
 
     const applied = applySyntheticCleanup(

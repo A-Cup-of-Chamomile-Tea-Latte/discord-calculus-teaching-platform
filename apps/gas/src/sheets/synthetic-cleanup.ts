@@ -27,8 +27,10 @@ interface CleanupCandidate {
 interface CleanupPlanInternal {
   candidates: CleanupCandidate[];
   removableRows: CountMap;
+  retainedProtectedRows: CountMap;
   preservedUnknownRows: CountMap;
   totalRemovable: number;
+  totalRetainedProtected: number;
   totalPreservedUnknown: number;
   syncSourceVersion: number | null;
   confirmationNonce: string | null;
@@ -39,8 +41,10 @@ export interface SyntheticCleanupPreview {
   status: "PREVIEW" | "NO_OP" | "BLOCKED";
   schemaVersion: string;
   removableRows: CountMap;
+  retainedProtectedRows: CountMap;
   preservedUnknownRows: CountMap;
   totalRemovable: number;
+  totalRetainedProtected: number;
   totalPreservedUnknown: number;
   syncSourceVersion: number | null;
   confirmationNonce: string | null;
@@ -53,6 +57,8 @@ export interface SyntheticCleanupApplyResult {
   schemaVersion: string;
   deletedRows: CountMap;
   totalDeleted: number;
+  retainedProtectedRows: CountMap;
+  totalRetainedProtected: number;
   preservedUnknownRows: CountMap;
   totalPreservedUnknown: number;
   safeResultCode: "CLEANUP_APPLIED" | "CLEANUP_NOOP";
@@ -124,12 +130,29 @@ function isSynthetic(scope: CleanupScope, record: SheetRecord): boolean {
   }
 }
 
+function isProtectedSyntheticReceipt(
+  scope: CleanupScope,
+  record: SheetRecord,
+): boolean {
+  if (scope !== "_CommandInbox") return false;
+  return (
+    text(record, "schemaVersion") === SHEETS_SCHEMA_VERSION &&
+    text(record, "jobRef").startsWith("CMD-TST-") &&
+    text(record, "payloadRef").startsWith("fixture://") &&
+    text(record, "idempotencyKey").startsWith("phase2b:") &&
+    ["COMPLETED", "REJECTED"].includes(text(record, "status")) &&
+    !record.claimedBy &&
+    !record.leaseExpiresAt
+  );
+}
+
 function buildPlan(
   workbook: WorkbookPort,
   sha256: Sha256,
 ): CleanupPlanInternal {
   const candidates: CleanupCandidate[] = [];
   const removableRows = emptyCounts();
+  const retainedProtectedRows = emptyCounts();
   const preservedUnknownRows = emptyCounts();
   const blockers: string[] = [];
   let syncReceipt: CleanupCandidate | null = null;
@@ -178,6 +201,8 @@ function buildPlan(
           candidates.push(candidate);
           removableRows[scope] += 1;
         }
+      } else if (isProtectedSyntheticReceipt(scope, record)) {
+        retainedProtectedRows[scope] += 1;
       } else {
         preservedUnknownRows[scope] += 1;
       }
@@ -189,6 +214,10 @@ function buildPlan(
     : null;
   const totalRemovable = candidates.length;
   const totalPreservedUnknown = Object.values(preservedUnknownRows).reduce(
+    (total, count) => total + count,
+    0,
+  );
+  const totalRetainedProtected = Object.values(retainedProtectedRows).reduce(
     (total, count) => total + count,
     0,
   );
@@ -221,8 +250,10 @@ function buildPlan(
   return {
     candidates,
     removableRows,
+    retainedProtectedRows,
     preservedUnknownRows,
     totalRemovable,
+    totalRetainedProtected,
     totalPreservedUnknown,
     syncSourceVersion,
     confirmationNonce,
@@ -251,8 +282,10 @@ export function previewSyntheticCleanup(
     status,
     schemaVersion: SHEETS_SCHEMA_VERSION,
     removableRows: plan.removableRows,
+    retainedProtectedRows: plan.retainedProtectedRows,
     preservedUnknownRows: plan.preservedUnknownRows,
     totalRemovable: plan.totalRemovable,
+    totalRetainedProtected: plan.totalRetainedProtected,
     totalPreservedUnknown: plan.totalPreservedUnknown,
     syncSourceVersion: plan.syncSourceVersion,
     confirmationNonce: plan.confirmationNonce,
@@ -274,6 +307,8 @@ export function applySyntheticCleanup(
       schemaVersion: SHEETS_SCHEMA_VERSION,
       deletedRows: emptyCounts(),
       totalDeleted: 0,
+      retainedProtectedRows: plan.retainedProtectedRows,
+      totalRetainedProtected: plan.totalRetainedProtected,
       preservedUnknownRows: plan.preservedUnknownRows,
       totalPreservedUnknown: plan.totalPreservedUnknown,
       safeResultCode: "CLEANUP_NOOP",
@@ -300,6 +335,8 @@ export function applySyntheticCleanup(
     schemaVersion: SHEETS_SCHEMA_VERSION,
     deletedRows,
     totalDeleted: plan.totalRemovable,
+    retainedProtectedRows: plan.retainedProtectedRows,
+    totalRetainedProtected: plan.totalRetainedProtected,
     preservedUnknownRows: plan.preservedUnknownRows,
     totalPreservedUnknown: plan.totalPreservedUnknown,
     safeResultCode: "CLEANUP_APPLIED",
