@@ -112,6 +112,16 @@ export function bridgeHealth() {
   };
 }
 
+export function bridgeClientConfig() {
+  const target = bridgeTarget();
+  return {
+    environment: target.environment,
+    syntheticOnly: target.syntheticOnly,
+    schemaVersion: "2.0.0",
+    sourceFingerprint: target.fingerprint,
+  };
+}
+
 export function bridgePreview(envelope: ProjectionEnvelope) {
   const target = bridgeTarget();
   return previewProjection(

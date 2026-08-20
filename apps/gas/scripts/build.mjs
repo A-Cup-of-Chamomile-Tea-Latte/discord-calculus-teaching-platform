@@ -20,6 +20,11 @@ const definitions = {
         arguments: "",
       },
       {
+        name: "bridgeClientConfig",
+        parameters: "",
+        arguments: "",
+      },
+      {
         name: "bridgeConfigureTarget",
         parameters: "spreadsheetId, fingerprint, environment, syntheticOnly",
         arguments: "spreadsheetId, fingerprint, environment, syntheticOnly",
