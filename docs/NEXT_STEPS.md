@@ -1,43 +1,38 @@
 # Ordered next steps
 
-## Current stopping point
+## 已壓縮完成
 
-Local implementation, compact Sheet migration, Desktop OAuth and the local real-cloud synthetic round-trip are complete. Do not repeat the 44-action Sheet migration or create another OAuth client.
+本機 implementation、compact Sheet、雙向 Google Bridge smoke、安全 synthetic cleanup、SQLite
+live-copy backup／restore／migration rehearsal 均已完成。不要重跑 44-action Sheet migration、另建 OAuth
+client、另寫一份 Phase 2C 報告，或把 corpus／LLM 分析拉進本階段。
 
-The existing Mac `course_assistant` and `dump_bot` remain the only live writers. Corpus／LLM analysis is not part of Phase 2C.
+Mac `course_assistant` 與 `dump_bot` 仍是唯一 live writers；status digest 未啟用。
 
-## Next external input
+## 1. 需要人工開網頁或提供／核對外部資訊
 
-Provide all three host identity fields:
+依序完成：
 
-1. SSH username.
-2. Tailscale hostname or private IP.
-3. Expected SSH host-key fingerprint. If it has not been recorded, the operator must verify it during the first connection.
+1. **Google OAuth 長期模式**：在 Google Auth Platform 將 External app 切到 Production，並處理
+   Google 要求的驗證；或明確接受 Testing 模式約每 7 天重新授權。必要時只使用 Chrome
+   「Ding Ding」重新授權一次。
+2. **Remote host identity**：提供 SSH username、Tailscale hostname／private IP、預期 host-key
+   fingerprint。不要在聊天傳 password、private key、Discord token 或 OAuth credential。
+3. **Remote staging**：Codex 取得 host identity 後，執行唯讀 audit、staging install、remote
+   synthetic smoke、backup／restore rehearsal 與 one-writer readiness。Mac bots保持運作。
+4. **Live cutover approval**：所有 remote receipts PASS 後，使用者輸入精確
+   `GO-LIVE-CUTOVER`。在此之前不得停 Mac writer 或啟動 remote production writer。
+5. **Bound digest**：remote heartbeat 穩定後才安裝 trigger；若 Google 要求，人工在 Ding Ding
+   完成授權。
 
-Do not send a password, private SSH key, Discord token or OAuth credential through chat.
+## 2. 必須等待 24 小時
 
-## Work after host identity is available
+Cutover 成功後才開始計時。期間驗證單一 writer、三個 remote services、Discord connectivity、
+queue depth、OAuth refresh、GAS heartbeat、backup 與 compact Sheet projection。滿 24 小時後原地更新
+Phase 2C report，再決定是否進入小規模試用。
 
-1. Run the read-only host audit: OS, time sync, disk, memory, Python, systemd, Tailscale, existing services and host key.
-2. Install the Phase 2C release into remote staging without stopping the Mac bots.
-3. Transfer only the required protected environment and OAuth credential through the approved secret path; keep permissions owner／service-readable.
-4. Run remote synthetic SQLite → GAS preview／apply／no-work smoke tests.
-5. Perform a consistent SQLite backup and restore rehearsal to a different path, then verify `integrity_check`, migration ledger and row counts.
-6. Present a readiness summary. Stop here until the operator sends the exact `GO-LIVE-CUTOVER` string.
+## 固定停止線
 
-## Work after `GO-LIVE-CUTOVER`
-
-1. Stop and verify zero Mac writers.
-2. Create the final consistent live SQLite backup and checksum.
-3. Transfer and restore the database on the remote host; verify integrity before starting services.
-4. Start one remote `course_assistant`, one `dump_bot` and one `data_bridge` systemd unit.
-5. Verify Discord connectivity, one-writer invariants, queue depth, GAS heartbeat and compact Sheet projection.
-6. Enable the bound GAS status-digest trigger only after the remote heartbeat is stable.
-7. Observe the system for a real 24 hours and update the existing Phase 2C report in place.
-
-## Safety boundaries
-
-- Local SQLite remains authority; Sheets is not allowed to overwrite it without version, checksum, source and operator-confirmation checks.
-- Keep raw Discord messages, names, student IDs, email addresses, attachments, Private Support content and credentials out of chat, Git, public ZIPs and LLM inputs.
-- Production command inbox remains fail-closed; arbitrary cloud-to-local commands are out of scope.
-- No public SSH, public GAS endpoint, second production writer or live cutover before its explicit gate.
+- SQLite 是 authority；任何 cloud fetch 都必須驗 version、checksum、source 與 operator confirmation。
+- 不把 raw messages、姓名、學號、Discord ID、Email、附件、Private Support、credential 放進
+  chat、Git、公開 ZIP 或 LLM。
+- 不建立 public SSH、public GAS endpoint、第二個 production writer，或未經核准的 email／分析流程。

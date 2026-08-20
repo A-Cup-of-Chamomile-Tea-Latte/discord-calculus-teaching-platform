@@ -1,5 +1,9 @@
 # Codex Mission：Phase 2C — 24h Host、GAS／SQLite／Discord 正式聯動與狀態摘要
 
+> 歷史任務規格，保留作稽核依據，不是 current status。任務起點寫 SQLite v4；canonical
+> implementation 現已升至 v5。Busy timeout 的 5 秒規格維持有效。完成度、部署版本與剩餘 gate
+> 一律以 `docs/IMPLEMENTATION_STATUS.md` 及本 mission 指定的 report 18 為準。
+
 日期：2026-08-19  
 任務性質：**決策已大幅凍結，Codex 主要負責實裝、部署、測試、證據與交接**  
 時程原則：開學前加速；只攔截會造成資料遺失、雙重 production writer、credential 外洩、錯誤正式寫入或無法 rollback 的問題。低風險美化與非必要架構純化全部延後。

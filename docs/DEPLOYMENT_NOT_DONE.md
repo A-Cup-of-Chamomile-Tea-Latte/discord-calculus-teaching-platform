@@ -9,7 +9,9 @@
 - allowlisted Discord Guild 已套用頻道與角色；Mac 上的 `course_assistant`、`dump_bot` 各有一個 live process。
 - 本機 SQLite 是唯一 operational authority。
 - `Server Database` 已套用 10-tab 精簡 schema；Standalone GAS 採 owner-only Execution API。
-- Desktop OAuth 與一筆虛構案件的 SQLite → GAS → Sheet 往返已通過。
+- Desktop OAuth 與虛構案件的 Local → Cloud projection，以及 Cloud → Local → Cloud command
+  claim／apply／ack／duplicate-safe round-trip 均已通過。
+- External／Testing OAuth 仍有約 7 天 refresh-token 生命週期；長期模式尚待 owner 選擇。
 - Portal、email、正式身分驗證、remote 24h host、live cutover 與學生試用尚未完成。
 
 完整收據見 [實作狀態](IMPLEMENTATION_STATUS.md) 與 [`project-exchange/18_PHASE_2C_24H_HOST_PRODUCTION_INTEGRATION_REPORT_2026-08-19.md`](../project-exchange/18_PHASE_2C_24H_HOST_PRODUCTION_INTEGRATION_REPORT_2026-08-19.md)。
@@ -19,8 +21,8 @@
 | 領域 | 現況 | 下一個必要 gate |
 | --- | --- | --- |
 | Discord | 測試 Guild 與兩隻 Mac bots 運作中 | 正式試用範圍、權限複核與事故聯絡人 |
-| SQLite | migration v5；案件與 outbox 同 transaction | remote backup／restore rehearsal |
-| GAS／Sheets | 5 個人用頁、5 個機器頁；owner-only `scripts.run` smoke PASS | remote heartbeat 穩定後才啟用狀態摘要 trigger |
+| SQLite | migration v5；案件與 outbox 同 transaction；live DB 唯讀 copy recovery rehearsal PASS | remote backup／restore rehearsal |
+| GAS／Sheets | 5 個人用頁、5 個機器頁；owner-only 雙向 `scripts.run` smoke PASS | 決定 OAuth 長期模式；remote heartbeat 穩定後才啟用狀態摘要 trigger |
 | Linux host | systemd、audit、backup 與 cutover tooling 已入庫 | SSH username、Tailscale target、host-key fingerprint |
 | Portal | Astro fixture demo 與 UI 可用 | authenticated backend、查詢授權與 abuse controls |
 | Email／身分 | domain logic 與 mock tests | 正式 provider、身分依據、rate limit 與保留政策 |
@@ -33,8 +35,9 @@
 2. 決定資料告知、同意、撤回、保留、刪除、附件與 Private Support 規則。
 3. 完成 Portal 查詢的 AuthN／AuthZ、rate limit、Private Support 隔離與一般錯誤回覆。
 4. 取得並核對 remote host 身分，先做唯讀 audit 與 staging；未收到精確 `GO-LIVE-CUTOVER` 前不得停止 Mac writer。
-5. 在 remote staging 完成真實 Google smoke、SQLite backup／restore 與 one-writer 驗證。
-6. live cutover 後按實際時間完成 24 小時觀察，再決定是否進入小規模試用。
+5. 在 Google Auth Platform 決定 Production，或明確接受 Testing 模式約每 7 天人工重授權。
+6. 在 remote staging 完成真實 Google smoke、SQLite backup／restore 與 one-writer 驗證。
+7. live cutover 後按實際時間完成 24 小時觀察，再決定是否進入小規模試用。
 
 ## 外部狀態變更規則
 

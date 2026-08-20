@@ -1,61 +1,66 @@
 # Implementation status
 
-Last repository verification: 2026-08-19 22:14 (Asia/Taipei)
-
-Last Mac runtime process verification: 2026-08-19 22:14 (Asia/Taipei)
+Last repository／runtime verification: 2026-08-20 (Asia/Taipei)
 
 Canonical root: `/Users/chamomiletea/Documents/Curricular/115-1/Calculus TA/Discord_微積分模組教學優化專案`
 
-Current branch: `codex/phase-2c-24h-production-integration`
+Branch: `codex/phase-2c-24h-production-integration`
 
-## Current runtime
+Verified code baseline: `78fb4a8`
 
-- `course_assistant` and `dump_bot` are active as single LaunchAgent instances on the Mac.
-- Their logs use `~/Library/Logs/DiscordCalculus/`; the prior Documents log path was removed from the LaunchAgent configuration because macOS TCC caused exit 78.
-- No live cutover has occurred. The Mac remains the only production writer until the operator sends the exact `GO-LIVE-CUTOVER` gate.
-- The tracked runtime is `runtime/discord-course-bots/`; remote systemd deployment is ready in code but has not started because no SSH／Tailscale target has been supplied.
+## Canonical snapshot
 
-## Discord infrastructure
+| 領域 | 現況 |
+| --- | --- |
+| Production writer | Mac 仍是唯一 writer；`course_assistant` 與 `dump_bot` 各一個 process、均 running |
+| Live cutover | 未開始；未收到精確 `GO-LIVE-CUTOVER` |
+| Local authority | SQLite；Google Sheets 只是精簡投影與暫時分享／恢復面 |
+| Tracked schema | migration v5；案件異動與 outbox 同一 transaction |
+| Live Mac DB | legacy schema v0；未原地修改。唯讀開啟後，consistent backup／restore／copy migration v0 → v5 演練 PASS |
+| Compact Sheet | schema `2.0.0`；5 個人用頁＋5 個隱藏機器頁 |
+| Standalone GAS | immutable v12；owner-only Execution API；無 public Web App |
+| Bound GAS | immutable v6；source 對齊；status-digest trigger 未啟用 |
+| Remote host | 尚未取得 SSH username、Tailscale target 與人工核對的 host-key fingerprint |
 
-- The allowlisted Guild has the requested Admin, Staff／TA, Verified Member and Guest roles.
-- Information, Question, Community, Private Support, Voice Chat and Staff categories and their managed channels are applied.
-- Old bootstrap categories, channels, roles and test data were removed after live verification.
-- `dump_bot` remains read-only or hidden on active managed channels.
+## Data Bridge 收據
 
-## Data authority and SQLite
+- Local → Cloud projection：preview → apply → outbox complete → duplicate no-work，PASS。
+- Cloud → Local → Cloud command：queue → claim → apply → ack → duplicate no-work，PASS。
+- Synthetic cleanup：嚴格 allowlist、nonce、blank／duplicate key／formula fail-closed、unknown preserve、partial retry，PASS。
+- 雲端最後狀態：可移除 human-view synthetic rows 為 0、unknown rows 為 0；保留一筆 terminal
+  command machine receipt 作短期稽核與版本 watermark。
+- `_CommandInbox`、`_EmailOutbox`、`_Artifacts` 不由 cleanup 刪除；`_SyncState` watermark 保留，避免舊 envelope 重播。
+- cleanup 的 read-compare-delete 不是跨人工 Sheet 編輯的原子 transaction；執行窗口不得同時人工修改 Sheet。
 
-- Local SQLite is the sole operational authority. Google Sheets is a compact projection and temporary recovery／sharing surface.
-- The tracked SQLite schema is at migration v5 with a checksum ledger, lifecycle events, reliable outbox／queue, service health and production projection stream.
-- Case create／close／reopen and their projection-outbox rows are committed in the same transaction.
-- Google failure degrades only the bridge; Discord can continue writing to SQLite and pending projection work remains durable.
+## Google OAuth
 
-## Google Sheets and GAS
-
-- Sheet schema `2.0.0` is applied to `Server Database`.
-- Migration receipt: 44 planned changes → 44 applied → second dry-run no-op.
-- The workbook contains five visible human views (`Overview`, `CaseBoard`, `Members`, `Operations`, `History`) and five hidden machine views. The prior 21 empty managed tabs were removed.
-- The standalone GAS is a real owner-only `executionApi` deployment under the shared standard GCP project. The historical `webapp` manifest was replaced.
-- The standalone bundle exposes only the owner-operated bootstrap and Bridge functions. Retired `doGet`／`doPost` and transitional alias globals are absent, and the build rejects their return.
-- Desktop OAuth uses only the Google Sheets scope. Client and refresh credential files live under ignored `.local/phase2c-oauth/` with mode `0600`.
-- `bridgeConfigureTarget` validates the canonical 10-tab schema before writing Script Properties and removes the legacy `PHASE2B_*` target properties.
-- Real `scripts.run` receipts are green: health, synthetic preview, synthetic apply, outbox completion and idempotent no-work replay.
-- Bound GAS status-digest code and tests are complete, but its trigger remains disabled until a remote heartbeat is stable; enabling it now would create false stale alerts.
+- Desktop OAuth 只申請 Sheets scope；credential 只在 Git-ignored、權限 `0600` 的本機位置。
+- Current transport 可刷新並已通過 `scripts.run`，但 Google Auth Platform 仍是 External／Testing。
+- 因包含 Sheets scope，testing refresh token 通常約 7 天失效。24h production 前必須人工選擇：
+  切到 Production 並按 Google 要求處理驗證，或接受約每 7 天重新授權。
+- OAuth publishing status 不會改變 standalone GAS 的 owner-only access。
 
 ## Verification
 
-- Full Python suite: 242 tests passed with two upstream Python 3.14 deprecation warnings; Ruff check, format and strict mypy passed.
-- Portal／Config Studio／GAS: 53／3／58 tests passed; both Astro checks, GAS typecheck and all workspace builds passed.
-- Secret scan: 626 candidate files, 0 findings.
-- Mac bot single-instance check passed; both LaunchAgents remain active and have never exited.
-- Compact Sheet migration and local real-cloud synthetic round-trip passed.
-- `.local/` remains Git-ignored; no credential or live data was added to the repository.
+- Python：246 passed；2 則 upstream `discord.py`／Python 3.14 deprecation warnings。
+- Portal／Config Studio／GAS：53／3／66 tests passed。
+- GAS strict typecheck、standalone／bound build、pull-back fingerprint：PASS。
+- Live SQLite read-only recovery rehearsal：backup、restore、integrity、migration ledger、row-count equivalence、
+  restored-copy independence 全 PASS；原始檔未修改。
+- Mac bot single-instance：PASS。
+- `.local/` 維持 Git-ignored；沒有 credential、live data 或學生資料加入 repository。
 
-## Remaining gates
+## 剩餘只分兩類
 
-- SSH／Tailscale host identity: blocked pending operator input.
-- Remote staging and real-cloud smoke: blocked pending SSH.
-- Remote SQLite backup／restore rehearsal: blocked pending remote staging.
-- Live cutover: not started; requires exact `GO-LIVE-CUTOVER`.
-- Post-cutover observation: not started; must run for a real 24 hours.
+### A. 需要使用者／朋友人工處理外部 gate
 
-Detailed current report: `project-exchange/18_PHASE_2C_24H_HOST_PRODUCTION_INTEGRATION_REPORT_2026-08-19.md`.
+1. Google Auth Platform：Production，或接受 Testing 約每 7 天人工重授權。
+2. Remote identity：SSH username、Tailscale hostname／private IP、人工核對 host-key fingerprint。
+3. Remote staging receipts 全 PASS 後，由使用者輸入精確 `GO-LIVE-CUTOVER`。
+4. Remote heartbeat 穩定後，視需要在 Chrome「Ding Ding」授權 bound status-digest trigger。
+
+### B. 必須等待真實時間
+
+- Live cutover 後才開始 24 小時 observation；不能用本機測試或縮短計時替代。
+
+詳細報告：`project-exchange/18_PHASE_2C_24H_HOST_PRODUCTION_INTEGRATION_REPORT_2026-08-19.md`。

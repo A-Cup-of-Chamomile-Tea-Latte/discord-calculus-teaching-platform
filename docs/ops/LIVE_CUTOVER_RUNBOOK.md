@@ -6,6 +6,7 @@
 SSH/host        PASS
 remote staging  PASS
 Google bridge   PASS
+OAuth longevity PASS（Production，或已接受每 7 天人工重授權）
 cloud smoke     PASS
 backup restore  PASS
 DB rehearsal    PASS
@@ -25,6 +26,7 @@ rollback        READY
 7. 固定啟動：course_assistant → health → dump_bot → health → data_bridge。
 8. 驗證舊 writer=0、remote process=預期數、systemd enabled、只有 remote 使用 production DB。
 9. 建立一筆 allowlisted Public smoke；不得建立真人 Private 資料。
+10. remote heartbeat 穩定後才啟用 bound GAS status digest；若授權仍是 Testing，先確認重授權責任人與失效處置。
 
 ## Rollback
 

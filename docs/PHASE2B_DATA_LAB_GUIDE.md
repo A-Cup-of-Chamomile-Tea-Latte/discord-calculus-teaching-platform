@@ -1,5 +1,9 @@
 # Phase 2B 資料聯動實驗室
 
+> 歷史實驗室說明：本文件下方的 fake transport／CLI 步驟只描述 Phase 2B lab，供理解與離線測試。
+> Phase 2C 已另有 owner-only Apps Script transport、可靠 queue 與 production bridge；現況以
+> [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) 為準，不要用本頁判斷 production readiness。
+
 這是一個人工觸發、只用假資料的 staging 實驗室。它不會連線 Discord、不會打開 live
 SQLite、不會寄信，也沒有排程器。每次都先看 dry-run，再用同一個 nonce 確認 apply。
 
@@ -80,8 +84,8 @@ one-shot fetch 先預覽：
   fetch --once --dry-run
 ```
 
-真實 remote transport 尚未開啟，所以 CLI 會回報無工作；兩端的 claim、lease、stale-token 與
-idempotency 已由 fake integration tests 驗證。
+Phase 2B lab CLI 在 fake transport 模式會回報無工作；這不代表 Phase 2C 的真實 transport
+不存在。Phase 2C 的本機雙向 cloud smoke 已通過，remote host smoke 仍需等 host identity。
 
 ## 保護機制
 

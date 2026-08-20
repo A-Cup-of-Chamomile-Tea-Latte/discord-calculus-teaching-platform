@@ -1,6 +1,8 @@
 # 系統脈絡與信任邊界
 
-下圖是第一版原型的責任與資料流，不是已核准的正式部署圖。實線表示預期互動；標示 `mock first` 的外部介接在本地與 CI 使用 fixtures/adapters。
+下圖是第一版原型的歷史責任與資料流，不是目前部署圖。請先讀
+[`OVERVIEW.md`](OVERVIEW.md) 取得 canonical 架構；本頁保留用來理解早期信任邊界，不能用
+「尚未連正式服務」等舊標籤判斷 2026-08-20 的實作狀態。
 
 ```mermaid
 flowchart LR
@@ -21,7 +23,7 @@ flowchart LR
     gas["Apps Script admin API"]
   end
 
-  subgraph external["外部平台（尚未連正式服務）"]
+  subgraph external["外部平台（原型時狀態）"]
     discord["Discord"]
     sheets["Google Sheets"]
     email["Email delivery"]

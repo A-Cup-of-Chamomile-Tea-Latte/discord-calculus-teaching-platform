@@ -1,121 +1,146 @@
 # Phase 2C：24h Host、GAS／SQLite／Discord 正式聯動報告
 
-> 更新時間：2026-08-19 19:16 Asia/Taipei  
-> Branch：`codex/phase-2c-24h-production-integration`  
-> 已驗證程式 HEAD：`0d91ccd`  
-> 本文件會在 remote gate 完成後原地更新，不另生重複版本。
+> Canonical snapshot：2026-08-20 Asia/Taipei
+>
+> Branch：`codex/phase-2c-24h-production-integration`
+>
+> 已部署與驗證的 code baseline：`78fb4a8`
+>
+> 本文件原地更新；不另生重複版本。
 
-## 十分鐘白話版
+## 結論
 
-1. 兩隻 Discord Bot 目前仍由這台 Mac 的 LaunchAgent 管理，各只有一個 process，沒有進行 live cutover。
-2. Local SQLite 是唯一 operational authority；Google Sheets 只是精簡、人可閱讀的投影，不是另一套主資料庫。
-3. 本機已透過 owner-only Desktop OAuth 與 Apps Script API `scripts.run` 連到 standalone GAS，不使用公開 endpoint。
-4. `Server Database` 已收斂為 5 個人用頁與 5 個隱藏機器頁；舊的 21 個空受管頁已由安全 migration 清除。
-5. 真實 cloud smoke 已用一筆 synthetic fixture 通過：preview、apply、outbox complete、重跑 no-work 全部正確。
-6. Google 掛掉時 Discord 仍先寫 SQLite；投影留在可靠 outbox，不會因 Sheet 暫時不可用而停止案件服務。
-7. 新 Linux host 的 systemd、backup、restore 與 cutover tooling 已在 repo，但尚未收到 SSH／Tailscale target，不能假裝已部署。
-8. 未收到精確字串 `GO-LIVE-CUTOVER` 前，不會停止 Mac writer、搬 live DB 或啟動 remote production writer。
-9. OAuth client 與 authorized-user credential 都在 `.local/phase2c-oauth/`，權限為 `0600`、不進 Git、Sheet、報告或交接包。
-10. 下一個唯一外部需求是 24h host 的 SSH username、Tailscale hostname／IP 與預期 host-key fingerprint。
+本機能完成的 Phase 2C 前置工作已完成。兩隻 Discord Bot 仍由 Mac 單一實例運作，沒有
+live cutover。SQLite 仍是唯一資料權威；Google Sheets 維持 5 個人用頁與 5 個隱藏機器頁，
+不是第二套主資料庫。
 
-## 本輪完成
+已實測完成雙向 Bridge：Local → Cloud projection，以及 Cloud → Local → Cloud command 的
+queue、claim、apply、ack 與 duplicate-safe replay。Synthetic human-view rows 已安全清除，最後
+dry-run 為 no-op。Live SQLite 只以唯讀方式開啟；consistent backup、restore、copy migration
+v0 → v5、integrity、ledger 與 row-count equivalence 全部通過，原始 DB 未修改。
 
-- 修復 Mac LaunchAgent 的 macOS TCC log-path 問題，兩隻 Bot 恢復單一實例並持續 active。
-- SQLite v5：production lifecycle event、service health、production projection stream；案件異動與 outbox 同 transaction。
-- Apps Script transport：token 於記憶體刷新、固定 Google endpoint、credential 不寫 log、Google failure 回安全代碼。
-- Bridge daemon：60 秒 projection、batch ≤50、Google failure degraded、graceful SIGTERM、production command inbox fail-closed。
-- Sheet migration：第一次 dry-run 44 項、apply 44 項、第二次 dry-run no-op。
-- GAS status digest：07:00／13:30／19:00 slot、5 分鐘 dispatcher、NORMAL／ATTENTION／CRITICAL、at-most-once receipt。
-- systemd units、host audit、host skeleton、SQLite consistent backup、restore rehearsal 與 guarded cutover scripts。
-- 建立 standard GCP project、外部測試 OAuth、Desktop client；Apps Script API 已啟用。
-- 將 standalone manifest 從歷史 `webapp` 修正成真正 `executionApi`；immutable deployment 更新至 v7。
-- 新增 fail-closed `bridgeConfigureTarget`：驗證 10 個 canonical tabs 後才寫 Script Properties，並刪除舊 `PHASE2B_*` property。
-- 真實 `scripts.run` health、preview、apply、idempotency 均通過。
+目前只剩人工外部 gate 與 cutover 後真實 24 小時觀察。
 
-## 真實 cloud smoke 收據
+## Canonical runtime
+
+| 項目 | 現況 |
+| --- | --- |
+| `course_assistant` | Mac RUNNING；1 instance |
+| `dump_bot` | Mac RUNNING；1 instance |
+| Production writer | 只有 Mac；remote 尚無 writer |
+| Tracked SQLite | migration v5 |
+| Live Mac SQLite | legacy v0；未修改；copy rehearsal PASS |
+| Standalone GAS | immutable v12；owner-only Execution API；無 public Web App |
+| Bound GAS | immutable v6；source aligned；trigger 未啟用 |
+| Compact Sheet | schema `2.0.0`；5 visible + 5 hidden |
+| Remote host | BLOCKED；尚缺 host identity |
+
+## 雙向 cloud smoke 收據
+
+### Local → Cloud projection
+
+1. Preview：4 筆 pending；沒有 cloud mutation。
+2. Apply：4 筆 completed。
+3. Replay：`NO_WORK`／queue empty。
+4. Cleanup：5 筆 human-view synthetic rows 移除。
+5. Final dry-run：removable 0、unknown 0、blockers 0。
+
+### Cloud → Local → Cloud command
+
+1. Owner-only synthetic command enqueue：QUEUED。
+2. Fetch preview：PREVIEW。
+3. Fetch apply：COMMAND_APPLIED；本機只新增一筆 synthetic case／command ledger。
+4. Duplicate fetch：NO_WORK。
+5. Projection apply：4 筆 completed；duplicate projection：NO_WORK。
+6. Remote pending commands：0。
+7. Cleanup：human-view synthetic rows 移除；保留一筆 terminal machine receipt，作短期稽核與
+   version watermark。
+
+Cleanup 只接受嚴格識別的 STAGING synthetic rows；遇 blank／duplicate primary key、formula、
+nonce 變動或 unknown row 即 fail closed。`_CommandInbox`、`_EmailOutbox`、`_Artifacts` 不由
+cleanup 刪除；`_SyncState` watermark 保留。由於 Sheet 沒有跨人工編輯的原子 transaction，
+實際 cleanup 只能在禁止人工同時編輯的短窗口執行；本輪即依此完成。
+
+## SQLite recovery 收據
 
 | 檢查 | 結果 |
-|---|---|
-| OAuth credential | refresh token 存在；scope 只有 Google Sheets；檔案 `0600` |
-| `bridgeHealth` | `ok=true`、`STAGING`、`syntheticOnly=true`、schema `2.0.0` |
-| Synthetic preview | `SYNC_PREVIEW_READY`；4 筆 pending；無 cloud mutation |
-| Synthetic apply | `SYNC_APPLIED`；4 筆完成；經 `APPS_SCRIPT_API` |
-| Idempotency | 第二次 dry-run：`PROJECTION_QUEUE_EMPTY` |
-| Local outbox | `COMPLETED=4` |
-| Sheet 範圍 | `CaseBoard=1`、`History=1`、`Operations=1`、`Overview=2`；皆為 synthetic fixture |
+| --- | --- |
+| Source 開啟模式 | read-only |
+| Source during rehearsal | 檔案穩定、未修改 |
+| Consistent backup／restore | PASS |
+| `integrity_check` | PASS |
+| Copy migration | v0 → v5；5 筆 migration ledger |
+| Schema counts | source 5 tables → migrated copy 11 tables |
+| Row-count equivalence | PASS |
+| Restored-copy independence | PASS |
+| Temporary rehearsal artifacts | 已移除 |
 
-## 驗證收據
+新增可執行 `sqlite-restore.sh` 與 `sqlite-recovery-rehearsal.py`；因此 backup 與 restore rehearsal
+tooling 現在都在 repository。Remote rehearsal 仍必須在取得 host 後另跑，不能用本機 copy
+receipt 代替。
 
-| 項目 | 結果 |
-|---|---|
-| Runtime tests | 74 passed |
-| Ruff check／format | PASS |
-| GAS tests | 58 passed |
-| GAS typecheck | PASS |
-| GAS standalone build | PASS |
-| Sheet migration dry-run／apply／no-op | PASS |
+## 自動驗證
+
+| Suite | 結果 |
+| --- | --- |
+| Python | 246 passed；2 upstream deprecation warnings |
+| Portal | 53 passed |
+| Config Studio | 3 passed |
+| GAS | 66 passed |
+| GAS typecheck／standalone＋bound build | PASS |
+| GAS pull-back fingerprint | PASS |
 | Mac Bot single-instance | PASS |
-| Git diff check | PASS |
+| Secret／credential boundary | `.local/` ignored；未加入 repo／報告 |
 
-## Gate 狀態
+## Google OAuth 的誠實限制
 
-| Gate | 狀態 | 說明 |
-|---|---|---|
-| Local baseline／implementation | PASS | 可稽核 commits；tests green |
-| Compact Sheet | PASS | 44 → apply → no-op；5 visible + 5 hidden |
-| Google OAuth transport | PASS | Desktop OAuth、standard GCP、`scripts.run` health 均通 |
-| Local real-cloud synthetic round-trip | PASS | preview／apply／no-work 均通 |
-| SSH／Tailscale | BLOCKED | 尚未提供 target 與 host key |
-| Remote staging | BLOCKED | 等 SSH；不得把 Mac smoke 說成 remote smoke |
-| Backup／restore rehearsal | BLOCKED | tooling ready；等 remote staging |
-| Live cutover | NOT STARTED | 必須等精確 `GO-LIVE-CUTOVER` |
-| 24h observation | NOT STARTED | 只能在 cutover 後按實際 24 小時計時 |
-| GAS status digest | TESTED, NOT ENABLED | 等 remote heartbeat 穩定後再安裝 trigger，避免假警報 |
+本機 credential 可刷新且 `scripts.run` 已通過，但 Google Auth Platform 仍是 External／Testing，
+scope 包含 Sheets。依 Google 規則，這類 testing refresh token 通常約 7 天失效，不能稱為
+長期 credential。
 
-## 實測中排除的歷史瑕疵
+24h production 前，owner 必須二選一：
 
-- `clasp --auth ntusupercool` 是錯誤用法；v3.3 應使用 `-u ntusupercool`。已修正操作流程，沒有重做登入。
-- standalone manifest 原為 `webapp`，部署名稱雖寫 API executable，實際 `scripts.run` 會 404。已換成官方 `executionApi` manifest。
-- target 初始化曾手動重複 machine-tab 名單並與 schema 漂移。現改由 `SHEET_SCHEMAS` 單一來源產生，避免再次分裂。
-- Google execution error 缺少 `status` 時，舊程式會顯示無意義的 `NONE`。現會保留 allowlisted safe error code，CLI 不再輸出 traceback。
-- Drive connector 登入的是另一個帳號；未採用其搜尋結果。最終以已確認的 project-account clasp OAuth 做唯讀 metadata 定位。
+1. 將 publishing status 切到 Production，處理 Google 要求的驗證，再於 Chrome「Ding Ding」
+   重新授權一次；或
+2. 接受 Testing 模式，並把約每 7 天重新授權納入維運。
 
-## 時間紀錄與估計校正
+此選擇不會把 GAS 變成公開 endpoint；standalone deployment 仍維持 owner-only。
 
-| 節點 | 原估 | 實際／狀態 |
-|---|---:|---:|
-| Mac Bot 修復 | 15–30 分 | 約 4 分 |
-| Local Phase 2C 第一版 | 2–4 小時 | 18:04–18:33，約 29 分 |
-| GCP／OAuth／GAS executable／cloud smoke | 未單列 | 約 18:56–19:14，約 18 分；含兩次 fail-closed 修正 |
-| Remote deployment（取得 SSH 後） | 1–2 小時 | 尚未開始 |
-| Post-cutover observation | 24 小時實時 | 尚未開始 |
+## 剩餘工作只分兩類
 
-較快是因為 Phase 2B 的 migration、queue 與 compact schema 可直接延伸；驗收範圍沒有縮減。Remote deployment 與 24 小時觀察不能用本機測試替代。
+### A. 需要人工網頁／外部資訊／明示授權
 
-## 下一個唯一外部輸入
+1. 決定 Google OAuth Production 或週期性 reauthorization。
+2. 朋友提供 SSH username、Tailscale hostname／private IP；首次連線由使用者人工核對 host-key
+   fingerprint。
+3. Codex 完成 remote read-only audit、staging、remote cloud smoke、backup／restore 與 one-writer
+   readiness 後，使用者才可輸入精確 `GO-LIVE-CUTOVER`。
+4. Remote heartbeat 穩定後，必要時人工授權 bound GAS status-digest trigger。
 
-請提供：
+### B. 必須等待實際時間
 
-1. 24h host 的 SSH username。
-2. Tailscale hostname 或私網 IP。
-3. 預期 SSH host-key fingerprint；若尚未記錄，請在第一次連線時由你人工核對。
+- Cutover 後才開始 24 小時 observation；驗證單一 writer、三個 remote services、Discord、queue、
+  OAuth refresh、GAS heartbeat、backup 與 Sheet projection。不能用加速測試代替。
 
-收到後先做唯讀 host audit 與 remote staging，不會直接 live cutover。
+## Gate 表
 
-## 最終回報欄位（remote gate 後原地覆寫）
+| Gate | 狀態 |
+| --- | --- |
+| Local implementation／tests | PASS |
+| Compact Sheet／safe cleanup | PASS |
+| Local bidirectional real-cloud synthetic smoke | PASS |
+| Live-copy backup／restore／migration rehearsal | PASS |
+| Google OAuth longevity decision | MANUAL GATE |
+| SSH／Tailscale identity | BLOCKED ON EXTERNAL INPUT |
+| Remote staging／remote cloud smoke | WAITING FOR HOST IDENTITY |
+| Remote backup／restore | WAITING FOR HOST IDENTITY |
+| `GO-LIVE-CUTOVER` | NOT AUTHORIZED |
+| 24h observation | NOT STARTED |
+| Bound status digest | TESTED／NOT ENABLED |
 
-1. local branch／已驗證程式 HEAD：`codex/phase-2c-24h-production-integration`／`0d91ccd`
-2. remote release SHA：BLOCKED
-3. SSH／Tailscale：BLOCKED
-4. remote staging：BLOCKED
-5. Google OAuth transport：PASS
-6. local real-cloud synthetic round-trip：PASS
-7. remote real-cloud synthetic round-trip：BLOCKED
-8. backup／restore：BLOCKED
-9. live cutover：NOT STARTED
-10. course_assistant：Mac RUNNING
-11. dump_bot：Mac RUNNING
-12. data_bridge：NOT STARTED
-13. GAS status digest：TESTED／NOT ENABLED
-14. secrets findings：0
-15. 使用者下一個唯一操作：提供 SSH／Tailscale target 與 host-key fingerprint
+## 固定停止線
+
+- 未收到精確 `GO-LIVE-CUTOVER`：不停 Mac bots、不搬 live DB、不啟動 remote production writer。
+- 不把 raw messages、姓名、學號、Discord ID、Email、附件、Private Support、credential、SQLite
+  row content 放入聊天、Git、公開 ZIP 或 LLM。
+- Corpus／LLM 分析、public endpoint、email 正式寄送與學生試用不在本次授權範圍。

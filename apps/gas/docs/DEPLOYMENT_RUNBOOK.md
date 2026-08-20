@@ -1,8 +1,11 @@
 # GAS deployment runbook
 
-本機 scaffold 現在可產生獨立與附著兩種 target。2026-08-10 已由 owner 建立空白的
-`獨立 GAS` 與附著於 `Server Database` 的 GAS；Script ID、deployment ID 與 credentials
-只保存在 gitignored local state。
+本機 source 可產生獨立與附著兩種 target。2026-08-20 的 canonical cloud baseline 為：
+
+- standalone immutable v12，owner-only Execution API，已通過健康檢查、雙向 synthetic smoke、
+  cleanup 與 pull-back fingerprint 比對；
+- bound immutable v6，source 已對齊，但 status-digest trigger 仍刻意停用；
+- Script ID、deployment ID、Sheet ID 與 credentials 只保存在 gitignored local state。
 
 ## Target ownership
 
@@ -15,16 +18,17 @@
 
 ## Intended ownership
 
-- Intended Apps Script owner/deployer：`ntusupercool@gmail.com`
+- Intended Apps Script owner/deployer：專案專用帳號。
 - 所有 cloud project、Sheet、deployment 與 Script Properties 都應由此專用帳號或日後正式指定的課程服務帳號管理，不使用學生個人帳號。
 - 本機需要人工瀏覽器操作時，使用 Chrome 顯示名稱 `Ding Ding` 的設定檔；不要改用其他 Chrome profile 的 session。clasp 仍使用命名 OAuth profile `ntusupercool`。
 
 ## Preconditions
 
-1. 完成 Tasks 16–19 的 schema/API/nonce/email skeleton 與 local tests。
-2. 完成 Task 29 security/privacy review、Task 30 CI 與 Task 33 go/no-go。
-3. 由授權者確認 Google account、Sheet owner、資料 retention、Execution API access policy 與 incident owner。
-4. 確認 repository secret scan 為 0 findings，且 fixture data 不含真實個資。
+1. 確認 branch、code baseline、schema version 與目標 environment。
+2. 確認 repository secret scan 為 0 findings，且 fixture data 不含真實個資。
+3. 確認 Google Auth Platform publishing status。External／Testing 且含 Sheets scope 時，
+   refresh token 通常約 7 天失效；24h production 前必須選擇 Production 或接受週期性人工重授權。
+4. 由授權者確認 Sheet owner、資料 retention、Execution API access policy 與 incident owner。
 
 ## Controlled deployment sequence
 
@@ -34,9 +38,14 @@
 4. 在 Apps Script Project Settings 設定 Script Properties；不要把 values 寫入 source 或 shell history。
 5. 本機執行 typecheck/test/build，分別檢查 `dist/standalone/` 與 `dist/bound/`。
 6. 先唯讀 pull 至 ignored inventory、確認遠端是空白 scaffold，再執行 scoped `clasp push`。
-7. push 後建立 immutable version；standalone 建立 API executable deployment，先做 synthetic-only `scripts.run` health／preview／apply／no-work smoke test，bound 先從選單做 dry-run。
+7. push 後建立 immutable version；standalone 更新既有 owner-only API executable deployment，
+   先做 synthetic-only `scripts.run` health、Cloud → Local → Cloud command、Local → Cloud projection、
+   duplicate-safe replay 與 cleanup no-op。Bound 只建立 immutable version，不安裝 trigger。
 8. Standalone 維持 `executionApi.access=MYSELF`，不建立公開 Web App。任何擴大 access 或新增 HTTP endpoint 都需另做 security／privacy approval。
-9. 確認 request validation、quota、logging redaction、rollback version 與 deployment inventory 後，才可考慮 production target。
+9. cleanup 只能在無人工同時編輯 Sheet 的受控窗口執行；dry-run 與 apply 必須使用同一 nonce，
+   blank／duplicate primary key、formula 或未知列都應 fail closed。
+10. 確認 request validation、quota、logging redaction、rollback version、deployment inventory 與
+    OAuth longevity gate 後，才可考慮 production target。
 
 ## Rollback
 
@@ -48,4 +57,5 @@
 
 - GAS 不連 Discord Gateway，不維持 websocket，不代替 Python bots。
 - GAS 不保存 Discord bot token、OAuth client secret 或 raw activation code。
-- 本 runbook 不授權 login、project creation、push、deploy、email 或 Sheet mutation。
+- 本 runbook 記錄已核准流程，但不自行授權新的 login、project creation、email、public endpoint、
+  production cutover 或資料範圍擴張。
