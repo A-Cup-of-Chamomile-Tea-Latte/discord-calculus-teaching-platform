@@ -140,9 +140,7 @@ function isProtectedSyntheticReceipt(
     text(record, "jobRef").startsWith("CMD-TST-") &&
     text(record, "payloadRef").startsWith("fixture://") &&
     text(record, "idempotencyKey").startsWith("phase2b:") &&
-    ["COMPLETED", "REJECTED"].includes(text(record, "status")) &&
-    !record.claimedBy &&
-    !record.leaseExpiresAt
+    ["COMPLETED", "REJECTED"].includes(text(record, "status"))
   );
 }
 

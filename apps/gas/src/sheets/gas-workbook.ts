@@ -99,8 +99,10 @@ export class GasSheetAdapter implements SheetPort {
     ) {
       return "unchanged";
     }
-    const output = headers.map(
-      (header) => record[header] ?? existing?.[header] ?? "",
+    const output = headers.map((header) =>
+      Object.prototype.hasOwnProperty.call(record, header)
+        ? record[header]
+        : (existing?.[header] ?? ""),
     );
     if (!existing) {
       this.sheet.appendRow(output);
