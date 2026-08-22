@@ -11,7 +11,12 @@ from pathlib import Path
 from typing import Any
 
 from discord_course_bots.domain.case_numbers import generate_case_number
-from discord_course_bots.jobs import PrivateDumpClaim, PrivateDumpFailureResult
+from discord_course_bots.domain.titles import closed_title, cycle_title
+from discord_course_bots.jobs import (
+    DiscordLifecycleClaim,
+    PrivateDumpClaim,
+    PrivateDumpFailureResult,
+)
 from discord_course_bots.migrations import apply_migrations
 from discord_course_bots.queue_engine import (
     ReliableQueueSpec,
@@ -35,6 +40,16 @@ PRIVATE_DUMP_QUEUE = ReliableQueueSpec(
     retry_status="PENDING",
     terminal_failure_status="FAILED",
     reset_columns_on_claim=("failure_kind", "error"),
+)
+DISCORD_LIFECYCLE_QUEUE = ReliableQueueSpec(
+    table="discord_lifecycle_jobs",
+    key_column="job_id",
+    retry_column="next_attempt_at",
+    error_column="last_error_code",
+    order_column="created_at",
+    retry_status="RETRYABLE_FAILURE",
+    terminal_failure_status="PERMANENT_FAILURE",
+    reset_columns_on_claim=("last_error_code",),
 )
 
 
@@ -250,6 +265,7 @@ class Repository:
         )
 
     def close_case(self, thread_id: int) -> sqlite3.Row | None:
+        changed = False
         with self.transaction() as db:
             now = utc_now_iso()
             result = db.execute(
@@ -261,8 +277,10 @@ class Repository:
                 (now, thread_id),
             )
             if result.rowcount == 1:
+                changed = True
                 row = db.execute(
-                    "SELECT case_id, case_number FROM cases WHERE thread_id = ?",
+                    "SELECT case_id, case_number, base_title, reopen_count "
+                    "FROM cases WHERE thread_id = ?",
                     (thread_id,),
                 ).fetchone()
                 self._record_public_case_transition(
@@ -274,10 +292,23 @@ class Repository:
                     new_status="CLOSED",
                     occurred_at=now,
                 )
-        return self.get_case_by_thread(thread_id)
+                self._enqueue_discord_lifecycle_job(
+                    db,
+                    case_id=str(row["case_id"]),
+                    thread_id=thread_id,
+                    transition="CLOSE",
+                    cycle_number=int(row["reopen_count"]) + 1,
+                    desired_title=closed_title(
+                        cycle_title(str(row["base_title"]), int(row["reopen_count"])),
+                        automatic=False,
+                    ),
+                    created_at=now,
+                )
+        return self.get_case_by_thread(thread_id) if changed else None
 
     def reopen_case(self, thread_id: int) -> sqlite3.Row | None:
         with self.transaction() as db:
+            now = utc_now_iso()
             result = db.execute(
                 """
                 UPDATE cases
@@ -296,9 +327,205 @@ class Repository:
                 event_type="REOPEN",
                 previous_status="CLOSED",
                 new_status="TRACKED",
-                occurred_at=utc_now_iso(),
+                occurred_at=now,
+            )
+            self._enqueue_discord_lifecycle_job(
+                db,
+                case_id=str(row["case_id"]),
+                thread_id=thread_id,
+                transition="REOPEN",
+                cycle_number=int(row["reopen_count"]) + 1,
+                desired_title=cycle_title(str(row["base_title"]), int(row["reopen_count"])),
+                created_at=now,
             )
             return row
+
+    def has_unfinished_discord_lifecycle_job(self, case_id: str) -> bool:
+        row = self._connection.execute(
+            """
+            SELECT 1 FROM discord_lifecycle_jobs
+            WHERE case_id = ? AND status != 'COMPLETED'
+            LIMIT 1
+            """,
+            (case_id,),
+        ).fetchone()
+        return row is not None
+
+    def _enqueue_discord_lifecycle_job(
+        self,
+        db: sqlite3.Connection,
+        *,
+        case_id: str,
+        thread_id: int,
+        transition: str,
+        cycle_number: int,
+        desired_title: str,
+        created_at: str,
+    ) -> None:
+        db.execute(
+            """
+            INSERT INTO discord_lifecycle_jobs(
+                job_id, case_id, thread_id, transition, cycle_number,
+                desired_title, status, stage, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', 'PENDING', ?, ?)
+            ON CONFLICT(case_id, transition, cycle_number) DO NOTHING
+            """,
+            (
+                f"discord-{uuid.uuid4().hex}",
+                case_id,
+                thread_id,
+                transition,
+                cycle_number,
+                desired_title,
+                created_at,
+                created_at,
+            ),
+        )
+
+    def get_discord_lifecycle_job(self, job_id: str) -> sqlite3.Row | None:
+        return self._connection.execute(
+            "SELECT * FROM discord_lifecycle_jobs WHERE job_id = ?", (job_id,)
+        ).fetchone()
+
+    def claim_discord_lifecycle_job(
+        self, worker_id: str, *, lease_seconds: int = 1_200
+    ) -> DiscordLifecycleClaim | None:
+        with self.immediate_transaction() as db:
+            claim = claim_next(
+                db,
+                DISCORD_LIFECYCLE_QUEUE,
+                worker_id=worker_id,
+                lease_seconds=lease_seconds,
+            )
+        if claim is None:
+            return None
+        return DiscordLifecycleClaim(
+            job_id=str(claim.key),
+            claim_token=claim.claim_token,
+            claimed_by=claim.claimed_by,
+            attempt_count=claim.attempt_count,
+            lease_expires_at=claim.lease_expires_at,
+        )
+
+    def mark_discord_lifecycle_stage(
+        self,
+        job_id: str,
+        claim_token: str,
+        stage: str,
+        *,
+        control_message_id: int | None = None,
+    ) -> bool:
+        if stage not in {"NOTICE_SENT", "DISCORD_APPLIED"}:
+            raise ValueError("Unsupported Discord lifecycle stage")
+        now = utc_now_iso()
+        with self.transaction() as db:
+            result = db.execute(
+                """
+                UPDATE discord_lifecycle_jobs
+                SET stage = ?, control_message_id = COALESCE(?, control_message_id),
+                    updated_at = ?
+                WHERE job_id = ? AND status = 'CLAIMED' AND claim_token = ?
+                """,
+                (stage, control_message_id, now, job_id, claim_token),
+            )
+            return result.rowcount == 1
+
+    def complete_discord_lifecycle_job(self, job_id: str, claim_token: str) -> bool:
+        now = utc_now_iso()
+        with self.transaction() as db:
+            return complete_claim(
+                db,
+                DISCORD_LIFECYCLE_QUEUE,
+                key=job_id,
+                claim_token=claim_token,
+                final_status="COMPLETED",
+                values={"stage": "DISCORD_APPLIED", "completed_at": now, "updated_at": now},
+            )
+
+    def fail_discord_lifecycle_job(
+        self,
+        job_id: str,
+        claim_token: str,
+        *,
+        error_code: str,
+        retryable: bool,
+    ):
+        if not SAFE_JOB_ERROR_CODE.fullmatch(error_code):
+            raise ValueError("Unsafe lifecycle error code")
+        with self.transaction() as db:
+            return fail_claim(
+                db,
+                DISCORD_LIFECYCLE_QUEUE,
+                key=job_id,
+                claim_token=claim_token,
+                error_code=error_code,
+                retryable=retryable,
+                max_attempts=8,
+                base_retry_seconds=15,
+                max_retry_seconds=300,
+            )
+
+    def safe_runtime_status(self) -> dict[str, Any]:
+        health_rows = self._connection.execute(
+            "SELECT service_key, status, checked_at FROM service_health ORDER BY service_key"
+        ).fetchall()
+        queue_depths = {
+            "discord": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM discord_lifecycle_jobs "
+                    "WHERE status NOT IN ('COMPLETED', 'PERMANENT_FAILURE')"
+                ).fetchone()[0]
+            ),
+            "projection": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM projection_outbox "
+                    "WHERE status NOT IN ('COMPLETED', 'PERMANENT_FAILURE')"
+                ).fetchone()[0]
+            ),
+            "private_dump": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM private_dump_jobs "
+                    "WHERE status NOT IN ('DELETED', 'FAILED')"
+                ).fetchone()[0]
+            ),
+        }
+        failures = {
+            "discord": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM discord_lifecycle_jobs WHERE status = 'PERMANENT_FAILURE'"
+                ).fetchone()[0]
+            ),
+            "projection": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM projection_outbox WHERE status = 'PERMANENT_FAILURE'"
+                ).fetchone()[0]
+            ),
+            "private_dump": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM private_dump_jobs WHERE status = 'FAILED'"
+                ).fetchone()[0]
+            ),
+        }
+        now = datetime.now(UTC)
+        health: list[dict[str, str]] = []
+        for row in health_rows:
+            checked = datetime.fromisoformat(str(row["checked_at"]))
+            if checked.tzinfo is None:
+                checked = checked.replace(tzinfo=UTC)
+            age_seconds = (now - checked.astimezone(UTC)).total_seconds()
+            reported = str(row["status"])
+            state = (
+                reported
+                if reported != "HEALTHY"
+                else ("HEALTHY" if age_seconds <= 300 else "STALE")
+            )
+            health.append({"service": str(row["service_key"]), "state": state})
+        return {
+            "schema_version": self.schema_version,
+            "health": health,
+            "queues": queue_depths,
+            "failures": failures,
+        }
 
     def _record_public_case_transition(
         self,

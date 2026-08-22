@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+import uuid
 from datetime import UTC, datetime
 
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from .service import CourseService
+from .service import CourseService, classify_discord_lifecycle_error
 
 LOGGER = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ def _staff_allowed(member: discord.Member, service: CourseService) -> bool:
 class CaseCog(commands.Cog):
     case = app_commands.Group(name="case", description="公開案件測試命令")
     private = app_commands.Group(name="private", description="Private Support 測試命令")
+    ops = app_commands.Group(name="ops", description="管理者唯讀狀態命令")
 
     def __init__(self, bot: commands.Bot, service: CourseService) -> None:
         self.bot = bot
@@ -42,13 +45,54 @@ class CaseCog(commands.Cog):
         if not _staff_allowed(interaction.user, self.service):
             await _reply(interaction, "只有 TA／Professor／測試管理者可結案。")
             return
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        retry_after = self.service.interaction_retry_after(
+            "case-close", interaction.user.id, interaction.channel.id
+        )
+        if retry_after is not None:
+            await _reply(interaction, f"操作太頻繁，請約 {retry_after} 秒後再試。")
+            return
         try:
             await self.service.close_case(interaction.channel)
-        except (RuntimeError, discord.HTTPException) as exc:
-            await interaction.followup.send(str(exc), ephemeral=True)
+        except RuntimeError as exc:
+            await _reply(interaction, str(exc))
             return
-        await interaction.followup.send("案件已結束並封存。", ephemeral=True)
+        await _reply(
+            interaction,
+            "已收到；案件正在結案。完成後會更新標題並封存討論串。",
+        )
+
+    @ops.command(name="status", description="查看不含個資的唯讀系統狀態")
+    async def ops_status(self, interaction: discord.Interaction) -> None:
+        if (
+            interaction.guild is None
+            or interaction.guild.id != self.service.settings.test_guild_id
+            or not isinstance(interaction.user, discord.Member)
+            or not self.service.is_allowed_operator(interaction.user)
+        ):
+            await _reply(interaction, "只有本伺服器的系統管理者可以查看狀態。")
+            return
+        snapshot = self.service.repo.safe_runtime_status()
+        expected = ("course-assistant", "dump-bot", "data-bridge")
+        states = {item["service"]: item["state"] for item in snapshot["health"]}
+        labels = {
+            "course-assistant": "課程助理",
+            "dump-bot": "封存服務",
+            "data-bridge": "雲端同步",
+        }
+        health_lines = [f"- {labels[key]}：{states.get(key, '尚無回報')}" for key in expected]
+        queues = snapshot["queues"]
+        failures = snapshot["failures"]
+        await _reply(
+            interaction,
+            "**系統狀態（唯讀）**\n"
+            + "\n".join(health_lines)
+            + f"\n- 資料庫結構：v{snapshot['schema_version']}"
+            + f"\n- 待完成案件操作：{queues['discord']}"
+            + f"\n- 待同步雲端更新：{queues['projection']}"
+            + f"\n- 待處理私人匯出：{queues['private_dump']}"
+            + "\n- 需人工處理："
+            + str(failures["discord"] + failures["projection"] + failures["private_dump"]),
+        )
 
     @private.command(name="open", description="建立 Private Support 測試頻道")
     @app_commands.describe(ai_permission="是否允許 AI 分析文字正文")
@@ -163,12 +207,45 @@ class DraftLifecycleCog(commands.Cog):
     def __init__(self, bot: commands.Bot, service: CourseService) -> None:
         self.bot = bot
         self.service = service
+        self.lifecycle_worker_id = f"course-assistant-{uuid.uuid4().hex}"
+        self.lifecycle_tasks: set[asyncio.Task[None]] = set()
         self.draft_sweep.start()
         self.private_delete_sweep.start()
+        self.lifecycle_sweep.start()
 
     def cog_unload(self) -> None:
         self.draft_sweep.cancel()
         self.private_delete_sweep.cancel()
+        self.lifecycle_sweep.cancel()
+        for task in self.lifecycle_tasks:
+            task.cancel()
+
+    @tasks.loop(seconds=2)
+    async def lifecycle_sweep(self) -> None:
+        available = 4 - len(self.lifecycle_tasks)
+        for _ in range(available):
+            claim = self.service.repo.claim_discord_lifecycle_job(self.lifecycle_worker_id)
+            if claim is None:
+                return
+            task = asyncio.create_task(self._run_lifecycle_claim(claim))
+            self.lifecycle_tasks.add(task)
+            task.add_done_callback(self.lifecycle_tasks.discard)
+
+    async def _run_lifecycle_claim(self, claim) -> None:
+        try:
+            await self.service.apply_discord_lifecycle_job(claim)
+        except Exception as exc:  # noqa: BLE001 - queue boundary records safe codes
+            error_code, retryable = classify_discord_lifecycle_error(exc)
+            self.service.repo.fail_discord_lifecycle_job(
+                claim.job_id,
+                claim.claim_token,
+                error_code=error_code,
+                retryable=retryable,
+            )
+            LOGGER.exception("Discord lifecycle job failed with %s", error_code)
+            return
+        if not self.service.repo.complete_discord_lifecycle_job(claim.job_id, claim.claim_token):
+            LOGGER.error("Discord lifecycle job lost its claim before completion")
 
     @tasks.loop(seconds=10)
     async def private_delete_sweep(self) -> None:
@@ -241,4 +318,8 @@ class DraftLifecycleCog(commands.Cog):
 
     @private_delete_sweep.before_loop
     async def before_private_delete_sweep(self) -> None:
+        await self.bot.wait_until_ready()
+
+    @lifecycle_sweep.before_loop
+    async def before_lifecycle_sweep(self) -> None:
         await self.bot.wait_until_ready()

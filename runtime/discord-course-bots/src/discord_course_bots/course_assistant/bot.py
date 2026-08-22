@@ -59,6 +59,8 @@ class CourseAssistantBot(commands.Bot):
         if not self.health_heartbeat.is_running():
             self.health_heartbeat.start()
         for row in self.repo.tracked_cases():
+            if self.repo.has_unfinished_discord_lifecycle_job(str(row["case_id"])):
+                continue
             thread_id = int(row["thread_id"])
             channel = self.get_channel(thread_id)
             if channel is None:

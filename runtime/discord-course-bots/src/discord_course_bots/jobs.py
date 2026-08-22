@@ -20,3 +20,12 @@ class PrivateDumpFailureResult:
     attempt_count: int
     failure_kind: str
     retry_at: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class DiscordLifecycleClaim:
+    job_id: str
+    claim_token: str
+    claimed_by: str
+    attempt_count: int
+    lease_expires_at: str

@@ -9,8 +9,11 @@ import discord
 
 from discord_course_bots.domain.keyword import normalize_keyword
 from discord_course_bots.domain.titles import canonical_title, closed_title, cycle_title
+from discord_course_bots.jobs import DiscordLifecycleClaim
 from discord_course_bots.repository import Repository
 from discord_course_bots.settings import CourseAssistantSettings
+
+from .interaction_throttle import InteractionThrottle
 
 LOGGER = logging.getLogger(__name__)
 
@@ -24,6 +27,10 @@ class CourseService:
         self.bot = bot
         self.settings = settings
         self.repo = repo
+        self.interaction_throttle = InteractionThrottle()
+
+    def interaction_retry_after(self, action: str, user_id: int, resource_id: int) -> int | None:
+        return self.interaction_throttle.retry_after((action, user_id, resource_id))
 
     def is_allowed_operator(self, member: discord.Member) -> bool:
         if member.guild.owner_id == member.id:
@@ -210,20 +217,10 @@ class CourseService:
             raise RuntimeError("這個討論串尚未成案。")
         if str(case["status"]) != "TRACKED":
             raise RuntimeError("案件不是進行中狀態。")
-        self.repo.close_case(thread.id)
-        title = closed_title(
-            cycle_title(str(case["base_title"]), int(case["reopen_count"])),
-            automatic=False,
-        )
-        await thread.edit(name=title, reason="Course case manually closed")
-        self.repo.update_case_title(thread.id, title)
-        from .views import ReopenView
-
-        await thread.send(
-            "✅ **本次提問已結束。**\n\n還想繼續詢問嗎？",
-            view=ReopenView(self),
-        )
-        await thread.edit(archived=True, locked=False, reason="Course case closed")
+        if self.repo.has_unfinished_discord_lifecycle_job(str(case["case_id"])):
+            raise RuntimeError("上一個案件操作仍在處理中，請稍後再試。")
+        if self.repo.close_case(thread.id) is None:
+            raise RuntimeError("案件目前無法結案，請稍後再試。")
 
     def claim_reopen(self, author_id: int, thread_id: int):
         case = self.repo.get_case_by_thread(thread_id)
@@ -231,6 +228,8 @@ class CourseService:
             raise RuntimeError("找不到案件。")
         if int(case["author_id"]) != author_id:
             raise PermissionError("只有原發文者可以繼續詢問。")
+        if self.repo.has_unfinished_discord_lifecycle_job(str(case["case_id"])):
+            raise RuntimeError("結案仍在處理中；完成後即可繼續詢問。")
         updated = self.repo.reopen_case(thread_id)
         if updated is None:
             current = self.repo.get_case_by_thread(thread_id)
@@ -241,9 +240,85 @@ class CourseService:
             raise RuntimeError("案件無法重新開啟。")
         return updated
 
-    async def finish_reopen(self, channel: discord.Thread, updated) -> str:
-        title = cycle_title(str(updated["base_title"]), int(updated["reopen_count"]))
-        await channel.edit(archived=False, locked=False, name=title, reason="Case reopened")
-        self.repo.update_case_title(channel.id, title)
-        await channel.send("🔄 案件已重新開啟，請繼續提出問題。")
-        return title
+    async def apply_discord_lifecycle_job(self, claim: DiscordLifecycleClaim) -> None:
+        job = self.repo.get_discord_lifecycle_job(claim.job_id)
+        if job is None:
+            raise RuntimeError("LIFECYCLE_JOB_MISSING")
+        channel = self.bot.get_channel(int(job["thread_id"]))
+        if channel is None:
+            channel = await self.bot.fetch_channel(int(job["thread_id"]))
+        if not isinstance(channel, discord.Thread):
+            raise RuntimeError("LIFECYCLE_THREAD_INVALID")
+
+        transition = str(job["transition"])
+        stage = str(job["stage"])
+        cycle_number = int(job["cycle_number"])
+        desired_title = str(job["desired_title"])
+        if transition == "CLOSE":
+            if stage == "PENDING":
+                from .views import ReopenView
+
+                notice = await channel.send(
+                    f"✅ **第 {cycle_number} 次提問已結束。**\n\n還想繼續詢問嗎？",
+                    view=ReopenView(self),
+                )
+                if not self.repo.mark_discord_lifecycle_stage(
+                    claim.job_id,
+                    claim.claim_token,
+                    "NOTICE_SENT",
+                    control_message_id=notice.id,
+                ):
+                    raise RuntimeError("LIFECYCLE_CLAIM_LOST")
+            await channel.edit(
+                name=desired_title,
+                archived=True,
+                locked=False,
+                reason="Course case closed",
+            )
+        elif transition == "REOPEN":
+            if stage == "PENDING":
+                await channel.edit(
+                    archived=False,
+                    locked=False,
+                    name=desired_title,
+                    reason="Course case reopened",
+                )
+                if not self.repo.mark_discord_lifecycle_stage(
+                    claim.job_id, claim.claim_token, "DISCORD_APPLIED"
+                ):
+                    raise RuntimeError("LIFECYCLE_CLAIM_LOST")
+            if job["control_message_id"] is None:
+                notice = await channel.send(
+                    f"🔄 **第 {cycle_number} 次提問已開始。** 請繼續提出問題。"
+                )
+                if not self.repo.mark_discord_lifecycle_stage(
+                    claim.job_id,
+                    claim.claim_token,
+                    "DISCORD_APPLIED",
+                    control_message_id=notice.id,
+                ):
+                    raise RuntimeError("LIFECYCLE_CLAIM_LOST")
+        else:
+            raise RuntimeError("LIFECYCLE_TRANSITION_INVALID")
+
+        self.repo.update_case_title(channel.id, desired_title)
+
+
+def classify_discord_lifecycle_error(error: Exception) -> tuple[str, bool]:
+    if isinstance(error, discord.Forbidden):
+        return ("DISCORD_FORBIDDEN", False)
+    if isinstance(error, discord.NotFound):
+        return ("THREAD_NOT_FOUND", False)
+    if isinstance(error, discord.HTTPException):
+        return ("DISCORD_HTTP_ERROR", True)
+    if isinstance(error, RuntimeError):
+        code = str(error)
+        if code in {
+            "LIFECYCLE_JOB_MISSING",
+            "LIFECYCLE_THREAD_INVALID",
+            "LIFECYCLE_TRANSITION_INVALID",
+        }:
+            return (code, False)
+        if code == "LIFECYCLE_CLAIM_LOST":
+            return (code, True)
+    return ("UNEXPECTED_ERROR", True)

@@ -11,8 +11,8 @@ from discord_course_bots.course_assistant.views import AIPermissionView, ReopenV
 @pytest.mark.asyncio
 async def test_successful_reopen_disables_its_closure_button() -> None:
     service = MagicMock()
+    service.interaction_retry_after.return_value = None
     service.claim_reopen.return_value = {"case_id": "case-1"}
-    service.finish_reopen = AsyncMock(return_value="[M1] [test] Question 2")
     view = ReopenView(service)
     reopen_button = view.children[0]
     channel = MagicMock(spec=discord.Thread)
@@ -28,18 +28,21 @@ async def test_successful_reopen_disables_its_closure_button() -> None:
     await reopen_button.callback(interaction)
 
     service.claim_reopen.assert_called_once_with(3, channel.id)
-    service.finish_reopen.assert_awaited_once_with(channel, {"case_id": "case-1"})
     assert reopen_button.disabled is True
     message.edit.assert_awaited_once_with(view=view)
-    interaction.followup.send.assert_awaited_once_with(
-        "案件已重新開啟：`[M1] [test] Question 2`", ephemeral=True
+    interaction.response.send_message.assert_awaited_once_with(
+        "已收到；案件正在重新開啟。完成後會在討論串通知您。",
+        ephemeral=True,
     )
+    interaction.response.defer.assert_not_awaited()
+    interaction.followup.send.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_stale_reopen_button_replies_without_thinking() -> None:
     message_text = "案件目前已經開啟；請先繼續提問，待再次結案後才能重新開啟下一輪。"
     service = MagicMock()
+    service.interaction_retry_after.return_value = None
     service.claim_reopen.side_effect = CaseAlreadyOpenError(message_text)
     view = ReopenView(service)
     reopen_button = view.children[0]
@@ -58,6 +61,29 @@ async def test_stale_reopen_button_replies_without_thinking() -> None:
     interaction.response.defer.assert_not_awaited()
     interaction.followup.send.assert_not_awaited()
     assert reopen_button.disabled is False
+
+
+@pytest.mark.asyncio
+async def test_reopen_throttle_rejects_before_repository_work() -> None:
+    service = MagicMock()
+    service.interaction_retry_after.return_value = 5
+    view = ReopenView(service)
+    reopen_button = view.children[0]
+    channel = MagicMock(spec=discord.Thread)
+    interaction = SimpleNamespace(
+        channel=channel,
+        user=SimpleNamespace(id=3),
+        message=SimpleNamespace(edit=AsyncMock()),
+        response=SimpleNamespace(defer=AsyncMock(), send_message=AsyncMock()),
+        followup=SimpleNamespace(send=AsyncMock()),
+    )
+
+    await reopen_button.callback(interaction)
+
+    service.claim_reopen.assert_not_called()
+    interaction.response.send_message.assert_awaited_once_with(
+        "操作太頻繁，請約 5 秒後再試。", ephemeral=True
+    )
 
 
 @pytest.mark.asyncio

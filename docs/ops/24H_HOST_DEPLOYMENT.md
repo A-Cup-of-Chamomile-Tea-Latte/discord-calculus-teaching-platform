@@ -2,7 +2,7 @@
 
 ## 固定架構
 
-- Tailscale 私網內的 systemd Linux；不開放公網 SSH。
+- 經人工核對 host key 的固定 SSH endpoint 與 systemd Linux；本專案不依賴 Tailscale。
 - project owner 以 SSH key 管理；`calculus-bot` 是無 shell、無 sudo 的 service account。
 - release：`/opt/calculus-discord/releases/<git-sha>`，`current` 指向單一已驗證 release。
 - SQLite：`/var/lib/calculus-discord/runtime.sqlite3`；三個服務共用此 authority。

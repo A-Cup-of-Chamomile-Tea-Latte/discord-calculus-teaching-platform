@@ -29,6 +29,16 @@
 - 本窗口保留為 defect evidence，不計為完整 24 小時 PASS。修復版須重新 deploy、重新 Public smoke，並
   從新的成功時間起算完整 24 小時。
 
+## 修復版重新起算 gate
+
+- [ ] v5 live consistent copy 升級到 v6、integrity 與 migration ledger PASS。
+- [ ] 三個 remote services 使用同一個新 release，fresh health PASS，Mac writer 仍為 0。
+- [ ] Public close 立即收到受理回覆；完成後標題與封存一致。
+- [ ] 原發文者 reopen 立即收到受理回覆；沿用原案號，不寄新案號，完成後標題與開啟狀態一致。
+- [ ] 重複點擊被入口 throttle／idempotency 擋下，沒有重複 lifecycle event 或 Discord 副作用。
+- [ ] owner-only `/ops status` 唯讀、ephemeral，非 owner 拒絕且不洩漏 ID、路徑、資料列或 secret。
+- [ ] 上述全部 PASS 後，才填入新的 observation 開始時間。
+
 本文件不記錄 Discord／Google ID、credential、案件正文、姓名、學號、Email 或其他私人資料。
 
 ## 必查項目

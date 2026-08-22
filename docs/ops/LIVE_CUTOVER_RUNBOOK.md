@@ -31,3 +31,13 @@ rollback        READY
 ## Rollback
 
 遇 migration 不一致、登入失敗、重複副作用、DB corruption、queue critical failure、secret 缺漏或 duplicate process，立刻停止所有 remote unit。決定回 Mac 時，remote 必須保持 stopped，再用未修改 rollback DB 恢復單一 writer。
+
+## Cutover 後 lifecycle UX 修復換版
+
+`ops/scripts/phase2c-lifecycle-ux-upgrade.sh` 只接受指定 staging release、既有 dependency lock、正確
+hostname、root 與精確 `APPLY-LIFECYCLE-UX` gate。它不改 OAuth／Discord secrets，也不重跑舊的
+compact migration、GAS parity、local smoke、synthetic cleanup 或 recovery rehearsal。
+
+執行前先在非 root staging 完成 source transfer、測試與 checksum；最後只需一次 sudo。腳本會在舊服務
+仍運作時建立新 venv，先用 consistent DB copy 驗證 v5 → v6；直到這些 gate 全過才短暫停止服務。正式
+migration、三服務 fresh health 或 integrity 任一失敗時，自動恢復舊 release 與 pre-upgrade DB。

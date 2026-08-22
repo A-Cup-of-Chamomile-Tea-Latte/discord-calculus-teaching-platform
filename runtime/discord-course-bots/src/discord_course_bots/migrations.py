@@ -349,6 +349,51 @@ def _apply_phase2c_production_bridge(connection: sqlite3.Connection) -> None:
     )
 
 
+LIFECYCLE_JOB_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS discord_lifecycle_jobs (
+        job_id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        thread_id INTEGER NOT NULL,
+        transition TEXT NOT NULL CHECK(transition IN ('CLOSE', 'REOPEN')),
+        cycle_number INTEGER NOT NULL CHECK(cycle_number > 0),
+        desired_title TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN (
+            'PENDING', 'CLAIMED', 'COMPLETED',
+            'RETRYABLE_FAILURE', 'PERMANENT_FAILURE'
+        )),
+        stage TEXT NOT NULL CHECK(stage IN (
+            'PENDING', 'NOTICE_SENT', 'DISCORD_APPLIED'
+        )),
+        control_message_id INTEGER,
+        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+        next_attempt_at TEXT,
+        claimed_by TEXT,
+        claim_token TEXT,
+        lease_expires_at TEXT,
+        last_error_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT,
+        UNIQUE(case_id, transition, cycle_number)
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS discord_lifecycle_jobs_claimable
+    ON discord_lifecycle_jobs(status, next_attempt_at, lease_expires_at, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS discord_lifecycle_jobs_case_cycle
+    ON discord_lifecycle_jobs(case_id, cycle_number, created_at)
+    """,
+)
+
+
+def _apply_discord_lifecycle_jobs(connection: sqlite3.Connection) -> None:
+    for statement in LIFECYCLE_JOB_STATEMENTS:
+        connection.execute(statement)
+
+
 MIGRATIONS = (
     Migration(
         1,
@@ -384,6 +429,12 @@ MIGRATIONS = (
         "\n".join(statement.strip() for statement in PHASE2C_PRODUCTION_STATEMENTS)
         + "\nproduction-local-sheet-projection stream; v1",
         _apply_phase2c_production_bridge,
+    ),
+    Migration(
+        6,
+        "durable-discord-case-lifecycle-jobs",
+        "\n".join(statement.strip() for statement in LIFECYCLE_JOB_STATEMENTS) + "\nv1",
+        _apply_discord_lifecycle_jobs,
     ),
 )
 

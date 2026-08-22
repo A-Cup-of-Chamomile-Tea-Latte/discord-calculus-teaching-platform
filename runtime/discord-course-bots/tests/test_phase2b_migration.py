@@ -32,9 +32,9 @@ def table_names(connection: sqlite3.Connection) -> set[str]:
     }
 
 
-def test_empty_database_reaches_v5_with_fixed_streams(tmp_path: Path) -> None:
+def test_empty_database_reaches_latest_with_fixed_streams(tmp_path: Path) -> None:
     repo = Repository(tmp_path / "empty.sqlite3")
-    assert repo.schema_version == 5
+    assert repo.schema_version == MIGRATIONS[-1].version
     assert table_names(repo._connection) >= EXPECTED_V4_TABLES
     streams = repo._connection.execute("SELECT stream_name FROM sync_state ORDER BY stream_name")
     assert [str(row[0]) for row in streams] == [
@@ -59,7 +59,7 @@ def test_v3_to_latest_preserves_existing_data(
     monkeypatch.setattr(migrations, "MIGRATIONS", MIGRATIONS)
 
     repo = Repository(path)
-    assert repo.schema_version == 5
+    assert repo.schema_version == MIGRATIONS[-1].version
     assert repo.get_config("sentinel") == "yes"
     assert table_names(repo._connection) >= EXPECTED_V4_TABLES
 

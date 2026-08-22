@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 import discord
 
 from discord_course_bots.domain.keyword import KeywordValidationError
+
+LOGGER = logging.getLogger(__name__)
 
 
 async def _ephemeral_error(interaction: discord.Interaction, message: str) -> None:
@@ -198,21 +201,29 @@ class ReopenView(discord.ui.View):
         if not isinstance(channel, discord.Thread):
             await _ephemeral_error(interaction, "這個按鈕只能在案件討論串內使用。")
             return
+        retry_after = self.service.interaction_retry_after(
+            "case-reopen", interaction.user.id, channel.id
+        )
+        if retry_after is not None:
+            await interaction.response.send_message(
+                f"操作太頻繁，請約 {retry_after} 秒後再試。", ephemeral=True
+            )
+            return
         try:
-            updated = self.service.claim_reopen(interaction.user.id, channel.id)
+            self.service.claim_reopen(interaction.user.id, channel.id)
         except (RuntimeError, PermissionError) as exc:
             await interaction.response.send_message(str(exc), ephemeral=True)
             return
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        try:
-            title = await self.service.finish_reopen(channel, updated)
-            _.disabled = True
-            if interaction.message is not None:
+        _.disabled = True
+        await interaction.response.send_message(
+            "已收到；案件正在重新開啟。完成後會在討論串通知您。",
+            ephemeral=True,
+        )
+        if interaction.message is not None:
+            try:
                 await interaction.message.edit(view=self)
-        except discord.HTTPException as exc:
-            await interaction.followup.send(str(exc), ephemeral=True)
-            return
-        await interaction.followup.send(f"案件已重新開啟：`{title}`", ephemeral=True)
+            except discord.HTTPException:
+                LOGGER.warning("Could not disable a claimed reopen button")
 
     @discord.ui.button(
         label="隱私與資料說明",
@@ -221,7 +232,7 @@ class ReopenView(discord.ui.View):
     )
     async def privacy(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await interaction.response.send_message(
-            "重新詢問沿用同一 thread 與同一案號；以 reopen_count 與 dump 版本區分週期。",
+            "繼續詢問會沿用同一個討論串與案號，不會再寄送新的案號。",
             ephemeral=True,
         )
 

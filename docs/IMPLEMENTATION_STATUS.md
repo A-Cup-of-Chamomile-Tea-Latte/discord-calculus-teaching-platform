@@ -4,7 +4,7 @@ Last repository／runtime verification: 2026-08-22 (Asia/Taipei)
 
 Canonical root: `/Users/chamomiletea/Documents/Curricular/115-1/Calculus TA/Discord_微積分模組教學優化專案`
 
-Branch: `codex/phase-2c-24h-production-integration`
+Working branch: `codex/bot-case-lifecycle-ux`
 
 Verified code baseline: `78fb4a8`
 
@@ -15,7 +15,7 @@ Verified code baseline: `78fb4a8`
 | Production writer | Remote Linux 是唯一 writer；Mac LaunchAgents 已停用且本機 runtime process 為 0 |
 | Live cutover | PASS；三個 remote systemd services 均 active／enabled，Public Discord smoke PASS |
 | Local authority | SQLite；Google Sheets 只是精簡投影與暫時分享／恢復面 |
-| Tracked schema | migration v5；案件異動與 outbox 同一 transaction |
+| Tracked schema | production 仍是 migration v5；修復候選版新增 v6 durable Discord lifecycle queue |
 | Production DB | Remote SQLite schema v5；cutover 前 consistent rollback backup、傳輸 checksum、integrity 與 migration ledger 均 PASS |
 | Compact Sheet | schema `2.0.0`；5 個人用頁＋5 個隱藏機器頁 |
 | Standalone GAS | immutable v12；owner-only Execution API；無 public Web App |
@@ -59,5 +59,19 @@ Verified code baseline: `78fb4a8`
 - 觀察單一 writer、三個 remote services、Discord connectivity、queue、OAuth refresh、GAS
   heartbeat、backup 與 compact Sheet projection。
 - 滿 24 小時且各項 PASS 後，更新 Phase 2C report，再決定是否進入小規模試用。
+
+## Lifecycle UX 修復候選版（尚未部署）
+
+- close／reopen 的 SQLite transition、雲端 projection 與 Discord side effect 改為同一筆 durable
+  lifecycle job；Discord 限速或服務重啟後可以續跑。
+- 使用者互動立即回覆，不再等待頻道改名／封存；重複按鈕不會重複建立 transition。
+- 同一使用者與案件 5 秒只受理一次；30 秒內連續 3 次被擋後冷卻 30 秒，且在 DB 操作前拒絕。
+- 新增 allowlisted guild owner／`BOT_OWNER_IDS` 專用的 `/ops status`；只讀、ephemeral，僅顯示服務
+  freshness、schema 版本、queue depth 與安全失敗計數。
+- migration、queue、restart-safe stage、權限與互動測試已在隔離 worktree 通過；production 尚未換版，
+  24 小時窗口尚未重啟。
+- 正式升級使用 `ops/scripts/phase2c-lifecycle-ux-upgrade.sh`：先以 live consistent copy 做 v5 → v6
+  fail-closed migration，再短暫停服務、保存 rollback DB、atomic 切換 release；任一 health／integrity gate
+  失敗會恢復舊 release 與舊 DB。
 
 詳細報告：`project-exchange/18_PHASE_2C_24H_HOST_PRODUCTION_INTEGRATION_REPORT_2026-08-19.md`。
