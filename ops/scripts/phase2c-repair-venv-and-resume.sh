@@ -67,7 +67,9 @@ python3 -m venv "$venv"
 "$venv/bin/pip" install --no-deps "$runtime" >/dev/null
 for executable in course-assistant dump-bot discord-production-bridge; do
   [[ -x $venv/bin/$executable ]] || fail RELEASE_EXECUTABLE_MISSING
-  [[ $(head -n 1 "$venv/bin/$executable") == "#!$venv/bin/python" ]] ||
+  shebang=$(head -n 1 "$venv/bin/$executable")
+  [[ $shebang == "#!$venv/bin/python" ||
+    $shebang == "#!$venv/bin/python3" ]] ||
     fail RELEASE_SHEBANG_INVALID
 done
 chown -R root:root "$venv"

@@ -99,6 +99,10 @@ if [[ $mode == prepare ]]; then
   for executable in course-assistant dump-bot discord-production-bridge; do
     [[ -x $runtime_directory/.venv/bin/$executable ]] ||
       fail RELEASE_EXECUTABLE_MISSING
+    shebang=$(head -n 1 "$runtime_directory/.venv/bin/$executable")
+    [[ $shebang == "#!$runtime_directory/.venv/bin/python" ||
+      $shebang == "#!$runtime_directory/.venv/bin/python3" ]] ||
+      fail RELEASE_SHEBANG_INVALID
   done
   chown -R root:root "$release_destination"
   chmod -R go-w "$release_destination"
