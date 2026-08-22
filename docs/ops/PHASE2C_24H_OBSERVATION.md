@@ -3,7 +3,8 @@
 ## Observation window
 
 - 開始：2026-08-22 18:33（Asia/Taipei）
-- 最早完成：2026-08-23 18:33（Asia/Taipei）
+- 結果：`DEGRADED / NOT ELIGIBLE FOR PASS`
+- 原最早完成時間已作廢；修復版 smoke PASS 後另記新窗口
 - Production authority：remote SQLite
 - Production writer：remote Linux only
 
@@ -15,6 +16,18 @@
 - Cutover repair、fresh service health、data-bridge backlog drain 均 PASS。
 - Allowlisted Discord Public smoke PASS：Bot 接到新 Forum thread、完成互動設定並更新標題。
 - Smoke 後三個服務仍 running，沒有 warning。
+
+## Observation finding：close → immediate reopen
+
+- Public create、互動設定、標題更新與 `/case close` 均成功。
+- 原發文者立即按「繼續詢問」後，SQLite transition 先變為重新開啟；Discord thread 的解封／改名仍在
+  等待。再次點擊時系統回覆案件已開啟，但畫面仍保留 CLOSED 標題。
+- 這證明現有流程缺少 durable pending side effect／reconciliation；不能把問題歸因為使用者操作限制。
+- 學生向隱私說明也暴露 `reopen_count`、dump 等內部術語，須一併修正。
+- 目前不再重複操作該測試 thread。服務保持單一 remote writer；尚無 duplicate writer、DB corruption
+  或 service restart 證據，因此未觸發整體 rollback。
+- 本窗口保留為 defect evidence，不計為完整 24 小時 PASS。修復版須重新 deploy、重新 Public smoke，並
+  從新的成功時間起算完整 24 小時。
 
 本文件不記錄 Discord／Google ID、credential、案件正文、姓名、學號、Email 或其他私人資料。
 

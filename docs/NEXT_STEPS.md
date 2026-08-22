@@ -17,11 +17,16 @@ Google OAuth Production、SSH host identity、remote staging、runtime secrets r
 
 ## 2. 必須等待 24 小時
 
-計時起點：2026-08-22 18:33（Asia/Taipei）。最早完成：2026-08-23 18:33。
+第一輪曾於 2026-08-22 18:33（Asia/Taipei）開始，但 close → immediate reopen 暴露 SQLite
+transition 已提交而 Discord thread side effect 尚未完成的可見不一致，因此本輪標記為 `DEGRADED`，
+不得在原定時間宣告 PASS。
 
-期間驗證單一 writer、三個 remote services、Discord connectivity、queue depth、OAuth refresh、GAS
-heartbeat、backup 與 compact Sheet projection。滿 24 小時後原地更新 Phase 2C report，再決定是否
-進入小規模試用。第一天不新增 production feature；bound digest 延後至 heartbeat 穩定後再處理。
+先在隔離側線完成 close／reopen 可恢復狀態機、學生文案與 owner-only safe status command。經主線審查、
+另行部署授權、修復版 deploy 與 Public smoke PASS 後，才記錄新的 24 小時計時起點。
+
+新的 observation 期間驗證單一 writer、三個 remote services、Discord connectivity、queue depth、OAuth
+refresh、GAS heartbeat、backup 與 compact Sheet projection。滿 24 小時後原地更新 Phase 2C report，再
+決定是否進入小規模試用。Bound digest 延後至 heartbeat 穩定後再處理。
 
 ## 固定停止線
 

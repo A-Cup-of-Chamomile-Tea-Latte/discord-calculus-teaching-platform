@@ -21,7 +21,7 @@ Verified code baseline: `78fb4a8`
 | Standalone GAS | immutable v12；owner-only Execution API；無 public Web App |
 | Bound GAS | immutable v6；source 對齊；status-digest trigger 未啟用 |
 | Remote host | SSH host identity 與 host key 已人工核對；release、DB、secrets 與 systemd production install 完成 |
-| 24h observation | 進行中；2026-08-22 18:33（Asia/Taipei）起，最早於 2026-08-23 18:33 完成 |
+| 24h observation | DEGRADED；Public create／finalize／close PASS，但 immediate reopen 暴露 DB／Discord side-effect 不一致。修復版重新部署並 smoke PASS 後重算 |
 
 ## Data Bridge 收據
 
@@ -52,7 +52,10 @@ Verified code baseline: `78fb4a8`
 
 ## 目前停止點
 
-- 真實 24 小時 observation 已開始；期間不新增 production feature。
+- 第一輪真實 observation 已發現 close → immediate reopen 缺陷，不能作為 Phase 2C PASS。
+- 目前停止重複操作測試 thread；不把 rate-limit 延遲誤稱為使用者限制。
+- 由獨立側線完成狀態機、文案與 owner-only safe status command；主線審查後才決定修復版 deploy。
+- 修復版 Public smoke PASS 後，重新開始完整 24 小時 observation；不能沿用 2026-08-22 18:33 起點。
 - 觀察單一 writer、三個 remote services、Discord connectivity、queue、OAuth refresh、GAS
   heartbeat、backup 與 compact Sheet projection。
 - 滿 24 小時且各項 PASS 後，更新 Phase 2C report，再決定是否進入小規模試用。
