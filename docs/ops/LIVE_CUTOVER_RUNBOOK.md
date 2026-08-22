@@ -34,10 +34,13 @@ rollback        READY
 
 ## Cutover 後 lifecycle UX 修復換版
 
-`ops/scripts/phase2c-lifecycle-ux-upgrade.sh` 只接受指定 staging release、既有 dependency lock、正確
-hostname、root 與精確 `APPLY-LIFECYCLE-UX` gate。它不改 OAuth／Discord secrets，也不重跑舊的
-compact migration、GAS parity、local smoke、synthetic cleanup 或 recovery rehearsal。
+第一次修復換版同時安裝 `docs/ops/RESTRICTED_DEPLOYMENT_ENTRYPOINT.md` 定義的受限入口；之後一般
+production release 使用 root-owned `/usr/local/sbin/calculus-discord-deploy`。入口只接受固定 inbox、
+release checksum 所涵蓋的 exact-pinned dependency lock、正確 hostname、單一步 additive migration
+與無參數 invocation。它不改 OAuth／Discord secrets，也不重跑舊的 compact migration、GAS parity、
+local smoke、synthetic cleanup 或 recovery rehearsal。
 
-執行前先在非 root staging 完成 source transfer、測試與 checksum；最後只需一次 sudo。腳本會在舊服務
-仍運作時建立新 venv，先用 consistent DB copy 驗證 v5 → v6；直到這些 gate 全過才短暫停止服務。正式
-migration、三服務 fresh health 或 integrity 任一失敗時，自動恢復舊 release 與 pre-upgrade DB。
+執行前先在非 root staging 完成 source transfer、測試與 checksum；首次 bootstrap 最後只需一次 sudo。
+builder 在無 production DB／secret 權限下建立新 venv，再用 consistent DB copy 驗證 migration；直到
+這些 gate 全過才短暫停止服務。正式 migration、三服務 fresh health 或 integrity 任一失敗時，自動恢復
+舊 release 與 pre-upgrade DB。

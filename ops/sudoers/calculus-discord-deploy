@@ -1,0 +1,2 @@
+# Allow only the root-owned Calculus Discord deployment entrypoint.
+ding ALL=(root) NOPASSWD: /usr/local/sbin/calculus-discord-deploy ""

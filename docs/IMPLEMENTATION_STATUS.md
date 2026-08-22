@@ -70,8 +70,10 @@ Verified code baseline: `78fb4a8`
   freshness、schema 版本、queue depth 與安全失敗計數。
 - migration、queue、restart-safe stage、權限與互動測試已在隔離 worktree 通過；production 尚未換版，
   24 小時窗口尚未重啟。
-- 正式升級使用 `ops/scripts/phase2c-lifecycle-ux-upgrade.sh`：先以 live consistent copy 做 v5 → v6
-  fail-closed migration，再短暫停服務、保存 rollback DB、atomic 切換 release；任一 health／integrity gate
-  失敗會恢復舊 release 與舊 DB。
+- 首次正式升級同時 bootstrap root-owned 受限部署入口；candidate build 使用隔離 builder，不開新 port、
+  不改 secrets／systemd units。先以 live consistent copy 做 v5 → v6 fail-closed migration，再短暫停
+  服務、保存 rollback DB、atomic 切換 release；任一 health／integrity gate 失敗會恢復舊 release 與舊 DB。
+- 後續一般 release 只允許固定 inbox、checksum、release 內 exact-pinned dependency lock、無參數
+  deploy command 與單一步 additive migration；destructive／跨版本 migration 仍須獨立核准。
 
 詳細報告：`project-exchange/18_PHASE_2C_24H_HOST_PRODUCTION_INTEGRATION_REPORT_2026-08-19.md`。
