@@ -124,6 +124,40 @@ export function bridgeClientConfig() {
   };
 }
 
+export function bridgePromoteTargetToProduction(expectedFingerprint: string) {
+  const normalizedFingerprint = String(expectedFingerprint ?? "")
+    .trim()
+    .toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(normalizedFingerprint))
+    throw new Error("BRIDGE_FINGERPRINT_INVALID");
+
+  const target = bridgeTarget();
+  if (target.fingerprint !== normalizedFingerprint)
+    throw new Error("BRIDGE_WRONG_TARGET");
+  if (target.environment === "PRODUCTION" && !target.syntheticOnly) {
+    return {
+      ok: true,
+      status: "NO_OP",
+      environment: "PRODUCTION",
+      syntheticOnly: false,
+      schemaVersion: "2.0.0",
+    };
+  }
+  if (target.environment !== "STAGING" || !target.syntheticOnly)
+    throw new Error("BRIDGE_MODE_TRANSITION_REFUSED");
+
+  PropertiesService.getScriptProperties()
+    .setProperty("BRIDGE_ENVIRONMENT", "PRODUCTION")
+    .setProperty("BRIDGE_SYNTHETIC_ONLY", "false");
+  return {
+    ok: true,
+    status: "PROMOTED",
+    environment: "PRODUCTION",
+    syntheticOnly: false,
+    schemaVersion: "2.0.0",
+  };
+}
+
 export function bridgePreview(envelope: ProjectionEnvelope) {
   const target = bridgeTarget();
   return previewProjection(
