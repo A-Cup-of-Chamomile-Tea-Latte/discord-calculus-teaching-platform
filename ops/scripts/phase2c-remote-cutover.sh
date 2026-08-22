@@ -67,27 +67,42 @@ if [[ $mode == prepare ]]; then
   [[ ! -e $incoming ]] || fail RELEASE_INCOMING_PRESENT
   install -d -o root -g root -m 0755 "$incoming"
   cleanup_incoming() {
+    local status=$?
+    if [[ $status -eq 0 ]]; then
+      return
+    fi
     if [[ -n ${incoming:-} && -d $incoming ]]; then
       rm -rf -- "$incoming"
     fi
   }
-  trap cleanup_incoming ERR
+  trap cleanup_incoming EXIT
   tar -C "$release_source" \
     --exclude='./runtime/discord-course-bots/.venv' -cf - . |
     tar -C "$incoming" -xf -
-  python3 -m venv "$incoming/runtime/discord-course-bots/.venv"
-  "$incoming/runtime/discord-course-bots/.venv/bin/pip" install \
+  mv "$incoming" "$release_destination"
+  incoming=""
+  cleanup_release() {
+    local status=$?
+    if [[ $status -eq 0 ]]; then
+      return
+    fi
+    if [[ -d $release_destination ]]; then
+      rm -rf -- "$release_destination"
+    fi
+  }
+  trap cleanup_release EXIT
+  python3 -m venv "$runtime_directory/.venv"
+  "$runtime_directory/.venv/bin/pip" install \
     -r "$bundle/runtime-requirements.txt" >/dev/null
-  "$incoming/runtime/discord-course-bots/.venv/bin/pip" install --no-deps \
-    "$incoming/runtime/discord-course-bots" >/dev/null
+  "$runtime_directory/.venv/bin/pip" install --no-deps \
+    "$runtime_directory" >/dev/null
   for executable in course-assistant dump-bot discord-production-bridge; do
-    [[ -x $incoming/runtime/discord-course-bots/.venv/bin/$executable ]] ||
+    [[ -x $runtime_directory/.venv/bin/$executable ]] ||
       fail RELEASE_EXECUTABLE_MISSING
   done
-  chown -R root:root "$incoming"
-  chmod -R go-w "$incoming"
-  mv "$incoming" "$release_destination"
-  trap - ERR
+  chown -R root:root "$release_destination"
+  chmod -R go-w "$release_destination"
+  trap - EXIT
 
   install -o calculus-bot -g calculus-bot -m 0600 \
     "$bundle/course-assistant.env" /etc/calculus-discord/course-assistant.env
@@ -127,11 +142,15 @@ ln -s "releases/$release_id" /opt/calculus-discord/current.incoming
 mv /opt/calculus-discord/current.incoming /opt/calculus-discord/current
 
 rollback_remote() {
+  local status=$?
+  if [[ $status -eq 0 ]]; then
+    return
+  fi
   systemctl stop "${units[@]}" >/dev/null 2>&1 || true
   systemctl disable "${units[@]}" >/dev/null 2>&1 || true
   printf 'remote_services=STOPPED_AFTER_FAILURE\n' >&2
 }
-trap rollback_remote ERR
+trap rollback_remote EXIT
 
 wait_for_health() {
   local unit=$1
@@ -166,5 +185,5 @@ sleep 10
   "SELECT COUNT(*) FROM service_health WHERE service_key='data-bridge' AND status='HEALTHY' AND safe_error_code IS NULL;") == 1 ]] ||
   fail DATA_BRIDGE_DEGRADED
 
-trap - ERR
+trap - EXIT
 printf 'activate=PASS\nremote_services=HEALTHY\nproduction_writer=REMOTE\n'
