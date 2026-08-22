@@ -6,29 +6,22 @@
 live-copy backup／restore／migration rehearsal 均已完成。不要重跑 44-action Sheet migration、另建 OAuth
 client、另寫一份 Phase 2C 報告，或把 corpus／LLM 分析拉進本階段。
 
-Mac `course_assistant` 與 `dump_bot` 仍是唯一 live writers；status digest 未啟用。
+Live cutover 與最小 Public Discord smoke 已完成。Remote Linux 是唯一 production writer；Mac
+LaunchAgents 已停用。status digest 尚未啟用。
 
-## 1. 需要人工開網頁或提供／核對外部資訊
+## 1. 已完成的人工 gate
 
-依序完成：
-
-1. **Google OAuth 長期模式**：在 Google Auth Platform 將 External app 切到 Production，並處理
-   Google 要求的驗證；或明確接受 Testing 模式約每 7 天重新授權。必要時只使用 Chrome
-   「Ding Ding」重新授權一次。
-2. **Remote host identity**：提供 SSH username、Tailscale hostname／private IP、預期 host-key
-   fingerprint。不要在聊天傳 password、private key、Discord token 或 OAuth credential。
-3. **Remote staging**：Codex 取得 host identity 後，執行唯讀 audit、staging install、remote
-   synthetic smoke、backup／restore rehearsal 與 one-writer readiness。Mac bots保持運作。
-4. **Live cutover approval**：所有 remote receipts PASS 後，使用者輸入精確
-   `GO-LIVE-CUTOVER`。在此之前不得停 Mac writer 或啟動 remote production writer。
-5. **Bound digest**：remote heartbeat 穩定後才安裝 trigger；若 Google 要求，人工在 Ding Ding
-   完成授權。
+Google OAuth Production、SSH host identity、remote staging、runtime secrets receipt、精確
+`GO-LIVE-CUTOVER`、remote systemd activation 與 Public Discord smoke 均已完成。朋友目前不需要再
+執行 sudo。
 
 ## 2. 必須等待 24 小時
 
-Cutover 成功後才開始計時。期間驗證單一 writer、三個 remote services、Discord connectivity、
-queue depth、OAuth refresh、GAS heartbeat、backup 與 compact Sheet projection。滿 24 小時後原地更新
-Phase 2C report，再決定是否進入小規模試用。
+計時起點：2026-08-22 18:33（Asia/Taipei）。最早完成：2026-08-23 18:33。
+
+期間驗證單一 writer、三個 remote services、Discord connectivity、queue depth、OAuth refresh、GAS
+heartbeat、backup 與 compact Sheet projection。滿 24 小時後原地更新 Phase 2C report，再決定是否
+進入小規模試用。第一天不新增 production feature；bound digest 延後至 heartbeat 穩定後再處理。
 
 ## 固定停止線
 
