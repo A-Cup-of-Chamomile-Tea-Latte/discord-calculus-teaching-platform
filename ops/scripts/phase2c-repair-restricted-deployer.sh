@@ -10,7 +10,7 @@ unset BASH_ENV ENV PYTHONHOME PYTHONPATH PIP_CONFIG_FILE
 
 source_release=${1:-}
 installed_deployer=/usr/local/sbin/calculus-discord-deploy
-expected_old_sha256=a65e6f271a9b7410ac3faab99ad5fcbe93510bc18aefcf7fd10cf05c16e808ca
+expected_old_sha256=f388f862e7951babf4f5dd4d94280142b00c36f7607dc6ece321b130abb6d91e
 
 fail() {
   printf 'repair_error=%s\n' "$1" >&2

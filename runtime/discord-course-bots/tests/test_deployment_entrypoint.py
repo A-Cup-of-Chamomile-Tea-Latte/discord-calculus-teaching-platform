@@ -39,6 +39,12 @@ def test_deployer_is_fixed_scope_and_does_not_install_units_or_secrets() -> None
     assert 'chmod -R u=rwX,go=rX "$release_destination"' in source
     assert "BUILDER_RUNTIME_ACCESS_DENIED" in source
     assert "SERVICE_RUNTIME_ACCESS_DENIED" in source
+    assert (
+        'install -d -o calculus-builder -g calculus-builder -m 0700 "$migration_workspace"'
+        in source
+    )
+    assert "MIGRATION_WORKSPACE_NOT_WRITABLE" in source
+    assert "STAGING_DATABASE_NOT_WRITABLE" in source
     assert "ops/systemd" not in source
     assert "/etc/calculus-discord/*.env" not in source
     assert "google-oauth.json" not in source

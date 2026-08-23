@@ -124,7 +124,8 @@ dependency_lock=$release_destination/ops/requirements/discord-runtime.txt
 old_release=$(readlink -f /opt/calculus-discord/current)
 rollback_database=/var/lib/calculus-discord/backups/deploy-$release_id.before.sqlite3
 receipt=/var/lib/calculus-discord/receipts/deploy-$release_id.txt
-staging_database=$private_stage/migration.sqlite3
+migration_workspace=$private_stage/migration
+staging_database=$migration_workspace/runtime.sqlite3
 
 [[ $old_release == /opt/calculus-discord/releases/* ]] || fail CURRENT_RELEASE_PATH_INVALID
 [[ $old_release != "$release_destination" ]] || fail RELEASE_ALREADY_CURRENT
@@ -205,9 +206,14 @@ runuser -u calculus-builder -- test -x "$runtime/.venv/bin/python" ||
 runuser -u calculus-bot -- test -x "$runtime/.venv/bin/python" ||
   fail SERVICE_RUNTIME_ACCESS_DENIED
 
+install -d -o calculus-builder -g calculus-builder -m 0700 "$migration_workspace"
+runuser -u calculus-builder -- test -w "$migration_workspace" ||
+  fail MIGRATION_WORKSPACE_NOT_WRITABLE
 sqlite3 "$database" ".backup '$staging_database'"
 chown calculus-builder:calculus-builder "$staging_database"
 chmod 0600 "$staging_database"
+runuser -u calculus-builder -- test -w "$staging_database" ||
+  fail STAGING_DATABASE_NOT_WRITABLE
 runuser -u calculus-builder -- env -i HOME=/var/lib/calculus-discord-build \
   PATH=/usr/bin:/bin "$runtime/.venv/bin/python" - "$staging_database" \
   "$target_schema" <<'PY'
