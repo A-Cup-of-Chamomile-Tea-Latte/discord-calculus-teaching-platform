@@ -199,7 +199,11 @@ for executable in course-assistant dump-bot discord-production-bridge; do
     fail RELEASE_SHEBANG_INVALID
 done
 chown -R root:root "$release_destination"
-chmod -R go-w "$release_destination"
+chmod -R u=rwX,go=rX "$release_destination"
+runuser -u calculus-builder -- test -x "$runtime/.venv/bin/python" ||
+  fail BUILDER_RUNTIME_ACCESS_DENIED
+runuser -u calculus-bot -- test -x "$runtime/.venv/bin/python" ||
+  fail SERVICE_RUNTIME_ACCESS_DENIED
 
 sqlite3 "$database" ".backup '$staging_database'"
 chown calculus-builder:calculus-builder "$staging_database"

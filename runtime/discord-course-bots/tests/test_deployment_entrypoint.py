@@ -8,12 +8,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEPLOYER = PROJECT_ROOT / "ops/scripts/calculus-discord-deploy"
 INSTALLER = PROJECT_ROOT / "ops/scripts/install-calculus-discord-deployer.sh"
 PREPARER = PROJECT_ROOT / "ops/scripts/prepare-calculus-discord-deploy-request.sh"
+REPAIRER = PROJECT_ROOT / "ops/scripts/phase2c-repair-restricted-deployer.sh"
 SUDOERS = PROJECT_ROOT / "ops/sudoers/calculus-discord-deploy"
 DEPENDENCY_LOCK = PROJECT_ROOT / "ops/requirements/discord-runtime.txt"
 
 
 def test_deployment_scripts_are_executable_and_parse_as_bash() -> None:
-    for script in (DEPLOYER, INSTALLER, PREPARER):
+    for script in (DEPLOYER, INSTALLER, PREPARER, REPAIRER):
         assert os.access(script, os.X_OK)
         subprocess.run(["bash", "-n", script], check=True)
 
@@ -35,6 +36,9 @@ def test_deployer_is_fixed_scope_and_does_not_install_units_or_secrets() -> None
     assert 'filter="data"' in source
     assert "calculus-builder" in source
     assert "rollback=APPLIED" in source
+    assert 'chmod -R u=rwX,go=rX "$release_destination"' in source
+    assert "BUILDER_RUNTIME_ACCESS_DENIED" in source
+    assert "SERVICE_RUNTIME_ACCESS_DENIED" in source
     assert "ops/systemd" not in source
     assert "/etc/calculus-discord/*.env" not in source
     assert "google-oauth.json" not in source
@@ -57,3 +61,13 @@ def test_installer_explicitly_reports_unchanged_network_secrets_and_units() -> N
     assert "new_port=NO" in source
     assert "secrets_changed=NO" in source
     assert "systemd_units_changed=NO" in source
+
+
+def test_one_time_repairer_is_guarded_and_only_replaces_the_deployer() -> None:
+    source = REPAIRER.read_text(encoding="utf-8")
+    assert "REPAIR_CALCULUS_DEPLOYER=REPAIR-CALCULUS-DEPLOYER" not in source
+    assert "REPAIR_CALCULUS_DEPLOYER:-" in source
+    assert "expected_old_sha256=" in source
+    assert "INSTALLED_DEPLOYER_VERSION_REFUSED" in source
+    assert "/etc/sudoers.d" not in source
+    assert "/etc/calculus-discord" not in source
