@@ -15,7 +15,8 @@ production、secrets、Discord 或 Google。
 
 ## Findings resolved in this maintenance branch
 
-1. 將初次 Mac → Remote cutover runbook 標示為歷史文件，避免重跑已完成的 cutover。
+1. 將初次 host deployment／Mac → Remote cutover 文件移入 `docs/archive/`；原路徑只留 redirect stub，
+   避免重跑已完成的 bootstrap／cutover，又不破壞舊連結。
 2. 對齊 reviewer／TA／student guides：區分本機 backend candidate、public fail-closed 與 production 接線。
 3. 修正 OAuth 文件仍聲稱 credential 尚未安裝的過期狀態。
 4. 為舊 `UNRESOLVED` checkpoint 加上歷史時間邊界，避免把 Local SQLite 誤認為現行 authority。

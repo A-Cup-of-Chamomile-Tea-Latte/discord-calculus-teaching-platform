@@ -24,6 +24,8 @@
 - **Current（目前有效）**：本檔、`IMPLEMENTATION_STATUS.md`、`NEXT_STEPS.md`、`CONFIGURATION.md`、`architecture/`、`decisions/UNRESOLVED.md` 與各操作指南。
 - **Evidence（可追溯證據）**：`reports/` 的 TASK／BATCH 報告；它們記錄當時範圍與測試，不能單獨覆蓋後續決策。
 - **Historical decision record（歷史決策）**：`decisions/ADR-*.md` 維持穩定檔名；若被取代，應以新 ADR 或決策更新註記，而非回寫歷史。
+- **Archive（已取代操作）**：`archive/` 保存已完成、不可重跑的 bootstrap／cutover 文件；原操作入口只留
+  redirect stub，現行動作必須回到 Current 文件。
 
 ## M3 命名與維護規則
 
