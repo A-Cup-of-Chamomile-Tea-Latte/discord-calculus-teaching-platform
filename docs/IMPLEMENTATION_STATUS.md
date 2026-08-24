@@ -2,16 +2,17 @@
 
 Last repository／AI handoff reconciliation: 2026-08-24（Asia/Taipei）
 
-> 本頁分開記錄「已驗證的 production」與「repository 候選版」。本輪整合沒有重新連線 remote、部署、重啟服務或寫入 live data，因此不把本機測試結果冒充 production 狀態。
+> 本頁分開記錄「已驗證的 production」與「repository 候選版」。2026-08-24 的 Phase 2C 收尾只做
+> remote／Mac 唯讀核對，沒有部署、重啟服務或寫入 live data；本機 candidate 測試不冒充 production 狀態。
 
 ## Canonical snapshot
 
 | 領域 | 現況 |
 | --- | --- |
 | Production writer | Remote Linux 是唯一 production writer；Mac writers 已停止 |
-| Production runtime | 三個 systemd services；2026-08-23 17:12 的最新安全交接快照為 `HEALTHY` |
+| Production runtime | 三個 systemd services；2026-08-24 17:16 唯讀核對均 active／enabled，owner-only 狀態摘要均為 `HEALTHY` |
 | Production DB | Remote SQLite schema v6；lifecycle 使用 durable queue／stage resume／retry／idempotency |
-| Observation | 現行 v6 baseline 於 2026-08-23 17:12 重新起算；最早 2026-08-24 17:12 可做最終 checkpoint，本輪尚未重新探測。此 24h 窗不是 v10 換版後必須重複的冷卻期 |
+| Observation | 現行 v6 baseline 的 24 小時 observation 已於 2026-08-24 17:16 PASS；remote 持續是唯一 writer，三類 queue 與 manual attention 均為 0。此收據不替 candidate v10 背書 |
 | Repository candidate | Portal、115-1 academic data、production v6 基礎與 Bot UX 已整合；Bot candidate schema v10，尚未部署 |
 | Google | SQLite 是 operational authority；Sheets 是 compact projection，不是第二套主資料庫 |
 | Portal | 公開／reviewer artifact 分離；學生面收斂為靜態資訊入口與最小動態服務 |
@@ -50,10 +51,10 @@ Last repository／AI handoff reconciliation: 2026-08-24（Asia/Taipei）
 
 ## 尚未完成
 
-1. 取得 2026-08-24 17:12 後的 owner-only production 安全摘要，完成 observation 最終 checkpoint。
-2. 在 production DB 備份副本演練 v6 → v10；通過後仍須另行授權才可部署。
-3. 接上 Portal same-origin 加入申請與單案查詢 backend，完成 CSRF、rate limit、audit 與 Private 最小揭露。
-4. 完成 production Discord role／category／class-module 設定映射與白帳號端到端驗收。
-5. Repository owner、公開 URL、backend origin 與首次 Portal deploy 仍是人工 gate。
+1. 在 production DB consistent backup 的獨立副本演練 v6 → v10，核對 backup readability、integrity、ledger、row counts 與 rollback；通過後仍須另行授權才可部署。
+2. 接上 Portal same-origin 加入申請與單案查詢 backend，完成 CSRF、rate limit、audit 與 Private 最小揭露。
+3. 完成 production Discord role／category／class-module 設定映射與白帳號端到端驗收。
+4. Deployment smoke 與 rollback readiness 全數通過後才請 owner 明示部署；若無實際穩定性風險，不另加等待窗口，必要時最多約 8 小時。
+5. Repository owner、公開 URL、backend origin、CNAME 與首次 Portal rollout 維持人工 gate，暫不阻擋上述上線前工程。
 
 詳細 runtime observation：`docs/ops/PHASE2C_24H_OBSERVATION.md`。

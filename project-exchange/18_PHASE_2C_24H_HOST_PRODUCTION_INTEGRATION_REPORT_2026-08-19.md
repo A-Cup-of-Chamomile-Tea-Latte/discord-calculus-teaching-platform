@@ -6,7 +6,9 @@
 >
 > 已部署與驗證的 code baseline：`78fb4a8`
 >
-> 本文件原地更新；不另生重複版本。
+> 歷史收據：本文件保存 cutover 前狀態，不再作為 current source of truth。Phase 2C v6 baseline 已在
+> 2026-08-24 17:16 完成 24 小時 observation 並判定 PASS；現況請看
+> `docs/ops/PHASE2C_24H_OBSERVATION.md`、`docs/IMPLEMENTATION_STATUS.md` 與 `docs/NEXT_STEPS.md`。
 
 ## 結論
 
@@ -19,9 +21,10 @@ queue、claim、apply、ack 與 duplicate-safe replay。Synthetic human-view row
 dry-run 為 no-op。Live SQLite 只以唯讀方式開啟；consistent backup、restore、copy migration
 v0 → v5、integrity、ledger 與 row-count equivalence 全部通過，原始 DB 未修改。
 
-目前只剩人工外部 gate 與 cutover 後真實 24 小時觀察。
+以下結論與 gate 表是 2026-08-20 的歷史切面；其中 remote host、cutover、OAuth 與 24 小時觀察等
+舊 gate 均已由後續 canonical 文件汰換。
 
-## Canonical runtime
+## Historical canonical runtime（2026-08-20）
 
 | 項目 | 現況 |
 | --- | --- |
@@ -122,7 +125,7 @@ scope 包含 Sheets。依 Google 規則，這類 testing refresh token 通常約
 - Cutover 後才開始 24 小時 observation；驗證單一 writer、三個 remote services、Discord、queue、
   OAuth refresh、GAS heartbeat、backup 與 Sheet projection。不能用加速測試代替。
 
-## Gate 表
+## Historical gate 表（2026-08-20）
 
 | Gate | 狀態 |
 | --- | --- |
@@ -135,7 +138,7 @@ scope 包含 Sheets。依 Google 規則，這類 testing refresh token 通常約
 | Remote staging／remote cloud smoke | WAITING FOR HOST IDENTITY |
 | Remote backup／restore | WAITING FOR HOST IDENTITY |
 | `GO-LIVE-CUTOVER` | NOT AUTHORIZED |
-| 24h observation | NOT STARTED |
+| 24h observation | NOT STARTED（當時；已由 2026-08-24 PASS 收據汰換） |
 | Bound status digest | TESTED／NOT ENABLED |
 
 ## 固定停止線

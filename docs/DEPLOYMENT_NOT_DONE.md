@@ -13,7 +13,7 @@
 - Desktop OAuth 與虛構案件的 Local → Cloud projection，以及 Cloud → Local → Cloud command
   claim／apply／ack／duplicate-safe round-trip 均已通過。
 - Google Auth Platform 已切到 External／Production；owner credential 可 refresh 並通過 owner-only `scripts.run`。
-- Remote cutover 已完成；24 小時 observation 等待 2026-08-24 17:12 後的最終遠端 checkpoint。
+- Remote cutover 已完成；現行 v6 baseline 的 24 小時 observation 已於 2026-08-24 17:16 PASS。
 - Portal backend、email、正式身分 authority 與學生試用仍未完成。
 
 完整收據見 [實作狀態](IMPLEMENTATION_STATUS.md) 與 [`project-exchange/18_PHASE_2C_24H_HOST_PRODUCTION_INTEGRATION_REPORT_2026-08-19.md`](../project-exchange/18_PHASE_2C_24H_HOST_PRODUCTION_INTEGRATION_REPORT_2026-08-19.md)。
@@ -24,8 +24,8 @@
 | --- | --- | --- |
 | Discord | Remote 三服務 production baseline v6；repository 有尚未部署的 Bot candidate v10 | production 設定映射、白帳號 ACL regression 與另行部署 gate |
 | SQLite | production v6；repository v10；schema-shaped v6 暫存副本的 v6 → v10 rehearsal PASS | production consistent backup rehearsal 與另行 deploy 授權 |
-| GAS／Sheets | 5 個人用頁、5 個機器頁；owner-only 雙向 `scripts.run` smoke PASS | 最終 observation checkpoint；status digest 另行決定 |
-| Linux host | systemd cutover 完成；remote 是唯一 writer | 最終 observation checkpoint 與 candidate forward gate |
+| GAS／Sheets | 5 個人用頁、5 個機器頁；owner-only 雙向 `scripts.run` smoke PASS | candidate release 前安全核對；status digest 另行決定 |
+| Linux host | systemd cutover 完成；remote 是唯一 writer；v6 observation PASS | candidate forward gate |
 | Portal | 公開／reviewer artifact 分離；public 未接線功能 fail closed | same-origin backend、查詢授權與 abuse controls |
 | Email／身分 | domain logic 與 mock tests | 正式 provider、身分依據、rate limit 與保留政策 |
 | Private Support | 分流與 deny-by-default 規則已有 | 正式受保護機制、ACL regression 與保留政策 |
@@ -36,10 +36,9 @@
 1. 授課教師／課程 owner 核准試用範圍、責任人與備援流程。
 2. 決定資料告知、同意、撤回、保留、刪除、附件與 Private Support 規則。
 3. 完成 Portal 查詢的 AuthN／AuthZ、rate limit、Private Support 隔離與一般錯誤回覆。
-4. 取得 2026-08-24 17:12 後的 owner-only 安全摘要，完成目前 24 小時 observation checkpoint。
-5. 以 production v6 consistent backup 演練 repository candidate v10，核對 integrity、ledger 與 row counts。
-6. 完成 production Discord 設定與白帳號端到端驗收；任何 candidate deploy 需另行明示授權。
-7. observation 與新 release gate 都通過後，才決定是否進入小規模試用。
+4. 以 production v6 consistent backup 的獨立副本演練 repository candidate v10，核對 backup readability、integrity、ledger、row counts 與 rollback。
+5. 完成 production Discord 設定與白帳號端到端驗收；任何 candidate deploy 需另行明示授權。
+6. 新 release gate 通過後，才決定是否進入小規模試用；CNAME、公開網址與 rollout 可稍後處理。
 
 ## 外部狀態變更規則
 

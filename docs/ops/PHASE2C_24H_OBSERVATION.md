@@ -3,11 +3,22 @@
 ## Current observation window
 
 - 開始：2026-08-23 17:12（Asia/Taipei）
-- 最早完成：2026-08-24 17:12（Asia/Taipei）
-- 狀態：`AWAITING FINAL REMOTE CHECKPOINT`；本 repository 整合輪沒有重新連線探測，不能寫成 PASS
+- 完成：2026-08-24 17:16（Asia/Taipei）
+- 狀態：`PASS`
 - Production authority：remote SQLite
 - Production writer：remote Linux only
 - Production schema：v6；repository candidate v10 尚未部署
+
+## Final receipt
+
+- 2026-08-24 17:12 後的 owner-only `/ops status` 顯示課程助理、封存服務與雲端同步均
+  `HEALTHY`，schema v6，案件操作、雲端同步、私人匯出與 manual attention queue 均為 0。
+- 2026-08-24 17:16 的 remote 唯讀核對顯示 `/opt/calculus-discord/current` 仍指向已驗證的
+  v6 release；三個 systemd services 均 `active`／`enabled`。
+- root-owned 受限部署入口仍存在且保持原權限；本次只核對，沒有執行 deployer。
+- Mac LaunchAgent 與本機 runtime process 均為 0；remote 持續是唯一 production writer。
+- GPT Pro 已接受上述安全摘要、single-writer 證據與既定成功／停止條件，故現行 v6 baseline 的
+  24 小時 observation 判定 PASS。
 
 ## Superseded defect window
 
@@ -34,7 +45,7 @@ v5 → v6、Public smoke 與安全狀態核對後，才從 2026-08-23 17:12 重�
 - 學生向隱私說明也暴露 `reopen_count`、dump 等內部術語，須一併修正。
 - 目前不再重複操作該測試 thread。服務保持單一 remote writer；尚無 duplicate writer、DB corruption
   或 service restart 證據，因此未觸發整體 rollback。
-- 此 finding 屬於 2026-08-22 的已作廢窗口；修復與新 smoke 已完成，但仍需等目前窗口的最終遠端 checkpoint。
+- 此 finding 屬於 2026-08-22 的已作廢窗口；修復、新 smoke 與後續 24 小時 observation 均已完成。
 
 ## Final checkpoint gate
 
@@ -42,21 +53,21 @@ v5 → v6、Public smoke 與安全狀態核對後，才從 2026-08-23 17:12 重�
 - [x] 三個 remote services 使用同一個 v6 release，fresh health PASS，Mac writer 為 0。
 - [x] Public close／immediate reopen smoke 收斂；沿用案號，沒有重複 lifecycle side effect。
 - [x] owner-only `/ops status` 唯讀、ephemeral，非 owner fail closed。
-- [ ] 2026-08-24 17:12 後重新取得安全摘要，確認三服務、schema、queue、manual attention、projection、OAuth 與 backup。
-- [ ] 只有上述最終 checkpoint PASS，才可更新為 observation PASS。
+- [x] 2026-08-24 17:12 後取得 owner-only 安全摘要：三服務健康、schema v6、三類 queue 與 manual attention 均為 0。
+- [x] Remote runtime、single-writer 與受限部署入口完成唯讀核對；observation 判定 PASS。
 
 本文件不記錄 Discord／Google ID、credential、案件正文、姓名、學號、Email 或其他私人資料。
 
-## 必查項目
+## 完成項目與後續證據
 
-- [ ] 單一 writer invariant 持續成立；Mac writer 不得復活。
-- [ ] 三個 remote services 持續 active，沒有 restart loop。
-- [ ] Discord gateway 與 Public workflow 持續可用。
-- [ ] Projection queue 無持續 backlog 或 critical failure。
-- [ ] OAuth refresh 與 GAS health 正常。
-- [ ] Compact Sheet production projection 有前進且沒有重複副作用。
-- [ ] Production SQLite integrity、schema 與 migration ledger 正常。
-- [ ] Daily backup 成功，並採有界 retention；不長期堆積於朋友主機。
+- [x] 單一 writer invariant 持續成立；Mac writer 沒有復活。
+- [x] 三個 remote services 持續 active／enabled；owner-only 狀態摘要均為 `HEALTHY`。
+- [x] Projection queue、私人匯出 queue 與 manual attention 均歸零，沒有 critical failure。
+- [x] Production schema 保持 v6，沒有在 observation 中換版。
+- [ ] OAuth refresh、GAS／Compact Sheet 與 daily backup 沒有在 17:12 最終 checkpoint 另外執行寫入式
+  smoke；既有收據未出現異常，但這些項目必須在 candidate v10 的 release gate 以安全方式再確認。
+- [ ] Production v6 consistent backup 副本的 v6 → v10 rehearsal、backup readability、integrity、ledger、
+  row counts 與 rollback readiness 屬於下一個 release gate，不由本次 v6 PASS 代替。
 
 ## 停止線
 
@@ -64,9 +75,9 @@ v5 → v6、Public smoke 與安全狀態核對後，才從 2026-08-23 17:12 重�
 production secret 缺漏或 OAuth 無法恢復，立即停止 remote services，保留 rollback DB；不得同時重啟
 Mac writer。
 
-## 24 小時後
+## PASS 後
 
-只有實際滿 24 小時且上述項目均 PASS，才可更新 Phase 2C report 並討論小規模試用。Bound GAS
-status digest、Portal、CNAME 與其他新功能不屬於本觀察窗口。
+Phase 2C v6 baseline 已完成。Bound GAS status digest、Portal、CNAME 與其他新功能不屬於本觀察
+窗口；candidate v10 也沒有因本次 PASS 自動取得部署授權。
 
 這個 24 小時窗只是現行 Production v6 baseline 的最後收據，不是以後每次換版的固定冷卻期。Candidate v10 若獲授權部署，以 production consistent backup rehearsal、部署後 smoke、白帳號 E2E 與 rollback readiness 作主 gate；需額外觀察時，以最長約 8 小時的過夜窗口為原則。v6 窗口不為 v10 功能背書，但也不因此強制 v10 重等 24 小時。

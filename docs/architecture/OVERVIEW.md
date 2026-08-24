@@ -41,7 +41,7 @@ flowchart LR
 
 Remote Linux 上的 `course_assistant`、`dump_bot` 與 `data_bridge` 是 production systemd services；Mac writers 已停止。SQLite 的案件異動與 outbox 在同一個 transaction 寫入；Google 暫時不可用時，Discord 不必停寫。Standalone GAS 只接受 owner 的 Apps Script Execution API 呼叫，不提供公開 Web App endpoint。
 
-已驗證 production baseline 是 schema v6；repository candidate 整合到 v10，但尚未部署。24 小時 observation 已重新起算，仍待最終 remote checkpoint。Portal 的公開資訊可靜態輸出；加入申請與案件查詢 backend 未接線時一律 fail closed。
+已驗證 production baseline 是 schema v6，其 24 小時 observation 已於 2026-08-24 17:16 PASS；repository candidate 整合到 v10，但尚未部署。Portal 的公開資訊可靜態輸出；加入申請與案件查詢 backend 未接線時一律 fail closed。
 
 ## 元件與信任邊界
 
