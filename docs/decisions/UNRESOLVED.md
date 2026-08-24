@@ -45,9 +45,10 @@ GitHub Pages 是 internet-public，但產品語意的 course-wide public 是相�
 ## 2026-08-10 已解決或收斂的事項
 
 - 原 U-015：ZIP、三年度 dump、live runtime state 與 local archive 已排除 Git；可追溯 source
-  checkpoint 只包含已掃描的程式、fixtures、文件與小型審查圖片。尚未建立 remote。
-- Local SQLite 是主要 operational authority；Sheets 是可寫的行政 projection、分享與暫時
-  restore surface。Cloud-to-local restore 必須通過完整性與人工確認，不能自動覆蓋本機。
+  checkpoint 只包含已掃描的程式、fixtures、文件與小型審查圖片。當時尚未建立 remote；現況改由
+  `docs/IMPLEMENTATION_STATUS.md` 記錄。
+- 2026-08-10 當時由 Local SQLite 擔任 operational authority；完成 cutover 後已改為 Remote SQLite。
+  Sheets 始終只是行政 projection；任何 restore 都必須通過完整性與人工確認，不能自動覆蓋 authority。
 - Email `SENT` 表示 sender call 與 audit write 成功，不表示送達或已讀。
 - AI analysis 仍須明確同意、去識別化與教學優化限定用途；U-006、U-013、U-014 保留，以便
   完成正式文字、撤回、retention 與逐作者規則。

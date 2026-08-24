@@ -1,6 +1,8 @@
 # 助教快速指南
 
-> 這是試用前操作指南，不是授課單位核准的正式 SOP。依 2026-08-22 最新交接，Discord 已切到遠端單一 writer；修正版完成後仍須重新進行觀察。Portal 動態提交、email 與正式學生試用尚未放行。
+> 這是試用前操作指南，不是授課單位核准的正式 SOP。Remote Linux 已是唯一 writer，production v6
+> observation 已於 2026-08-24 PASS；candidate v10 仍須通過 deployment smoke、白帳號 E2E 與 rollback
+> readiness。Portal 動態提交、email 與正式學生試用尚未放行。
 
 ## 一般案件 triage
 

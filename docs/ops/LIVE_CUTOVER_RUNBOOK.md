@@ -1,5 +1,9 @@
 # Live Cutover Runbook
 
+> **歷史初次 cutover 文件。** Remote Linux cutover 與 production v6 的 24 小時 observation 已於
+> 2026-08-24 完成；不得重跑本文件的 Mac → Remote cutover 步驟。現行 v10 換版只使用
+> [`V10_RELEASE_SAFETY_RUNBOOK.md`](V10_RELEASE_SAFETY_RUNBOOK.md) 與 root-owned restricted deployer。
+
 ## 前置必須全部 PASS
 
 ```text
@@ -38,7 +42,7 @@ owner-only staging 做 rehearsal；staging 副本不得成為 writer。
 
 第一次修復換版同時安裝 `docs/ops/RESTRICTED_DEPLOYMENT_ENTRYPOINT.md` 定義的受限入口；之後一般
 production release 使用 root-owned `/usr/local/sbin/calculus-discord-deploy`。入口只接受固定 inbox、
-release checksum 所涵蓋的 exact-pinned dependency lock、正確 hostname、單一步 additive migration
+release checksum 所涵蓋的 exact-pinned dependency lock、正確 hostname、明示目標的遞增 additive migration
 與無參數 invocation。它不改 OAuth／Discord secrets，也不重跑舊的 compact migration、GAS parity、
 local smoke、synthetic cleanup 或 recovery rehearsal。
 

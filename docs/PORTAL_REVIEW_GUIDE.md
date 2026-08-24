@@ -1,6 +1,6 @@
 # Portal 本機審查指南
 
-更新日期：2026-08-24
+更新日期：2026-08-25
 
 ## 啟動
 
@@ -9,7 +9,8 @@ cd "/Users/chamomiletea/Documents/Curricular/115-1/Calculus TA/Discord_微積分
 npm run review
 ```
 
-開啟 `http://127.0.0.1:4321/`。這是 reviewer build，不會部署，也不代表 Portal backend 已接線。
+開啟 `http://127.0.0.1:4321/`。這是 reviewer build，不會部署；same-origin backend 已在本機候選版
+完成，但尚未接到 production session／audit／origin runtime。
 
 ## 2026-08-24 驗收結果
 
@@ -37,6 +38,7 @@ npm run review
 ## 安全邊界
 
 - reviewer build 可操作本機欄位驗證與 browser-only 身份展示。
-- 尚未接線：正式加入申請、單案 lookup backend、Discord role write。
+- 尚未接線到 production：正式 session／audit／origin runtime 與 Discord role write；本機 backend 測試
+  不得冒充 production E2E。
 - Public build 不得包含 fixture 案件內容、內部登入、狀態 dashboard、舊路由或管理工具。
 - Runtime 以最新 canonical repo 與 AI 交接核對；Portal 工作不得機械覆寫 production v6 支線。

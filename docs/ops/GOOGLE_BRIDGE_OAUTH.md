@@ -1,8 +1,8 @@
 # Google Bridge OAuth
 
-> 2026-08-20 現況：Google Auth Platform 已是 External／Production，且 consent config 只登記
-> Sheets scope。新的 Production credential 已在本機以 owner 帳號完成授權與 refresh 驗證，
-> 並維持 `0600`；remote owner-only staging refresh 也已通過，尚未安裝成 production secret。
+> 2026-08-24 現況：Google Auth Platform 已是 External／Production，且 consent config 只登記
+> Sheets scope。Production credential 已安裝在 remote owner-only secret boundary；data bridge refresh、
+> 三服務 health 與 production v6 observation 均已 PASS。本文不得被解讀為要求重新授權。
 
 ## 為什麼分兩種授權
 
@@ -48,11 +48,11 @@ chmod 0600 /secure/path/google-oauth.json
 
 bridge 只讀此檔，access token 在記憶體刷新。撤銷後 bridge 轉為 degraded、queue 留在 SQLite，Discord 仍運作。
 
-## 上線前人工 gate
+## 已完成的 v6 人工 gate
 
-在 24h production observation 前，專案 owner 必須在 Production 狀態用「Ding Ding」專案帳號
-重新授權一次，產生新的長期 credential。重新授權前後都必須維持上方的單一 Spreadsheet
-ID／fingerprint 邊界；不得藉 OAuth 流程探索其他 Drive／Sheets 資料。
+Production v6 observation 前，專案 owner 已用「Ding Ding」專案帳號完成長期 credential 授權與
+remote refresh 驗證。未來只有 credential rotation、撤銷或 health 明確失敗時才重做；前後都必須維持
+上方的單一 Spreadsheet ID／fingerprint 邊界，不得藉 OAuth 流程探索其他 Drive／Sheets 資料。
 
 官方規則見 [Google OAuth 2.0 refresh token expiration](https://developers.google.com/identity/protocols/oauth2#expiration)。
 切換 publishing status 不等於放寬 GAS access；standalone deployment 仍必須維持 owner-only，

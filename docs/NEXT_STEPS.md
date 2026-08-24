@@ -1,6 +1,6 @@
 # Ordered next steps
 
-更新日期：2026-08-24
+更新日期：2026-08-25
 
 ## 已完成 checkpoint：Portal／Bot／academic data 整合
 
@@ -17,6 +17,9 @@
 - Phase 2C v6 baseline 於 2026-08-24 17:16 判定 PASS；這不是 candidate v10 的部署核准。
 
 ## 1. Candidate migration 與 release safety
+
+目前：v10 release `3411aff` 與 `target_schema=10`／`ADDITIVE` request 已在 remote staging；owner 已明示
+deploy 授權。production 仍是 v6，等待 root-owned deployer 更新後才可執行 restricted deployer。
 
 1. 取得 production v6 consistent backup；只在獨立副本演練 v6 → v10。
 2. 核對 backup readability、ledger 1–10、integrity、row counts、rollback 與有界 retention。

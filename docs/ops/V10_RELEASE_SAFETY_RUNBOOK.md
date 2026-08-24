@@ -1,6 +1,8 @@
 # v10 Release Safety Runbook
 
-狀態：`READY_FOR_OWNER_DEPLOY_DECISION`。本文件只定義單一路徑與停止線；本次工作沒有部署、重啟、live migration、Discord 套用或 production 修改。
+狀態：`AUTHORIZED / RELEASE_STAGED / PRODUCTION_V6_UNCHANGED`。v10 release `3411aff` 與 ADDITIVE
+request 已在 remote staging；等待一次 root-owned deployer 更新。尚未重啟、live migrate、套用 Discord
+mapping 或修改 production DB。
 
 ## 0. 固定邊界
 

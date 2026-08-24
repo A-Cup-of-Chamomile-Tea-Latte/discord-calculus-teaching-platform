@@ -1,6 +1,7 @@
 # 學生快速指南（草案）
 
-> 這是原型的學生文案草案，尚未代表課程正式政策或機構核准。目前 Portal 使用虛構 fixtures，表單不會真正送出。
+> 這是原型的學生文案草案，尚未代表課程正式政策或機構核准。Public Portal 目前仍 fail closed，
+> 表單不會送到 production；虛構 fixtures 只存在 reviewer／test artifact。
 
 ## 我要去哪裡？
 
