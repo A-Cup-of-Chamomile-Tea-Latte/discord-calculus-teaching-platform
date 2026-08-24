@@ -21,6 +21,7 @@ def _case(repo: Repository, *, status: str = "TRACKED") -> None:
         canonical_title="[M1] [test] Question",
         initial_snapshot={"body": "hello"},
     )
+    assert repo.claim_case(1, 9) is not None
     if status == "CLOSED":
         repo.close_case(1)
         claim = repo.claim_discord_lifecycle_job("setup")

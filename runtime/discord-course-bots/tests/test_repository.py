@@ -38,6 +38,12 @@ def test_fresh_database_has_versioned_migration_ledger(tmp_path: Path) -> None:
         "sync_state",
         "service_health",
         "discord_lifecycle_jobs",
+        "private_open_requests",
+        "discord_dm_outbox",
+        "join_applications",
+        "join_application_events",
+        "reviewer_grants",
+        "course_role_jobs",
     }
 
 
@@ -119,7 +125,8 @@ def test_draft_to_case(tmp_path: Path) -> None:
     )
     case = repo.get_case_by_thread(1)
     assert case is not None
-    assert case["status"] == "TRACKED"
+    assert case["status"] == "OPEN"
+    assert repo.claim_case(1, 9) is not None
     closed = repo.close_case(1)
     assert closed is not None
     assert closed["status"] == "CLOSED"
@@ -154,6 +161,7 @@ def test_lifecycle_queue_claim_completion_and_status_are_safe(tmp_path: Path) ->
         canonical_title="[M1] [test] Question",
         initial_snapshot={"body": "hello"},
     )
+    assert repo.claim_case(1, 9) is not None
     assert repo.close_case(1) is not None
     assert repo.close_case(1) is None
 
@@ -193,9 +201,10 @@ def test_reopen_requires_closed_and_never_mutates_a_tracked_case(tmp_path: Path)
     assert repo.reopen_case(1) is None
     tracked = repo.get_case_by_thread(1)
     assert tracked is not None
-    assert tracked["status"] == "TRACKED"
+    assert tracked["status"] == "OPEN"
     assert tracked["reopen_count"] == 0
     assert tracked["canonical_title"] == "[M1] [test] Question 7"
+    assert repo.claim_case(1, 9) is not None
 
     for expected_count, expected_title in (
         (1, "[M1] [test] Question 7 2"),

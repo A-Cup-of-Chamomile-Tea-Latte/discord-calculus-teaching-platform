@@ -9,7 +9,7 @@ from discord_course_bots.logging_config import configure_logging
 from discord_course_bots.repository import Repository
 from discord_course_bots.settings import SettingsError, load_course_assistant_settings
 
-from .cogs import CaseCog, DraftLifecycleCog
+from .cogs import CaseCog, CourseManagerCog, DraftLifecycleCog
 from .service import CourseService
 from .views import DraftSetupView, PrivateDumpView, ReopenView
 
@@ -33,6 +33,7 @@ class CourseAssistantBot(commands.Bot):
         self.add_view(ReopenView(self.service))
         self.add_view(PrivateDumpView(self.service))
         await self.add_cog(CaseCog(self, self.service))
+        await self.add_cog(CourseManagerCog(self, self.service))
         await self.add_cog(DraftLifecycleCog(self, self.service))
         test_guild = discord.Object(id=self.settings.test_guild_id)
         self.tree.copy_global_to(guild=test_guild)
@@ -100,6 +101,19 @@ class CourseAssistantBot(commands.Bot):
             await self.service.reconcile_title(after)
         except discord.HTTPException:
             LOGGER.exception("Title reconciliation failed for %s", after.id)
+
+    async def on_message(self, message: discord.Message) -> None:
+        if message.author.bot or message.guild is None:
+            return
+        case = self.repo.get_case_by_thread(message.channel.id)
+        if case is None or not isinstance(message.author, discord.Member):
+            return
+        self.repo.record_case_activity(
+            message.channel.id,
+            actor_id=message.author.id,
+            is_staff=self.service.is_staff(message.author),
+            occurred_at=message.created_at,
+        )
 
 
 def main() -> None:

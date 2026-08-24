@@ -29,3 +29,21 @@ class DiscordLifecycleClaim:
     claimed_by: str
     attempt_count: int
     lease_expires_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class PrivateOpenClaim:
+    interaction_id: str
+    claim_token: str
+    claimed_by: str
+    attempt_count: int
+    lease_expires_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class CourseRoleClaim:
+    job_id: str
+    claim_token: str
+    claimed_by: str
+    attempt_count: int
+    lease_expires_at: str

@@ -57,6 +57,9 @@ class CourseAssistantSettings(CommonSettings):
     module_code: str
     draft_reminder_seconds: int
     draft_delete_seconds: int
+    case_idle_seconds: int
+    case_auto_close_seconds: int
+    private_open_capacity: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +91,11 @@ def load_course_assistant_settings() -> CourseAssistantSettings:
     module_code = os.getenv("TEST_MODULE_CODE", "M1").strip().upper()
     if not module_code:
         raise SettingsError("TEST_MODULE_CODE cannot be empty")
+    idle = int(os.getenv("CASE_IDLE_SECONDS", "172800"))
+    auto_close = int(os.getenv("CASE_AUTO_CLOSE_SECONDS", "172800"))
+    capacity = int(os.getenv("PRIVATE_OPEN_CAPACITY", "50"))
+    if idle <= 0 or auto_close <= 0 or capacity <= 0:
+        raise SettingsError("Case timing and private capacity must be positive")
     return CourseAssistantSettings(
         **common,
         token=token,
@@ -96,6 +104,9 @@ def load_course_assistant_settings() -> CourseAssistantSettings:
         module_code=module_code,
         draft_reminder_seconds=reminder,
         draft_delete_seconds=delete,
+        case_idle_seconds=idle,
+        case_auto_close_seconds=auto_close,
+        private_open_capacity=capacity,
     )
 
 

@@ -90,7 +90,7 @@ async def test_reopen_throttle_rejects_before_repository_work() -> None:
 async def test_ai_permission_uses_yes_no_buttons_instead_of_a_select() -> None:
     view = AIPermissionView(MagicMock(), thread_id=1, author_id=3, keyword="test")
     labels = [child.label for child in view.children if isinstance(child, discord.ui.Button)]
-    assert labels == ["Yes", "No", "完成設定", "取消"]
+    assert labels == ["允許", "不允許", "完成設定", "取消"]
     assert not any(isinstance(child, discord.ui.Select) for child in view.children)
 
     interaction = SimpleNamespace(
@@ -98,11 +98,11 @@ async def test_ai_permission_uses_yes_no_buttons_instead_of_a_select() -> None:
         response=SimpleNamespace(edit_message=AsyncMock(), send_message=AsyncMock()),
         followup=SimpleNamespace(send=AsyncMock()),
     )
-    yes_button = next(child for child in view.children if child.label == "Yes")
+    yes_button = next(child for child in view.children if child.label == "允許")
     await yes_button.callback(interaction)
 
     assert view.ai_permission is True
     assert yes_button.style is discord.ButtonStyle.success
     interaction.response.edit_message.assert_awaited_once_with(
-        content="AI 文字內容分析：**Yes**", view=view
+        content="AI 文字內容分析：**允許**", view=view
     )
