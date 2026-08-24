@@ -54,6 +54,55 @@ function validate(values: JoinValues): Record<string, string> {
   return errors;
 }
 
+function clearErrors(form: HTMLFormElement, errorSummary: HTMLElement): void {
+  errorSummary.hidden = true;
+  for (const control of form.querySelectorAll<HTMLElement>("[aria-invalid]")) {
+    control.removeAttribute("aria-invalid");
+  }
+  for (const message of form.querySelectorAll<HTMLElement>(
+    "[data-field-error]",
+  )) {
+    message.hidden = true;
+    message.textContent = "";
+  }
+}
+
+function showErrors(
+  form: HTMLFormElement,
+  errorSummary: HTMLElement,
+  errors: Record<string, string>,
+): void {
+  const list = requiredElement<HTMLUListElement>(errorSummary, "ul");
+  list.replaceChildren();
+  for (const [name, message] of Object.entries(errors)) {
+    for (const control of form.querySelectorAll<HTMLElement>(
+      `[name="${name}"]`,
+    )) {
+      control.setAttribute("aria-invalid", "true");
+    }
+    const fieldMessage = form.querySelector<HTMLElement>(
+      `[data-field-error="${name}"]`,
+    );
+    if (fieldMessage) {
+      fieldMessage.textContent = message;
+      fieldMessage.hidden = false;
+    }
+    const item = document.createElement("li");
+    item.textContent = message;
+    list.append(item);
+  }
+  errorSummary.hidden = false;
+  errorSummary.focus();
+}
+
+function csrfTokenFromCookie(): string | null {
+  const pair = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("portal_csrf="));
+  return pair ? decodeURIComponent(pair.slice("portal_csrf=".length)) : null;
+}
+
 function initialize(root: HTMLElement): void {
   const form = requiredElement<HTMLFormElement>(root, "form");
   const errorSummary = requiredElement<HTMLElement>(form, "[data-form-errors]");
@@ -78,7 +127,62 @@ function initialize(root: HTMLElement): void {
     .forEach((control) => control.addEventListener("change", updateIdentity));
   updateIdentity();
 
-  if (root.dataset.reviewMode !== "true") return;
+  const reviewMode = root.dataset.reviewMode === "true";
+  const sessionEndpoint = root.dataset.sessionEndpoint;
+  const runValidation = (): JoinValues | null => {
+    clearErrors(form, errorSummary);
+    const values = valuesFromForm(form);
+    const errors = validate(values);
+    if (Object.keys(errors).length > 0) {
+      showErrors(form, errorSummary, errors);
+      return null;
+    }
+    return values;
+  };
+
+  if (!reviewMode && sessionEndpoint && form.action) {
+    const state = root.querySelector<HTMLElement>("[data-join-backend-state]");
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const values = runValidation();
+      if (!values) return;
+      const request = {
+        ...values,
+        rulesPrivacy: values.rulesPrivacy === "yes" ? "yes" : "no",
+      };
+      try {
+        const sessionResponse = await fetch(sessionEndpoint, {
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+        const csrfToken = csrfTokenFromCookie();
+        if (!sessionResponse.ok || !csrfToken) throw new Error("session");
+        const response = await fetch(form.action, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRF-Token": csrfToken,
+          },
+          body: new URLSearchParams(request).toString(),
+        });
+        if (!response.ok) throw new Error("submit");
+        form.hidden = true;
+        if (state) {
+          state.hidden = false;
+          state.textContent = "申請已收到，請留意 Discord 私訊。";
+        }
+      } catch {
+        if (state) {
+          state.hidden = false;
+          state.textContent = "目前無法送出申請，請稍後再試。";
+        }
+      }
+    });
+    return;
+  }
+
+  if (!reviewMode) return;
   const confirmation = requiredElement<HTMLElement>(
     root,
     "[data-join-confirmation]",
@@ -87,50 +191,11 @@ function initialize(root: HTMLElement): void {
     confirmation,
     "[data-join-reset]",
   );
-  const clearErrors = (): void => {
-    errorSummary.hidden = true;
-    for (const control of form.querySelectorAll<HTMLElement>(
-      "[aria-invalid]",
-    )) {
-      control.removeAttribute("aria-invalid");
-    }
-    for (const message of form.querySelectorAll<HTMLElement>(
-      "[data-field-error]",
-    )) {
-      message.hidden = true;
-      message.textContent = "";
-    }
-  };
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    clearErrors();
-    const values = valuesFromForm(form);
-    const errors = validate(values);
-    if (Object.keys(errors).length > 0) {
-      const list = requiredElement<HTMLUListElement>(errorSummary, "ul");
-      list.replaceChildren();
-      for (const [name, message] of Object.entries(errors)) {
-        for (const control of form.querySelectorAll<HTMLElement>(
-          `[name="${name}"]`,
-        )) {
-          control.setAttribute("aria-invalid", "true");
-        }
-        const fieldMessage = form.querySelector<HTMLElement>(
-          `[data-field-error="${name}"]`,
-        );
-        if (fieldMessage) {
-          fieldMessage.textContent = message;
-          fieldMessage.hidden = false;
-        }
-        const item = document.createElement("li");
-        item.textContent = message;
-        list.append(item);
-      }
-      errorSummary.hidden = false;
-      errorSummary.focus();
-      return;
-    }
+    const values = runValidation();
+    if (!values) return;
 
     requiredElement<HTMLElement>(
       confirmation,
@@ -154,7 +219,7 @@ function initialize(root: HTMLElement): void {
 
   reset.addEventListener("click", () => {
     form.reset();
-    clearErrors();
+    clearErrors(form, errorSummary);
     confirmation.hidden = true;
     form.hidden = false;
     updateIdentity();

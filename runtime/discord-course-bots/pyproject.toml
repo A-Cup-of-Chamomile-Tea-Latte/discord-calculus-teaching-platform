@@ -30,6 +30,7 @@ discord-data-lab = "discord_course_bots.data_lab.cli_lab:main"
 discord-data-bridge = "discord_course_bots.data_lab.cli_bridge:main"
 discord-production-bridge = "discord_course_bots.production_bridge:main"
 discord-google-oauth-bootstrap = "discord_course_bots.google_oauth_bootstrap:main"
+portal-backend = "discord_course_bots.portal_backend:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

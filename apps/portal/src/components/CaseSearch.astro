@@ -9,6 +9,8 @@ interface Props {
   syncUrl?: boolean;
   compact?: boolean;
   enabled?: boolean;
+  endpoint?: string;
+  sessionEndpoint?: string;
 }
 
 const {
@@ -17,6 +19,8 @@ const {
   syncUrl = false,
   compact = false,
   enabled = true,
+  endpoint = "",
+  sessionEndpoint = "",
 } = Astro.props;
 const safeJson = JSON.stringify(cases).replaceAll("<", "\\u003c");
 ---
@@ -26,6 +30,8 @@ const safeJson = JSON.stringify(cases).replaceAll("<", "\\u003c");
   data-case-search
   data-sync-url={String(syncUrl)}
   data-case-search-enabled={String(enabled)}
+  data-case-endpoint={endpoint}
+  data-session-endpoint={sessionEndpoint}
   aria-labelledby={`${inputId}-title`}
 >
   <div>

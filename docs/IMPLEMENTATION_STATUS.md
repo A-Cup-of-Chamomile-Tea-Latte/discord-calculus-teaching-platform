@@ -15,8 +15,8 @@ Last repository／AI handoff reconciliation: 2026-08-24（Asia/Taipei）
 | Observation | 現行 v6 baseline 的 24 小時 observation 已於 2026-08-24 17:16 PASS；remote 持續是唯一 writer，三類 queue 與 manual attention 均為 0。此收據不替 candidate v10 背書 |
 | Repository candidate | Portal、115-1 academic data、production v6 基礎與 Bot UX 已整合；Bot candidate schema v10，尚未部署 |
 | Google | SQLite 是 operational authority；Sheets 是 compact projection，不是第二套主資料庫 |
-| Portal | 公開／reviewer artifact 分離；學生面收斂為靜態資訊入口與最小動態服務 |
-| Portal backend | 加入申請與單案查詢尚未接線；public build 因此 fail closed |
+| Portal | 公開／reviewer artifact 分離；學生面收斂為靜態資訊入口與已完成本機驗證的最小 backend，尚未部署 |
+| Portal backend | same-origin join／one-case lookup 已在 runtime candidate 實作並通過 18 個安全／failure-mode tests；正式 session provider、durable audit sink、origin 與 rollout 尚未接線，public build 預設仍 fail closed |
 | Email | 尚未啟用；加入與案件結果採 Discord DM |
 
 ## Repository integration checkpoint
@@ -29,6 +29,7 @@ Last repository／AI handoff reconciliation: 2026-08-24（Asia/Taipei）
 - Private Support 由 Discord `/private open` 取得同一套主標籤與 AI 選擇，再建立受限頻道；圖片留在 Discord，SQLite 只保存必要案件狀態與 Discord 參照。
 - 舊 Private dump 互動入口已停用；歷史資料與 migration 保留，未草率刪除。
 - public case lookup 只允許 content-free projection：案號、類型、狀態、更新時間、是否已回覆與 Discord 連結。
+- Portal backend v1 已建立 `POST /api/join` 與 `POST /api/cases/lookup`；使用外部 signed session、CSRF cookie、same-origin／Host allowlist、JSON／form allowlist、rate limit、generic errors 與 metadata-only audit。Browser 不持有 SQLite 或 Discord credential。
 - Silent Walker 完成後，本機全套品質門通過：Python 278、Portal 61、GAS 66、Config Studio 3；public artifact 為 5 頁／54 個 base-safe references。
 - schema-shaped v6 暫存副本已演練到 v10：ledger 1–10 完整、`integrity_check=ok`、核心 row counts 不變。這不取代 production consistent backup rehearsal。
 
@@ -44,7 +45,7 @@ Last repository／AI handoff reconciliation: 2026-08-24（Asia/Taipei）
 
 ### 內部與封存
 
-- Course Manager reviewer UI 與加入狀態／去重 policy 已建立；same-origin adapter 尚未接線。
+- Course Manager reviewer UI 與加入狀態／去重 policy 已建立；same-origin adapter 已完成本機 candidate，正式 session／audit／origin 接線仍待 gate。
 - `/status/` 是管理員建造 dashboard；所有 gate 完成後才轉長期 monitor。
 - 舊 `/ask/`、`/private-support/`、`/discord-guide/` 留 reviewer 封存提示，public build 移除。
 - 封存 stage 不是新決策來源；恢復舊設計前須先寫 decision，只取回仍適用的部分。
@@ -52,7 +53,7 @@ Last repository／AI handoff reconciliation: 2026-08-24（Asia/Taipei）
 ## 尚未完成
 
 1. 在 production DB consistent backup 的獨立副本演練 v6 → v10，核對 backup readability、integrity、ledger、row counts 與 rollback；通過後仍須另行授權才可部署。
-2. 接上 Portal same-origin 加入申請與單案查詢 backend，完成 CSRF、rate limit、audit 與 Private 最小揭露。
+2. 將已完成本機驗證的 Portal same-origin 加入申請與單案查詢 backend 接到受核准的 session／audit／origin runtime；完成白帳號 E2E 與 Private 最小揭露驗收後才開放。
 3. 完成 production Discord role／category／class-module 設定映射與白帳號端到端驗收。
 4. Deployment smoke 與 rollback readiness 全數通過後才請 owner 明示部署；若無實際穩定性風險，不另加等待窗口，必要時最多約 8 小時。
 5. Repository owner、公開 URL、backend origin、CNAME 與首次 Portal rollout 維持人工 gate，暫不阻擋上述上線前工程。

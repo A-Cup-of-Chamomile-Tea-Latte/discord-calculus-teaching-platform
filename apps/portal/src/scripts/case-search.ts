@@ -46,6 +46,14 @@ function requiredElement<T extends Element>(
   return element;
 }
 
+function csrfTokenFromCookie(): string | null {
+  const pair = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("portal_csrf="));
+  return pair ? decodeURIComponent(pair.slice("portal_csrf=".length)) : null;
+}
+
 function initializeCaseSearch(root: HTMLElement): void {
   if (root.dataset.caseSearchEnabled !== "true") return;
   const form = requiredElement<HTMLFormElement>(root, "form");
@@ -66,6 +74,9 @@ function initializeCaseSearch(root: HTMLElement): void {
   );
   const cases = JSON.parse(dataElement.textContent ?? "[]") as CaseStatusView[];
   const syncUrl = root.dataset.syncUrl === "true";
+  const endpoint = root.dataset.caseEndpoint;
+  const sessionEndpoint = root.dataset.sessionEndpoint;
+  const remoteLookup = Boolean(endpoint && sessionEndpoint);
 
   const sanitizeSegment = (
     inputElement: HTMLInputElement,
@@ -118,64 +129,113 @@ function initializeCaseSearch(root: HTMLElement): void {
       state.hidden = state.dataset.searchState !== name;
   };
 
-  const runLookup = (rawValue: string): void => {
-    showState("loading");
-    queueMicrotask(() => {
-      const result = lookupCaseStatus(cases, rawValue);
-      input.value = result.normalizedCaseNumber;
-      populateSegments(result.normalizedCaseNumber);
-      if (syncUrl) {
-        const url = new URL(window.location.href);
-        url.searchParams.set("case", result.normalizedCaseNumber);
-        window.history.replaceState({}, "", url);
-      }
-      if (result.outcome === "INVALID") {
-        setInvalid(true);
-        showState("invalid");
-        return;
-      }
-      setInvalid(false);
-      if (result.outcome === "NOT_FOUND") {
-        showState("not-found");
-        return;
-      }
+  const renderResult = (result: ReturnType<typeof lookupCaseStatus>): void => {
+    input.value = result.normalizedCaseNumber;
+    populateSegments(result.normalizedCaseNumber);
+    if (syncUrl) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("case", result.normalizedCaseNumber);
+      window.history.replaceState({}, "", url);
+    }
+    if (result.outcome === "INVALID") {
+      setInvalid(true);
+      showState("invalid");
+      return;
+    }
+    setInvalid(false);
+    if (result.outcome === "NOT_FOUND") {
+      showState("not-found");
+      return;
+    }
 
-      requiredElement<HTMLElement>(root, "[data-result-number]").textContent =
-        result.case.caseNumber;
-      requiredElement<HTMLElement>(root, "[data-result-type]").textContent =
-        result.case.caseType === "PRIVATE_SUPPORT" ? "隱密案件" : "一般案件";
-      requiredElement<HTMLElement>(root, "[data-result-status]").textContent =
-        statusLabels[result.case.status];
-      requiredElement<HTMLTimeElement>(root, "[data-result-updated]").dateTime =
-        result.case.updatedAt;
-      requiredElement<HTMLTimeElement>(
-        root,
-        "[data-result-updated]",
-      ).textContent = new Intl.DateTimeFormat("zh-TW", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(new Date(result.case.updatedAt));
-      requiredElement<HTMLElement>(root, "[data-result-replied]").textContent =
-        result.case.teachingTeamReplied ? "已有回覆" : "尚無回覆";
-      const discordLink = requiredElement<HTMLAnchorElement>(
-        root,
-        "[data-result-link]",
-      );
-      const noLink = requiredElement<HTMLElement>(
-        root,
-        "[data-result-no-link]",
-      );
-      if (result.case.discordDeepLink) {
-        discordLink.href = result.case.discordDeepLink;
-        discordLink.hidden = false;
-        noLink.hidden = true;
-      } else {
-        discordLink.removeAttribute("href");
-        discordLink.hidden = true;
-        noLink.hidden = false;
+    requiredElement<HTMLElement>(root, "[data-result-number]").textContent =
+      result.case.caseNumber;
+    requiredElement<HTMLElement>(root, "[data-result-type]").textContent =
+      result.case.caseType === "PRIVATE_SUPPORT" ? "隱密案件" : "一般案件";
+    requiredElement<HTMLElement>(root, "[data-result-status]").textContent =
+      statusLabels[result.case.status];
+    requiredElement<HTMLTimeElement>(root, "[data-result-updated]").dateTime =
+      result.case.updatedAt;
+    requiredElement<HTMLTimeElement>(
+      root,
+      "[data-result-updated]",
+    ).textContent = new Intl.DateTimeFormat("zh-TW", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(result.case.updatedAt));
+    requiredElement<HTMLElement>(root, "[data-result-replied]").textContent =
+      result.case.teachingTeamReplied ? "已有回覆" : "尚無回覆";
+    const discordLink = requiredElement<HTMLAnchorElement>(
+      root,
+      "[data-result-link]",
+    );
+    const noLink = requiredElement<HTMLElement>(root, "[data-result-no-link]");
+    if (result.case.discordDeepLink) {
+      discordLink.href = result.case.discordDeepLink;
+      discordLink.hidden = false;
+      noLink.hidden = true;
+    } else {
+      discordLink.removeAttribute("href");
+      discordLink.hidden = true;
+      noLink.hidden = false;
+    }
+    showState("found");
+  };
+
+  const runLookup = async (rawValue: string): Promise<void> => {
+    showState("loading");
+    let result: ReturnType<typeof lookupCaseStatus>;
+    if (!remoteLookup) {
+      result = lookupCaseStatus(cases, rawValue);
+    } else {
+      try {
+        const sessionResponse = await fetch(sessionEndpoint!, {
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+        const csrfToken = csrfTokenFromCookie();
+        if (!sessionResponse.ok || !csrfToken) throw new Error("session");
+        const response = await fetch(endpoint!, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRF-Token": csrfToken,
+          },
+          body: new URLSearchParams({ caseNumber: rawValue }).toString(),
+        });
+        if (!response.ok) throw new Error("lookup");
+        const payload = (await response.json()) as {
+          outcome: "FOUND" | "NOT_FOUND" | "INVALID";
+          requestedCaseNumber: string;
+          case:
+            | (Omit<CaseStatusView, "discordDeepLink"> & {
+                discordUrl: string | null;
+              })
+            | null;
+        };
+        const normalizedCaseNumber = payload.requestedCaseNumber;
+        if (payload.outcome === "FOUND" && payload.case) {
+          result = {
+            outcome: "FOUND",
+            normalizedCaseNumber,
+            case: {
+              ...payload.case,
+              discordDeepLink: payload.case.discordUrl,
+            },
+          };
+        } else if (payload.outcome === "INVALID") {
+          result = { outcome: "INVALID", normalizedCaseNumber, case: null };
+        } else {
+          result = { outcome: "NOT_FOUND", normalizedCaseNumber, case: null };
+        }
+      } catch {
+        showState("unavailable");
+        return;
       }
-      showState("found");
-    });
+    }
+    renderResult(result);
   };
 
   form.addEventListener("submit", (event) => {

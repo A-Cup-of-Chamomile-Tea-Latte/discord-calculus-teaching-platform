@@ -2,10 +2,18 @@
 import CaseSearch from "../../components/CaseSearch.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { fixtureCaseLookupAdapter } from "../../lib/fixture-case-adapter";
+import { sameOriginEndpointPath } from "../../lib/join-application";
 import { withBase } from "../../lib/paths";
 
 const caseStatuses = await fixtureCaseLookupAdapter.listCaseStatuses();
 const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
+const caseStatusEndpoint = sameOriginEndpointPath(
+  import.meta.env.PUBLIC_CASE_STATUS_ENDPOINT,
+);
+const sessionEndpoint = sameOriginEndpointPath(
+  import.meta.env.PUBLIC_PORTAL_SESSION_ENDPOINT,
+);
+const lookupConnected = Boolean(caseStatusEndpoint && sessionEndpoint);
 ---
 
 <BaseLayout
@@ -26,7 +34,9 @@ const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
       inputId="case-number"
       syncUrl
       compact
-      enabled={!isPublicBuild}
+      enabled={!isPublicBuild || lookupConnected}
+      endpoint={caseStatusEndpoint}
+      sessionEndpoint={sessionEndpoint}
     />
 
     <p class="case-help">
