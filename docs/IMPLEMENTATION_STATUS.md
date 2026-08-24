@@ -12,7 +12,7 @@ Last repository／AI handoff reconciliation: 2026-08-24（Asia/Taipei）
 | Production runtime | 三個 systemd services；2026-08-23 17:12 的最新安全交接快照為 `HEALTHY` |
 | Production DB | Remote SQLite schema v6；lifecycle 使用 durable queue／stage resume／retry／idempotency |
 | Observation | 2026-08-23 17:12 重新起算；最早 2026-08-24 17:12 才可做最終 checkpoint，本輪尚未重新探測 |
-| Repository candidate | Portal、115-1 academic data、production v6 基礎與 Bot UX 已整合；Bot candidate schema v9，尚未部署 |
+| Repository candidate | Portal、115-1 academic data、production v6 基礎與 Bot UX 已整合；Bot candidate schema v10，尚未部署 |
 | Google | SQLite 是 operational authority；Sheets 是 compact projection，不是第二套主資料庫 |
 | Portal | 公開／reviewer artifact 分離；學生面收斂為靜態資訊入口與最小動態服務 |
 | Portal backend | 加入申請與單案查詢尚未接線；public build 因此 fail closed |
@@ -25,9 +25,11 @@ Last repository／AI handoff reconciliation: 2026-08-24（Asia/Taipei）
 - 案號採 `C{classCode}-{token}-{MMDD}-{HHmm}`；Private Support 固定 `C99…-P`。
 - Forum 標題採 `[M{n} | C{classCode}][mainTag] userTitle`，班別與 Module 從正式設定取得。
 - 加入申請後端重驗 NTU Mail、選填 Gmail、C01–C16 與 Discord username；Course Manager 使用兩級權限、五態審核、Discord DM 與持久暱稱配置。
-- Private Support 由 Discord `/private open` 建立受限頻道；圖片留在 Discord，SQLite 只保存必要案件狀態與 Discord 參照。
+- Private Support 由 Discord `/private open` 取得同一套主標籤與 AI 選擇，再建立受限頻道；圖片留在 Discord，SQLite 只保存必要案件狀態與 Discord 參照。
 - 舊 Private dump 互動入口已停用；歷史資料與 migration 保留，未草率刪除。
 - public case lookup 只允許 content-free projection：案號、類型、狀態、更新時間、是否已回覆與 Discord 連結。
+- Silent Walker 完成後，本機全套品質門通過：Python 278、Portal 61、GAS 66、Config Studio 3；public artifact 為 5 頁／54 個 base-safe references。
+- schema-shaped v6 暫存副本已演練到 v10：ledger 1–10 完整、`integrity_check=ok`、核心 row counts 不變。這不取代 production consistent backup rehearsal。
 
 ## Portal 現況
 
@@ -49,7 +51,7 @@ Last repository／AI handoff reconciliation: 2026-08-24（Asia/Taipei）
 ## 尚未完成
 
 1. 取得 2026-08-24 17:12 後的 owner-only production 安全摘要，完成 observation 最終 checkpoint。
-2. 在 production DB 備份副本演練 v6 → v9；通過後仍須另行授權才可部署。
+2. 在 production DB 備份副本演練 v6 → v10；通過後仍須另行授權才可部署。
 3. 接上 Portal same-origin 加入申請與單案查詢 backend，完成 CSRF、rate limit、audit 與 Private 最小揭露。
 4. 完成 production Discord role／category／class-module 設定映射與白帳號端到端驗收。
 5. Repository owner、公開 URL、backend origin 與首次 Portal deploy 仍是人工 gate。

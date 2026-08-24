@@ -62,6 +62,8 @@ apps/gas/deployment*.json
 *.tmp
 *.swp
 *~
+/output/
+/tmp/
 
 # Historical handoff archives stay local for Codex/GPT reference only.
 project-exchange/**/*.zip

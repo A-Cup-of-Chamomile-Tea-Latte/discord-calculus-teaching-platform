@@ -16,8 +16,8 @@
 ## 預設與投影
 
 - 安全相關預設必須在 record 中明寫，不依賴 validator 自動補值。
-- Private Support 的 `visibility=TEACHING_STAFF`、`analysisPermission=EXCLUDED` 與 `caseNumber` 的 `-P` 尾碼由 schema 強制。尾碼只是受保護案件的操作標籤，不代表公開可查；public lookup 仍只能回傳 GENERAL case。
-- CaseLookupResponse 是公開投影，不是 Case 的序列化副本；它只能回傳 `GENERAL` case 的最小欄位。
+- Legacy v1 `Case`、`ExportManifest` 仍將 Private Support 匯出強制為 `EXCLUDED`；這是匯出的 fail-closed 相容邊界，不會覆寫 Bot 保存的逐案 AI 選擇。
+- 舊 `CaseLookupResponse` 只供 legacy GAS／fixture 相容。當前 `CaseStatusLookupResponse` 可對 GENERAL 與 PRIVATE_SUPPORT 回傳同一組 content-free 狀態欄位；不可夾帶題目、摘要、作者或訊息。
 - 帳號 analysis default 與逐篇 override 分開；訊息可用 `INHERIT`，實際匯出時須解析成 INCLUDED/EXCLUDED 並保留決策來源。
 
 ## 演進程序

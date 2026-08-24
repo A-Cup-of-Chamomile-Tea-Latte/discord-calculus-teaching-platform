@@ -174,6 +174,15 @@ def test_lifecycle_queue_claim_completion_and_status_are_safe(tmp_path: Path) ->
     assert snapshot["schema_version"] == MIGRATIONS[-1].version
     assert snapshot["queues"]["discord"] == 1
     assert snapshot["failures"]["discord"] == 0
+    assert set(snapshot["queues"]) == {
+        "discord",
+        "projection",
+        "private_dump",
+        "dm",
+        "private_open",
+        "course_role",
+    }
+    assert set(snapshot["failures"]) == set(snapshot["queues"])
 
     claim = repo.claim_discord_lifecycle_job("test-worker")
     assert claim is not None

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import Alert from "../../components/Alert.astro";
 import FormField from "../../components/FormField.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { sameOriginEndpointPath } from "../../lib/join-application";
 import { withBase } from "../../lib/paths";
 
 interface RegistrationSection {
@@ -41,9 +42,10 @@ const activeSections = academicSpec.sections.filter(
   (section) => section.status === "ACTIVE",
 );
 const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
-const applicationConnected = Boolean(
+const applicationEndpoint = sameOriginEndpointPath(
   import.meta.env.PUBLIC_JOIN_APPLICATION_ENDPOINT,
 );
+const applicationConnected = Boolean(applicationEndpoint);
 ---
 
 <BaseLayout
@@ -97,9 +99,7 @@ const applicationConnected = Boolean(
       <form
         class="prototype-form"
         novalidate
-        action={applicationConnected
-          ? import.meta.env.PUBLIC_JOIN_APPLICATION_ENDPOINT
-          : undefined}
+        action={applicationEndpoint}
         method="post"
       >
         <div

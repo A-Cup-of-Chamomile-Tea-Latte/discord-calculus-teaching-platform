@@ -33,9 +33,14 @@ class CourseService:
         return self.interaction_throttle.retry_after((action, user_id, resource_id))
 
     def is_allowed_operator(self, member: discord.Member) -> bool:
-        return (
+        if (
             member.id in self.settings.owner_ids
             or self.repo.reviewer_level(member.id) == "SYSTEM_ADMIN"
+        ):
+            return True
+        system_admin_role_id = self.repo.get_config_int("system_admin_role_id")
+        return system_admin_role_id is not None and any(
+            role.id == system_admin_role_id for role in member.roles
         )
 
     def is_staff(self, member: discord.Member) -> bool:
@@ -348,7 +353,6 @@ class CourseService:
             interaction_id=claim.interaction_id,
             channel_id=channel.id,
             jump_url=channel.jump_url,
-            module_code=self.settings.module_code,
             requester_id=int(row["requester_id"]),
             ai_content_permission=bool(row["ai_content_permission"]),
         )

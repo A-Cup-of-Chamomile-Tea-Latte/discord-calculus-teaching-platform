@@ -16,5 +16,6 @@
 | [ADR-0010](ADR-0010-PRIVATE-SUPPORT-PROTECTION.md) | Private Support 分離保護 | Accepted（prototype scope only） |
 | [ADR-0011](ADR-0011-NO-VOICE-RECORDING.md) | 第一版不錄音／轉錄 | Accepted（prototype scope only） |
 | [ADR-0012](ADR-0012-FIXTURE-FIRST.md) | fixture-first 開發 | Accepted（prototype scope only） |
+| [ADR-0013](ADR-0013-PRIVATE-STATUS-LOOKUP.md) | Private 最小狀態查詢與逐案 AI 選擇 | Accepted（repository candidate） |
 
 2026-07-23 交接中明確固定的新產品方向見 [PRODUCT_DECISIONS_2026-07-23.md](PRODUCT_DECISIONS_2026-07-23.md)；未決產品與技術問題另見 [UNRESOLVED.md](UNRESOLVED.md)。若新證據推翻決策，新增 superseding ADR，不直接抹除原始紀錄。

@@ -19,10 +19,11 @@ from discord_course_bots.domain.applicants import (
     normalize_optional_gmail,
 )
 from discord_course_bots.domain.case_numbers import generate_case_number
-from discord_course_bots.domain.titles import closed_title, cycle_title
+from discord_course_bots.domain.titles import canonical_title, closed_title, cycle_title
 from discord_course_bots.jobs import (
     CourseRoleClaim,
     DiscordLifecycleClaim,
+    DmClaim,
     PrivateDumpClaim,
     PrivateDumpFailureResult,
     PrivateOpenClaim,
@@ -256,9 +257,9 @@ class Repository:
         case_id: str,
         thread_id: int,
         author_id: int,
-        module_code: str,
-        keyword: str,
         ai_content_permission: bool,
+        module_code: str = "M1",
+        keyword: str = "隱密支援",
         canonical_title: str,
         initial_snapshot: dict[str, Any],
         class_code: str | None = None,
@@ -794,6 +795,24 @@ class Repository:
                     "WHERE status NOT IN ('DELETED', 'FAILED')"
                 ).fetchone()[0]
             ),
+            "dm": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM discord_dm_outbox "
+                    "WHERE status NOT IN ('COMPLETED', 'PERMANENT_FAILURE')"
+                ).fetchone()[0]
+            ),
+            "private_open": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM private_open_requests "
+                    "WHERE status NOT IN ('COMPLETED', 'REJECTED', 'PERMANENT_FAILURE')"
+                ).fetchone()[0]
+            ),
+            "course_role": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM course_role_jobs "
+                    "WHERE status NOT IN ('COMPLETED', 'PERMANENT_FAILURE')"
+                ).fetchone()[0]
+            ),
         }
         failures = {
             "discord": int(
@@ -809,6 +828,21 @@ class Repository:
             "private_dump": int(
                 self._connection.execute(
                     "SELECT COUNT(*) FROM private_dump_jobs WHERE status = 'FAILED'"
+                ).fetchone()[0]
+            ),
+            "dm": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM discord_dm_outbox WHERE status = 'PERMANENT_FAILURE'"
+                ).fetchone()[0]
+            ),
+            "private_open": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM private_open_requests WHERE status = 'PERMANENT_FAILURE'"
+                ).fetchone()[0]
+            ),
+            "course_role": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM course_role_jobs WHERE status = 'PERMANENT_FAILURE'"
                 ).fetchone()[0]
             ),
         }
@@ -1003,6 +1037,8 @@ class Repository:
         guild_id: int,
         requester_id: int,
         ai_content_permission: bool,
+        module_code: str = "M1",
+        keyword: str = "隱密支援",
         now: datetime | None = None,
         capacity: int = 50,
     ) -> sqlite3.Row:
@@ -1049,14 +1085,17 @@ class Repository:
                 """
                 INSERT INTO private_open_requests(
                     interaction_id, idempotency_key, guild_id, requester_id,
-                    ai_content_permission, status, rejection_code, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    module_code, keyword, ai_content_permission, status, rejection_code,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     interaction_id,
                     f"private-open:{guild_id}:{requester_id}:{interaction_id}",
                     guild_id,
                     requester_id,
+                    module_code,
+                    keyword,
                     int(ai_content_permission),
                     status,
                     rejection,
@@ -1136,7 +1175,6 @@ class Repository:
         interaction_id: str,
         channel_id: int,
         jump_url: str,
-        module_code: str,
         requester_id: int,
         ai_content_permission: bool,
     ) -> sqlite3.Row:
@@ -1150,13 +1188,15 @@ class Repository:
         existing_case = self.get_case_by_thread(channel_id)
         if existing_case is None:
             case_id = str(uuid.uuid4())
-            title = f"[{module_code}] 隱密支援"
+            module_code = str(request["module_code"])
+            keyword = str(request["keyword"])
+            title = canonical_title(module_code, "99", keyword, "隱密支援")
             case_number = self.create_case(
                 case_id=case_id,
                 thread_id=channel_id,
                 author_id=requester_id,
                 module_code=module_code,
-                keyword="隱密支援",
+                keyword=keyword,
                 ai_content_permission=ai_content_permission,
                 canonical_title=title,
                 initial_snapshot={"title": title, "visibility": "PRIVATE"},
@@ -1267,39 +1307,59 @@ class Repository:
                 created_at=now,
             )
 
-    def pending_dm_messages(self, limit: int = 20) -> list[sqlite3.Row]:
-        return list(
-            self._connection.execute(
-                """SELECT * FROM discord_dm_outbox
-                   WHERE status IN ('PENDING', 'RETRYABLE_FAILURE')
-                   ORDER BY created_at LIMIT ?""",
-                (limit,),
-            ).fetchall()
+    def get_dm_message(self, message_key: str) -> sqlite3.Row | None:
+        return self._connection.execute(
+            "SELECT * FROM discord_dm_outbox WHERE message_key = ?", (message_key,)
+        ).fetchone()
+
+    def claim_dm_message(self, worker_id: str) -> DmClaim | None:
+        with self.immediate_transaction() as db:
+            claim = claim_next(db, DM_OUTBOX_QUEUE, worker_id=worker_id, lease_seconds=120)
+        if claim is None:
+            return None
+        return DmClaim(
+            message_key=str(claim.key),
+            claim_token=claim.claim_token,
+            claimed_by=claim.claimed_by,
+            attempt_count=claim.attempt_count,
+            lease_expires_at=claim.lease_expires_at,
         )
 
-    def complete_dm_message(self, message_key: str) -> bool:
+    def complete_dm_message(self, message_key: str, claim_token: str) -> bool:
         now = utc_now_iso()
         with self.transaction() as db:
-            result = db.execute(
-                """UPDATE discord_dm_outbox SET status = 'COMPLETED', completed_at = ?,
-                   updated_at = ? WHERE message_key = ?
-                   AND status IN ('PENDING', 'RETRYABLE_FAILURE')""",
-                (now, now, message_key),
+            return complete_claim(
+                db,
+                DM_OUTBOX_QUEUE,
+                key=message_key,
+                claim_token=claim_token,
+                final_status="COMPLETED",
+                values={"completed_at": now, "updated_at": now},
             )
-            return result.rowcount == 1
 
-    def fail_dm_message(self, message_key: str, error_code: str) -> bool:
+    def fail_dm_message(
+        self,
+        message_key: str,
+        claim_token: str,
+        *,
+        error_code: str,
+        retryable: bool,
+    ) -> bool:
         if not SAFE_JOB_ERROR_CODE.fullmatch(error_code):
             raise ValueError("Unsafe DM error code")
-        now = utc_now_iso()
         with self.transaction() as db:
-            result = db.execute(
-                """UPDATE discord_dm_outbox SET status = 'PERMANENT_FAILURE',
-                   last_error_code = ?, updated_at = ? WHERE message_key = ?
-                   AND status IN ('PENDING', 'RETRYABLE_FAILURE')""",
-                (error_code, now, message_key),
+            result = fail_claim(
+                db,
+                DM_OUTBOX_QUEUE,
+                key=message_key,
+                claim_token=claim_token,
+                error_code=error_code,
+                retryable=retryable,
+                max_attempts=8,
+                base_retry_seconds=30,
+                max_retry_seconds=900,
             )
-            return result.rowcount == 1
+            return result is not None
 
     def submit_join_application(
         self,
@@ -1463,7 +1523,15 @@ class Repository:
                             job_id, application_id, discord_user_id, desired_roles_json,
                             desired_nickname, status, created_at, updated_at
                         ) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
-                        ON CONFLICT(application_id) DO NOTHING
+                        ON CONFLICT(application_id) DO UPDATE SET
+                            discord_user_id=excluded.discord_user_id,
+                            desired_roles_json=excluded.desired_roles_json,
+                            desired_nickname=excluded.desired_nickname,
+                            status='PENDING', attempt_count=0, next_attempt_at=NULL,
+                            claimed_by=NULL, claim_token=NULL, lease_expires_at=NULL,
+                            last_error_code=NULL, updated_at=excluded.updated_at,
+                            completed_at=NULL
+                        WHERE course_role_jobs.status = 'PERMANENT_FAILURE'
                         """,
                         (
                             f"roles-{uuid.uuid4().hex}",

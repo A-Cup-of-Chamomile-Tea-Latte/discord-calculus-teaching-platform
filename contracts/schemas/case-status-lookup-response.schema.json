@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/case-status-lookup-response.schema.json",
+  "title": "CaseStatusLookupResponse",
+  "description": "Content-free, one-case-at-a-time status projection for general and Private Support cases.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "requestedCaseNumber",
+    "outcome",
+    "case",
+    "lookedUpAt"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "requestedCaseNumber": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "outcome": { "type": "string", "enum": ["FOUND", "NOT_FOUND", "INVALID"] },
+    "case": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caseNumber",
+            "caseType",
+            "status",
+            "updatedAt",
+            "teachingTeamReplied",
+            "discordUrl"
+          ],
+          "properties": {
+            "caseNumber": { "$ref": "common.schema.json#/$defs/caseNumber" },
+            "caseType": { "$ref": "common.schema.json#/$defs/caseType" },
+            "status": {
+              "type": "string",
+              "enum": ["OPEN", "TRACKED", "IDLE", "CLOSED", "AUTO_CLOSED"]
+            },
+            "updatedAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+            "teachingTeamReplied": { "type": "boolean" },
+            "discordUrl": {
+              "oneOf": [
+                { "type": "null" },
+                { "type": "string", "format": "uri", "pattern": "^https://" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "lookedUpAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "outcome": { "const": "FOUND" } },
+        "required": ["outcome"]
+      },
+      "then": { "properties": { "case": { "type": "object" } } },
+      "else": { "properties": { "case": { "type": "null" } } }
+    }
+  ]
+}

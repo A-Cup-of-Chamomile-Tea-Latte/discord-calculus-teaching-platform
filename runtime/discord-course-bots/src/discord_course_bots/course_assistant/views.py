@@ -275,37 +275,5 @@ class ReopenView(discord.ui.View):
         )
 
 
-class PrivateDumpView(discord.ui.View):
-    def __init__(self, service: CourseService) -> None:
-        super().__init__(timeout=None)
-        self.service = service
-
-    @discord.ui.button(
-        label="確認匯出並保留封存",
-        style=discord.ButtonStyle.danger,
-        custom_id="course:private:dump:v1",
-    )
-    async def confirm_dump(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ) -> None:
-        channel = interaction.channel
-        if not isinstance(interaction.user, discord.Member) or not self.service.is_staff(
-            interaction.user
-        ):
-            await _ephemeral_error(interaction, "只有 TA／Professor／測試管理者可確認匯出。")
-            return
-        if not isinstance(channel, discord.TextChannel):
-            await _ephemeral_error(interaction, "請在 Private Support 頻道內操作。")
-            return
-        if not self.service.repo.queue_private_dump(channel.id, interaction.user.id):
-            await _ephemeral_error(interaction, "此頻道尚未結案，或已有匯出工作。")
-            return
-        button.disabled = True
-        await interaction.response.edit_message(
-            content="⏳ **匯出已排入工作。**\n\n驗證後頻道會保留，等待可逆封存。",
-            view=self,
-        )
-
-
 if TYPE_CHECKING:
     from .service import CourseService

@@ -7,7 +7,6 @@
 | U-002 | Astro、discord.py 等套件對 Python 3.14 / Node 24 的實際相容性                                          | 使用專案本機相依套件；必要時以 Python 3.12/3.13 驗證                                                    | Task 04、11、21                |
 | U-003 | GitHub project-site 的 repository 名稱與最終 base path                                                 | 暫用 `discord-calculus-teaching-platform` 作為可覆寫預設，不部署                                        | Task 14 部署授權前             |
 | U-004 | Discord 與 Apps Script 的實際配額、權限與限制                                                          | 僅建 mock/interface，將未知部分標為 technical spike                                                     | Tasks 15–25                    |
-| U-005 | 經驗證的案件查詢可揭露欄位、驗證方式與保留期限                                                         | production 採 one-case-at-a-time；顯示 reduced projection，Private Support 不進入一般公開查詢           | production Portal access review |
 | U-006 | 教學分析同意的正式政策文字、其他作者訊息規則與撤回流程                                                 | 強制逐案 Yes/No；OP No 整案排除，OP Yes 仍保留其他作者訊息層級過濾；不宣稱校方核准                      | 正式資料或 AI 分析前           |
 | U-007 | Portal/GAS如何把已授權write command送到course_assistant                                                | 禁止browser直連；暫以authenticated backend/queue port建模，不選定host                                   | Task 32                        |
 | U-008 | course_assistant是否需要privileged Guild Members intent                                                | baseline關閉；優先targeted REST/member from interaction，只有證明需要lifecycle/list events才申請        | Tasks 21、22、30               |
@@ -21,7 +20,7 @@
 
 - NTU COOL 是課務正式依據，Discord 與入口網站只作補充。
 - 不錄音、不自動語音轉錄。
-- Private Support 與一般公開案件分流，預設排除於分析。
+- Private Support 與一般公開案件分流；逐案 AI 選擇會保存，但不自動匯出或送往 AI。
 - 第一版不持續輪詢所有案件，不自動進行 LLM 分析。
 - 開發只使用 fixtures，不使用真實學生資料或 secrets。
 
@@ -52,6 +51,10 @@ GitHub Pages 是 internet-public，但產品語意的 course-wide public 是相�
 - Email `SENT` 表示 sender call 與 audit write 成功，不表示送達或已讀。
 - AI analysis 仍須明確同意、去識別化與教學優化限定用途；U-006、U-013、U-014 保留，以便
   完成正式文字、撤回、retention 與逐作者規則。
+
+## 2026-08-24 已解決或收旂的事項
+
+- 原 U-005 的顯示欄位已由 ADR-0013 固定：General 與 Private 共用 one-case-at-a-time 查詢，只顯示案號、類型、五態、更新時間、是否回覆與 Discord 連結。身分驗證、rate limit 與保留期限仍由 U-012／U-013 追蹤。
 
 ## 2026-08-19 已解決或收斂的事項
 

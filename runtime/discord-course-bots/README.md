@@ -1,43 +1,42 @@
 # Discord Course Bots — Canonical tracked runtime
 
-這是兩隻已通過測試伺服器實測的 Bot runtime 之 canonical tracked package。它由
-`.local/discord-course-bots-runtime/` 受控遷入；目前 live LaunchAgent 尚未切換，避免在
-source checkpoint 階段中斷既有服務。
+這是 Discord Bot 的 canonical tracked runtime 與目前 production candidate。Remote Linux 的已驗證
+production baseline 仍是 schema v6；repository candidate 已整合到 schema v10，但尚未部署。任何 forward
+都必須先用 production consistent backup 演練 migration，並取得另外的部署授權。
 
 ## 已實作
 
 ### `course_assistant`
 
 - 僅接受 `TEST_GUILD_ID` 指定的單一伺服器。
-- `/lab health`：檢查 Guild、Intents、角色層級、頻道權限與資料庫設定。
-- `/lab bootstrap`：建立最小測試角色、控制頻道、Forum 與 Private Support 分類。
 - 偵測白名單 Forum 的新文章。
 - 公開起始設定訊息；只有原作者可設定或刪除草稿。
 - 私人關鍵字輸入 + AI Yes/No 選擇。
 - 正式成案、初始快照、案號、DM；DM 失敗時只記錄 Email fallback 待處理，不假裝已寄信。
-- 固定 `[M1] [關鍵字]` 前綴與離線後校正。
+- 固定 `[M{n} | C{classCode}][關鍵字]` 前綴與離線後校正；班別從 Discord class role 唯一判斷，Module 從設定取得。
 - `/case close` 與「繼續詢問」。
-- `/private open` 建立測試 Private Support 頻道。
+- `/private open` 建立受限 Private Support 頻道；案號使用 `C99…-P`。
+- `/join-review` 與 `/join-admin`：兩級審核權限、五態加入流程、角色／暱稱 durable side effect 與 Discord DM。
 - 草稿提醒與刪除排程；測試時可把秒數縮短。
 
 ### `dump_bot`
 
 - 邀請權限只有 View Channel + Read Message History。
 - `probe`：一次性登入、列出可見頻道與權限後離線。
-- `online`：保持在線，僅消費本機 SQLite 中已明確建立的 Private Support dump job；不接收 Discord 指令。
+- `online`：保留給歷史 Private dump job 與受控 export 相容性；新 Private Support 流程不再建立 dump job。
 - `export-public`：只匯出已登錄的公開 Forum 案件。
 - `export-private`：只匯出已登錄的 Private Support 案件。
 - Private dump queue 使用原子 claim、唯一 token、15 分鐘 lease、5 分鐘心跳、指數退避與最多五次嘗試；只有持有目前 claim token 的 worker 可以完成或標記失敗。
 - SQLite 使用具 checksum 的 migration ledger；未知新版或已竄改 migration 會拒絕啟動。
 - `discord-db-inspect` 以 SQLite 唯讀模式列出 schema version、表名、欄位與列數；不執行 migration，也不讀出或列印 application row values。
 
-## 刻意未接通
+## 尚未接通／仍需 gate
 
-- Portal／GAS 命令傳遞。
+- Portal same-origin 加入申請與單案查詢 adapter。
 - Email 寄送。
-- NTU Mail、Student／Guest 真實驗證。
+- NTU Mail 的正式身分 authority；目前只做後端格式與網域重驗，不把 Email 當選課證明。
 - 正式 Google Sheets／資料庫。
-- Private Support 結案後的跨 Bot Discord ACL 自動授權與自動刪除；目前只完成共用 SQLite queue、已驗證匯出與待刪除狀態。
+- production Discord role／category／class-module 映射與白帳號端到端 ACL regression。
 - AI 正文分析。
 
 這些介面仍保留，但測試版不會偽造成功。
@@ -86,15 +85,38 @@ cp .env.example .env
 .venv/bin/course-assistant
 ```
 
-在 Discord 輸入：
+完成 `.env` 與 SQLite runtime config 後，在 Discord 使用：
 
 ```text
-/lab health
-/lab bootstrap
-/lab health
+/ops status
+/case claim
+/case close
+/private open
+/private close
+/join-review queue
+/join-review bind
+/join-review approve
+/join-admin grant
 ```
 
-`/lab bootstrap` 只允許伺服器擁有者或 `BOT_OWNER_IDS` 執行。
+`/ops` 與 `/join-admin` 只允許 `BOT_OWNER_IDS` 或已授權的 `SYSTEM_ADMIN`；
+`/join-review` 允許教學審核者與系統管理員。第一位系統管理員以 `BOT_OWNER_IDS` 作 bootstrap，
+不使用 Portal 的本機帳密。
+
+### Runtime config
+
+下列 key 儲存在 SQLite `runtime_config`，不放 token 或學生資料：
+
+- `managed_forum_ids`、`private_support_category_id`
+- `course_role_id`、`visitor_role_id`
+- `ta_role_id`、`professor_role_id`、`system_admin_role_id`
+- `class_role_01` 至 `class_role_16`
+- `class_module_01` 至 `class_module_16`
+
+System admin 可用 `/join-admin set-role`、`/join-admin set-category`、
+`/join-admin set-module`、`/join-admin add-forum` 與 `/join-admin remove-forum` 更新
+allowlisted 設定。正式使用前仍須用測試帳號核對 Discord role hierarchy、唯一班別、Private ACL 與
+115-1 canonical mapping；設定缺漏時流程會 fail closed。
 
 ### 5. 實測 Forum
 
@@ -130,9 +152,9 @@ cp .env.example .env
   --channel-id 123456789012345678
 ```
 
-## 測試版權限
+## 權限邊界
 
-`course_assistant` 邀請權限不含 Administrator、Manage Guild、Kick、Ban、Manage Webhooks 或 Mention Everyone。`/lab bootstrap` 建立的可操作角色與頻道都位於測試結構內。
+`course_assistant` 邀請權限不含 Administrator、Manage Guild、Kick、Ban、Manage Webhooks 或 Mention Everyone。可操作的角色與頻道必須由 owner 預先建立並明確映射；Bot 不自行擴權。
 
 `dump_bot` 只有：
 

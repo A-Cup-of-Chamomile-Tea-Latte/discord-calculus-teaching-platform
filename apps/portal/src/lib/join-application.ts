@@ -30,6 +30,15 @@ export interface JoinApplicationRecord extends JoinApplicationIdentity {
 export const duplicateApplicationDm =
   "你已經註冊過了呦！我把目前的班級與權限整理在下面，有需要調整再回覆我就好。";
 
+export function sameOriginEndpointPath(
+  value: string | undefined,
+): string | undefined {
+  const path = value?.trim();
+  if (!path || !path.startsWith("/") || path.startsWith("//")) return undefined;
+  if (path.includes("\\") || /[\r\n]/.test(path)) return undefined;
+  return path;
+}
+
 function normalized(value: string | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }

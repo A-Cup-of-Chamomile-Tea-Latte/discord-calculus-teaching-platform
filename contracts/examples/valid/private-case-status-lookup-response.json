@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "requestedCaseNumber": "C99-H3D7VP-0702-1500-P",
+  "outcome": "FOUND",
+  "case": {
+    "caseNumber": "C99-H3D7VP-0702-1500-P",
+    "caseType": "PRIVATE_SUPPORT",
+    "status": "TRACKED",
+    "updatedAt": "2026-08-24T16:30:00+08:00",
+    "teachingTeamReplied": true,
+    "discordUrl": "https://discord.com/channels/100/200"
+  },
+  "lookedUpAt": "2026-08-24T16:31:00+08:00"
+}

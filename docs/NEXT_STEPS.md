@@ -19,7 +19,7 @@
 
 ## 2. Candidate migration 與 Discord 設定
 
-1. 以 production v6 consistent backup 的獨立副本演練 v6 → v9；核對 ledger、integrity 與 row counts。
+1. 以 production v6 consistent backup 的獨立副本演練 v6 → v10；核對 ledger、integrity 與 row counts。
 2. 填入 course role、visitor role、C01–C16 class role、class→Module、Private category 與 reviewer/admin 映射。
 3. 用教師白帳號／學生測試帳號驗證加入、duplicate、waiting、approve、reject、archive／restore、Private ACL 與 DM。
 4. 演練完成只形成 release candidate；沒有新的明示部署授權，不寫入 production。

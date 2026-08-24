@@ -40,6 +40,10 @@
       "instance": "valid/case-lookup-response.json"
     },
     {
+      "schema": "case-status-lookup-response.schema.json",
+      "instance": "valid/private-case-status-lookup-response.json"
+    },
+    {
       "schema": "thread-export.schema.json",
       "instance": "valid/thread-export.json"
     },

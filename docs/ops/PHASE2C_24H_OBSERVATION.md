@@ -1,23 +1,31 @@
 # Phase 2C 真實 24 小時 observation
 
-## Observation window
+## Current observation window
 
-- 開始：2026-08-22 18:33（Asia/Taipei）
-- 結果：`DEGRADED / NOT ELIGIBLE FOR PASS`
-- 原最早完成時間已作廢；修復版 smoke PASS 後另記新窗口
+- 開始：2026-08-23 17:12（Asia/Taipei）
+- 最早完成：2026-08-24 17:12（Asia/Taipei）
+- 狀態：`AWAITING FINAL REMOTE CHECKPOINT`；本 repository 整合輪沒有重新連線探測，不能寫成 PASS
 - Production authority：remote SQLite
 - Production writer：remote Linux only
+- Production schema：v6；repository candidate v10 尚未部署
 
-## Start receipt
+## Superseded defect window
+
+2026-08-22 18:33 的第一個窗口因 close → immediate reopen 的 SQLite／Discord side-effect 不一致而標記
+`DEGRADED / NOT ELIGIBLE FOR PASS`。該窗口只保留為 defect evidence，不再作為目前狀態。修復版完成
+v5 → v6、Public smoke 與安全狀態核對後，才從 2026-08-23 17:12 重新起算。
+
+## Current start receipt
 
 - Mac LaunchAgents absent；本機 runtime process 為 0。
 - Remote `course-assistant`、`dump-bot`、`data-bridge` 均 active／enabled。
 - 三個服務各有不同 MainPID，啟動後 restart count 為 0。
 - Cutover repair、fresh service health、data-bridge backlog drain 均 PASS。
-- Allowlisted Discord Public smoke PASS：Bot 接到新 Forum thread、完成互動設定並更新標題。
+- Schema v6 lifecycle 修復版 Public create／finalize／close／immediate reopen smoke PASS。
+- owner-only `/ops status` 顯示三服務 `HEALTHY`、queue 歸零、manual attention 為 0。
 - Smoke 後三個服務仍 running，沒有 warning。
 
-## Observation finding：close → immediate reopen
+## Historical finding：close → immediate reopen
 
 - Public create、互動設定、標題更新與 `/case close` 均成功。
 - 原發文者立即按「繼續詢問」後，SQLite transition 先變為重新開啟；Discord thread 的解封／改名仍在
@@ -26,18 +34,16 @@
 - 學生向隱私說明也暴露 `reopen_count`、dump 等內部術語，須一併修正。
 - 目前不再重複操作該測試 thread。服務保持單一 remote writer；尚無 duplicate writer、DB corruption
   或 service restart 證據，因此未觸發整體 rollback。
-- 本窗口保留為 defect evidence，不計為完整 24 小時 PASS。修復版須重新 deploy、重新 Public smoke，並
-  從新的成功時間起算完整 24 小時。
+- 此 finding 屬於 2026-08-22 的已作廢窗口；修復與新 smoke 已完成，但仍需等目前窗口的最終遠端 checkpoint。
 
-## 修復版重新起算 gate
+## Final checkpoint gate
 
-- [ ] v5 live consistent copy 升級到 v6、integrity 與 migration ledger PASS。
-- [ ] 三個 remote services 使用同一個新 release，fresh health PASS，Mac writer 仍為 0。
-- [ ] Public close 立即收到受理回覆；完成後標題與封存一致。
-- [ ] 原發文者 reopen 立即收到受理回覆；沿用原案號，不寄新案號，完成後標題與開啟狀態一致。
-- [ ] 重複點擊被入口 throttle／idempotency 擋下，沒有重複 lifecycle event 或 Discord 副作用。
-- [ ] owner-only `/ops status` 唯讀、ephemeral，非 owner 拒絕且不洩漏 ID、路徑、資料列或 secret。
-- [ ] 上述全部 PASS 後，才填入新的 observation 開始時間。
+- [x] v5 live consistent copy 升級到 v6、integrity 與 migration ledger PASS。
+- [x] 三個 remote services 使用同一個 v6 release，fresh health PASS，Mac writer 為 0。
+- [x] Public close／immediate reopen smoke 收斂；沿用案號，沒有重複 lifecycle side effect。
+- [x] owner-only `/ops status` 唯讀、ephemeral，非 owner fail closed。
+- [ ] 2026-08-24 17:12 後重新取得安全摘要，確認三服務、schema、queue、manual attention、projection、OAuth 與 backup。
+- [ ] 只有上述最終 checkpoint PASS，才可更新為 observation PASS。
 
 本文件不記錄 Discord／Google ID、credential、案件正文、姓名、學號、Email 或其他私人資料。
 

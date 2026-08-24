@@ -698,6 +698,18 @@ def _apply_course_alias_v9(connection: sqlite3.Connection) -> None:
         connection.execute(statement)
 
 
+def _apply_private_case_setup_v10(connection: sqlite3.Connection) -> None:
+    columns = _column_names(connection, "private_open_requests")
+    if "module_code" not in columns:
+        connection.execute(
+            "ALTER TABLE private_open_requests ADD COLUMN module_code TEXT NOT NULL DEFAULT 'M1'"
+        )
+    if "keyword" not in columns:
+        connection.execute(
+            "ALTER TABLE private_open_requests ADD COLUMN keyword TEXT NOT NULL DEFAULT '隱密支援'"
+        )
+
+
 MIGRATIONS = (
     Migration(
         1,
@@ -759,6 +771,12 @@ MIGRATIONS = (
         "course-manager-safe-nickname-allocation-v9",
         "\n".join(statement.strip() for statement in COURSE_ALIAS_V9_STATEMENTS) + "\nv1",
         _apply_course_alias_v9,
+    ),
+    Migration(
+        10,
+        "private-case-shared-setup-v10",
+        "private_open_requests module_code and keyword additive columns; v1",
+        _apply_private_case_setup_v10,
     ),
 )
 

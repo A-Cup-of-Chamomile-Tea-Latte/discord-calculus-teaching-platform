@@ -1,5 +1,9 @@
 # Course assistant
 
+> **Fixture／歷史相容層，不是目前 production candidate。** 現行 Bot runtime 位於
+> `runtime/discord-course-bots/`；本目錄保留 Task 22–25 的 pure domain、fake adapters 與舊契約回歸測試，
+> 不應作為新功能或 production 設定的來源。
+
 負責互動與寫入型操作，例如表單、回覆轉貼與一般案件協調。它不執行批次歷史匯出或自動教學分析。
 
 唯一user-facing command owner。它可依核准流程使用`SEND_MESSAGES`、`SEND_MESSAGES_IN_THREADS`、`MANAGE_NICKNAMES`與allowlisted `MANAGE_ROLES`；不得使用`ADMINISTRATOR`或把email/Discord OAuth自行解讀為選課證明。Runtime只讀`COURSE_ASSISTANT_DISCORD_TOKEN`。

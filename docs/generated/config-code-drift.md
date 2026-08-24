@@ -5,7 +5,7 @@
 
 | 等級 | 代碼 | 位置 | 說明 |
 | --- | --- | --- | --- |
-| WARNING | `LEGACY_STATUS_DRIFT` | `apps/portal|fixtures|contracts` | legacy Task 34 states remain for compatibility: ANSWERED (12 files), ESCALATED (9 files), REOPENED (8 files), TEMPORARILY_CLOSED (8 files), WAITING_FOR_STUDENT (11 files) |
+| WARNING | `LEGACY_STATUS_DRIFT` | `apps/portal|fixtures|contracts` | legacy Task 34 states remain for compatibility: ANSWERED (7 files), ESCALATED (7 files), REOPENED (6 files), TEMPORARILY_CLOSED (5 files), WAITING_FOR_STUDENT (8 files) |
 
 ## 已知主要差異
 

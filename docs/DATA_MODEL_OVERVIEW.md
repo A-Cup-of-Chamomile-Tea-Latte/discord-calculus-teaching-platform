@@ -53,7 +53,8 @@ erDiagram
 ## General 與 Private Support
 
 - General case 可有人可讀 `Cxx-<random>-MMDD-HHMM` case number 與 Discord thread mapping，但公開顯示仍必須經 `CaseLookupResponse` allowlist 投影。
-- Private Support 使用 `-P` 尾碼的受保護 case number，並強制 `visibility=TEACHING_STAFF`、`analysisPermission=EXCLUDED`；它仍不得出現在 public lookup，export policy 也維持 fail closed。
+- Private Support 使用 `C99…-P` 受保護 case number 與受限 Discord 可見度。與 General 共用的單案查詢只可回傳 content-free 狀態投影；完整內容仍回 Discord 查看。
+- Private 案件可保存逐案 AI 選擇，但不因此自動匯出或送往 AI；legacy export contract 在治理完成前繼續 fail closed。
 - 六字元 random token 不可從姓名、學號、Email、Discord ID 或 internal UUID 推導；`C99` 代表非標準班級／特殊身份。
 
 ## Raw 到 sanitized 的變換

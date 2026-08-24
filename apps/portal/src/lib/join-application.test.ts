@@ -6,6 +6,7 @@ import {
   duplicateApplicationDm,
   joinApplicantKey,
   nextJoinApplicationStatus,
+  sameOriginEndpointPath,
 } from "./join-application";
 
 describe("join application policy", () => {
@@ -48,5 +49,14 @@ describe("join application policy", () => {
     expect(nextJoinApplicationStatus("ARCHIVED", "RESTORE")).toBe(
       "PENDING_REVIEW",
     );
+  });
+
+  it("accepts only same-origin endpoint paths", () => {
+    expect(sameOriginEndpointPath("/api/join")).toBe("/api/join");
+    expect(
+      sameOriginEndpointPath(" https://example.com/api/join "),
+    ).toBeUndefined();
+    expect(sameOriginEndpointPath("//example.com/api/join")).toBeUndefined();
+    expect(sameOriginEndpointPath("/api\\join")).toBeUndefined();
   });
 });

@@ -11,9 +11,39 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
+from discord_course_bots.domain.applicants import normalize_class_code
+from discord_course_bots.domain.keyword import normalize_keyword
+
 from .service import CourseService, classify_discord_lifecycle_error
 
 LOGGER = logging.getLogger(__name__)
+STATIC_ROLE_CONFIG_KEYS = frozenset(
+    {
+        "course_role_id",
+        "visitor_role_id",
+        "ta_role_id",
+        "professor_role_id",
+        "system_admin_role_id",
+    }
+)
+
+
+def normalized_role_config_key(value: str) -> str:
+    normalized = value.strip().lower()
+    if normalized in STATIC_ROLE_CONFIG_KEYS:
+        return normalized
+    match = re.fullmatch(r"class_role_(0[1-9]|1[0-6])", normalized)
+    if match is None:
+        raise ValueError("不支援的角色設定鍵。")
+    return f"class_role_{match.group(1)}"
+
+
+def normalized_class_module(class_code: str, module_code: str) -> tuple[str, str]:
+    normalized_class = normalize_class_code(class_code)
+    normalized_module = module_code.strip().upper()
+    if normalized_module not in {"M1", "M2", "M3", "M4"}:
+        raise ValueError("Module 必須是 M1 至 M4。")
+    return normalized_class, normalized_module
 
 
 async def _reply(interaction: discord.Interaction, message: str) -> None:
@@ -109,21 +139,38 @@ class CaseCog(commands.Cog):
             + f"\n- 資料庫結構：v{snapshot['schema_version']}"
             + f"\n- 待完成案件操作：{queues['discord']}"
             + f"\n- 待同步雲端更新：{queues['projection']}"
-            + f"\n- 待處理私人匯出：{queues['private_dump']}"
-            + "\n- 需人工處理："
-            + str(failures["discord"] + failures["projection"] + failures["private_dump"]),
+            + f"\n- 待發 Discord 私訊：{queues['dm']}"
+            + f"\n- 待建立隱密支援：{queues['private_open']}"
+            + f"\n- 待套用加入權限：{queues['course_role']}"
+            + f"\n- 歷史 Private dump queue：{queues['private_dump']}"
+            + f"\n- 需人工處理：{sum(failures.values())}",
         )
 
     @private.command(name="open", description="建立隱密支援空間")
-    @app_commands.describe(ai_permission="是否允許 AI 分析文字正文")
-    async def private_open(self, interaction: discord.Interaction, ai_permission: bool) -> None:
+    @app_commands.describe(
+        keyword="與公開提問相同的主標籤", ai_permission="是否允許 AI 分析文字正文"
+    )
+    async def private_open(
+        self, interaction: discord.Interaction, keyword: str, ai_permission: bool
+    ) -> None:
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
             await _reply(interaction, "請在課程 Discord 伺服器內使用。")
             return
+        try:
+            normalized_keyword = normalize_keyword(keyword)
+        except ValueError as exc:
+            await _reply(interaction, str(exc))
+            return
+        try:
+            _, module_code = self.service.class_context_for_member(interaction.user)
+        except RuntimeError:
+            module_code = self.service.settings.module_code
         request = self.service.repo.begin_private_open_request(
             interaction_id=str(interaction.id),
             guild_id=interaction.guild.id,
             requester_id=interaction.user.id,
+            module_code=module_code,
+            keyword=normalized_keyword,
             ai_content_permission=ai_permission,
             capacity=self.service.settings.private_open_capacity,
         )
@@ -169,20 +216,6 @@ class CaseCog(commands.Cog):
             ),
             ephemeral=True,
         )
-
-    async def private_dump(self, interaction: discord.Interaction) -> None:
-        if not isinstance(interaction.user, discord.Member) or not _staff_allowed(
-            interaction.user, self.service
-        ):
-            await _reply(interaction, "只有 TA／Professor／測試管理者可要求匯出。")
-            return
-        if not isinstance(interaction.channel, discord.TextChannel):
-            await _reply(interaction, "請在 Private Support 頻道內執行。")
-            return
-        if not self.service.repo.queue_private_dump(interaction.channel.id, interaction.user.id):
-            await _reply(interaction, "此頻道尚未結案，或已有匯出工作。")
-            return
-        await _reply(interaction, "Private dump 已排入工作；驗證完成後將刪除此頻道。")
 
 
 class CourseManagerCog(commands.Cog):
@@ -242,6 +275,27 @@ class CourseManagerCog(commands.Cog):
             return
         await _reply(interaction, "已保留申請並標記為等待加入 Discord；不會刪除資料。")
 
+    @review.command(name="bind", description="將申請綁定到已加入伺服器的成員")
+    async def bind(
+        self,
+        interaction: discord.Interaction,
+        application_id: str,
+        member: discord.Member,
+    ) -> None:
+        if not await self._require_reviewer(interaction):
+            return
+        try:
+            self.service.repo.bind_join_discord_member(application_id, member.id)
+        except RuntimeError as exc:
+            message = (
+                "這個 Discord 成員已綁定另一筆申請；請先由系統管理員核對重複資料。"
+                if str(exc) == "DISCORD_MEMBER_ALREADY_BOUND"
+                else "找不到可綁定的申請，或申請已封存。"
+            )
+            await _reply(interaction, message)
+            return
+        await _reply(interaction, "已綁定 Discord 成員；請重新核對資料後再執行核准。")
+
     @review.command(name="reject", description="拒絕加入申請")
     async def reject(
         self, interaction: discord.Interaction, application_id: str, reason: str
@@ -288,6 +342,7 @@ class CourseManagerCog(commands.Cog):
         if interaction.guild is None:
             await _reply(interaction, "請在課程 Discord 伺服器內執行。")
             return
+        await interaction.response.defer(ephemeral=True, thinking=True)
         prefix = (
             "Guest_Visitor"
             if row["applicant_type"] == "VISITOR"
@@ -295,11 +350,24 @@ class CourseManagerCog(commands.Cog):
         )
         pattern = re.compile(rf"^{re.escape(prefix)}(\d{{3}})$")
         observed_max = 0
-        async for member in interaction.guild.fetch_members(limit=None):
-            match = pattern.fullmatch(member.nick or "")
-            if match is not None:
-                observed_max = max(observed_max, int(match.group(1)))
-        nickname = self.service.repo.reserve_course_alias(application_id, observed_max=observed_max)
+        try:
+            async for member in interaction.guild.fetch_members(limit=None):
+                match = pattern.fullmatch(member.nick or "")
+                if match is not None:
+                    observed_max = max(observed_max, int(match.group(1)))
+        except discord.Forbidden:
+            await _reply(interaction, "Bot 無法讀取完整成員名單；申請保持待審核。")
+            return
+        except discord.HTTPException:
+            await _reply(interaction, "Discord 成員名單暫時不可用；請稍後再核准。")
+            return
+        try:
+            nickname = self.service.repo.reserve_course_alias(
+                application_id, observed_max=observed_max
+            )
+        except RuntimeError:
+            await _reply(interaction, "無法安全配置唯一暱稱；申請保持待審核。")
+            return
         self.service.repo.transition_join_application(
             application_id,
             action="APPROVE",
@@ -324,6 +392,74 @@ class CourseManagerCog(commands.Cog):
             member.id, level=level, actor_id=interaction.user.id, active=True
         )
         await _reply(interaction, "已更新 Course Manager 授權。")
+
+    @admin.command(name="set-role", description="設定 Course Manager 的 allowlisted Discord 角色")
+    @app_commands.describe(
+        role_key="課程／訪客／staff role key，或 class_role_01–16",
+        role="要套用的 Discord 角色",
+    )
+    async def set_role(
+        self, interaction: discord.Interaction, role_key: str, role: discord.Role
+    ) -> None:
+        if not await self._require_admin(interaction):
+            return
+        try:
+            key = normalized_role_config_key(role_key)
+        except ValueError as exc:
+            await _reply(interaction, str(exc))
+            return
+        self.service.repo.set_config(key, role.id)
+        await _reply(interaction, f"已更新 `{key}`；請用測試帳號驗證角色層級後再核准申請。")
+
+    @admin.command(name="set-category", description="設定 Private Support 的受限頻道分類")
+    async def set_category(
+        self, interaction: discord.Interaction, category: discord.CategoryChannel
+    ) -> None:
+        if not await self._require_admin(interaction):
+            return
+        self.service.repo.set_config("private_support_category_id", category.id)
+        await _reply(
+            interaction, "已更新 Private Support 分類；正式使用前仍須完成 ACL regression。"
+        )
+
+    @admin.command(name="add-forum", description="加入 Course Assistant 管理的提問 Forum")
+    async def add_forum(
+        self, interaction: discord.Interaction, forum: discord.ForumChannel
+    ) -> None:
+        if not await self._require_admin(interaction):
+            return
+        forum_ids = self.service.configured_forum_ids()
+        forum_ids.add(forum.id)
+        self.service.repo.set_config("managed_forum_ids", json.dumps(sorted(forum_ids)))
+        await _reply(interaction, "已加入提問 Forum；請用測試文章驗證草稿與成案流程。")
+
+    @admin.command(name="remove-forum", description="停止管理指定的提問 Forum")
+    async def remove_forum(
+        self, interaction: discord.Interaction, forum: discord.ForumChannel
+    ) -> None:
+        if not await self._require_admin(interaction):
+            return
+        forum_ids = self.service.configured_forum_ids()
+        forum_ids.discard(forum.id)
+        self.service.repo.set_config("managed_forum_ids", json.dumps(sorted(forum_ids)))
+        await _reply(interaction, "已停止管理該 Forum；既有案件與歷史資料不會刪除。")
+
+    @admin.command(name="set-module", description="設定正式班別對應的 Module")
+    async def set_module(
+        self, interaction: discord.Interaction, class_code: str, module_code: str
+    ) -> None:
+        if not await self._require_admin(interaction):
+            return
+        try:
+            normalized_class, normalized_module = normalized_class_module(class_code, module_code)
+        except ValueError as exc:
+            await _reply(interaction, str(exc))
+            return
+        self.service.repo.set_config(f"class_module_{normalized_class}", normalized_module)
+        await _reply(
+            interaction,
+            f"已設定 C{normalized_class} → {normalized_module}；請再與 115-1 對照複核。",
+        )
 
     @admin.command(name="revoke", description="撤銷審核者")
     async def revoke(self, interaction: discord.Interaction, member: discord.Member) -> None:
@@ -415,28 +551,6 @@ class DraftLifecycleCog(commands.Cog):
         if not self.service.repo.complete_discord_lifecycle_job(claim.job_id, claim.claim_token):
             LOGGER.error("Discord lifecycle job lost its claim before completion")
 
-    @tasks.loop(seconds=10)
-    async def private_delete_sweep(self) -> None:
-        for job in self.service.repo.pending_private_deletions():
-            channel_id = int(job["channel_id"])
-            channel = self.bot.get_channel(channel_id)
-            if channel is None:
-                try:
-                    channel = await self.bot.fetch_channel(channel_id)
-                except discord.NotFound:
-                    self.service.repo.mark_private_deleted(channel_id)
-                    continue
-                except discord.HTTPException:
-                    continue
-            if not isinstance(channel, discord.TextChannel):
-                continue
-            try:
-                await channel.delete(reason="Verified Private Support dump completed")
-            except discord.HTTPException:
-                LOGGER.exception("Private channel deletion failed for %s", channel_id)
-                continue
-            self.service.repo.mark_private_deleted(channel_id)
-
     @tasks.loop(seconds=30)
     async def draft_sweep(self) -> None:
         now = datetime.now(UTC)
@@ -487,24 +601,52 @@ class DraftLifecycleCog(commands.Cog):
 
     @tasks.loop(seconds=10)
     async def dm_sweep(self) -> None:
-        for row in self.service.repo.pending_dm_messages():
+        for _ in range(20):
+            claim = self.service.repo.claim_dm_message(self.lifecycle_worker_id)
+            if claim is None:
+                return
+            row = self.service.repo.get_dm_message(claim.message_key)
+            if row is None:
+                LOGGER.error("Claimed DM row disappeared")
+                return
             user = self.bot.get_user(int(row["recipient_id"]))
             if user is None:
                 try:
                     user = await self.bot.fetch_user(int(row["recipient_id"]))
+                except discord.NotFound:
+                    self.service.repo.fail_dm_message(
+                        claim.message_key,
+                        claim.claim_token,
+                        error_code="USER_NOT_FOUND",
+                        retryable=False,
+                    )
+                    continue
                 except discord.HTTPException:
-                    user = None
-            if user is None:
-                self.service.repo.fail_dm_message(str(row["message_key"]), "USER_NOT_FOUND")
-                continue
+                    self.service.repo.fail_dm_message(
+                        claim.message_key,
+                        claim.claim_token,
+                        error_code="DM_LOOKUP_RETRY",
+                        retryable=True,
+                    )
+                    continue
             try:
                 await user.send(str(row["body"]))
             except discord.Forbidden:
-                self.service.repo.fail_dm_message(str(row["message_key"]), "DM_BLOCKED")
+                self.service.repo.fail_dm_message(
+                    claim.message_key,
+                    claim.claim_token,
+                    error_code="DM_BLOCKED",
+                    retryable=False,
+                )
             except discord.HTTPException:
-                continue
+                self.service.repo.fail_dm_message(
+                    claim.message_key,
+                    claim.claim_token,
+                    error_code="DM_SEND_RETRY",
+                    retryable=True,
+                )
             else:
-                self.service.repo.complete_dm_message(str(row["message_key"]))
+                self.service.repo.complete_dm_message(claim.message_key, claim.claim_token)
 
     @tasks.loop(seconds=2)
     async def private_open_sweep(self) -> None:
@@ -566,10 +708,6 @@ class DraftLifecycleCog(commands.Cog):
 
     @draft_sweep.before_loop
     async def before_draft_sweep(self) -> None:
-        await self.bot.wait_until_ready()
-
-    @private_delete_sweep.before_loop
-    async def before_private_delete_sweep(self) -> None:
         await self.bot.wait_until_ready()
 
     @lifecycle_sweep.before_loop

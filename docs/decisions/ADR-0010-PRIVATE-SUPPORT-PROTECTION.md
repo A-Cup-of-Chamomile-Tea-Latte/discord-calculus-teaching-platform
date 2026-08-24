@@ -1,6 +1,6 @@
 # ADR-0010: Private Support 分離保護
 
-- Status: Accepted（prototype scope only）
+- Status: Superseded in part by [ADR-0013](ADR-0013-PRIVATE-STATUS-LOOKUP.md)
 - Date: 2026-07-19
 - Owners: 教學團隊、隱私負責人、系統維護者
 - Related tasks: 07, 13, 25, 27, 29
@@ -12,6 +12,8 @@
 ## Decision
 
 Private Support 使用獨立 case type、入口、storage/Discord access policy 與 response projection。它不出現在公開 case-number search，且 analysis permission 預設 `EXCLUDED`。正式 private Discord mechanism 未驗證前只用 restricted backend/mock。
+
+> 2026-08-24 更新：獨立可見度與內容保護繼續有效；「不可查最小狀態」與「不提供逐案 AI 選擇」已由 ADR-0013 取代。
 
 ## Consequences
 

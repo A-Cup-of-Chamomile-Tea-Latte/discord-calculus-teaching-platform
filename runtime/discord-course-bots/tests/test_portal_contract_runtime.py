@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
+from discord_course_bots.course_assistant.cogs import (
+    normalized_class_module,
+    normalized_role_config_key,
+)
 from discord_course_bots.repository import Repository, canonical_case_status
 
 
@@ -107,12 +113,13 @@ def test_private_completion_uses_canonical_p_case_and_dm_outbox(tmp_path) -> Non
         guild_id=10,
         requester_id=20,
         ai_content_permission=True,
+        module_code="M2",
+        keyword="積分觀念",
     )
     completed = repo.complete_private_open_request(
         interaction_id="100",
         channel_id=30,
         jump_url="https://discord.example/channels/10/30",
-        module_code="M1",
         requester_id=20,
         ai_content_permission=True,
     )
@@ -120,7 +127,13 @@ def test_private_completion_uses_canonical_p_case_and_dm_outbox(tmp_path) -> Non
     case = repo.get_case_by_thread(30)
     assert case["visibility"] == "PRIVATE"
     assert case["status"] == "OPEN"
-    assert len(repo.pending_dm_messages()) == 1
+    assert case["module_code"] == "M2"
+    assert case["keyword"] == "積分觀念"
+    assert case["canonical_title"].startswith("[M2 | C99][積分觀念]")
+    dm_claim = repo.claim_dm_message("dm-worker")
+    assert dm_claim is not None
+    assert repo.get_dm_message(dm_claim.message_key)["status"] == "CLAIMED"
+    assert repo.complete_dm_message(dm_claim.message_key, dm_claim.claim_token)
     assert repo.safe_case_projection(str(completed["case_number"]), allow_private=False) is None
     projection = repo.safe_case_projection(str(completed["case_number"]), allow_private=True)
     assert set(projection) == {
@@ -193,6 +206,10 @@ def test_join_dedup_waiting_approval_archive_and_explicit_grants(tmp_path) -> No
     assert restored["status"] == "APPROVED"
 
     assert repo.reviewer_level(91) is None
+    repo.set_reviewer_grant(91, level="REVIEWER", actor_id=99, active=True)
+    assert repo.reviewer_level(91) == "REVIEWER"
+    repo.set_reviewer_grant(91, level="REVIEWER", actor_id=99, active=False)
+    assert repo.reviewer_level(91) is None
 
 
 def test_join_application_matches_portal_validation_contract(tmp_path) -> None:
@@ -240,7 +257,80 @@ def test_student_message_reopens_closed_case_and_queues_discord_restore(tmp_path
         "SELECT transition FROM discord_lifecycle_jobs ORDER BY created_at, rowid"
     ).fetchall()
     assert [str(row["transition"]) for row in transitions] == ["CLOSE", "REOPEN"]
-    repo.set_reviewer_grant(91, level="REVIEWER", actor_id=99, active=True)
-    assert repo.reviewer_level(91) == "REVIEWER"
-    repo.set_reviewer_grant(91, level="REVIEWER", actor_id=99, active=False)
-    assert repo.reviewer_level(91) is None
+
+
+def test_course_manager_configuration_keys_are_allowlisted() -> None:
+    assert normalized_role_config_key("class_role_01") == "class_role_01"
+    assert normalized_role_config_key(" COURSE_ROLE_ID ") == "course_role_id"
+    assert normalized_class_module("C09", "m2") == ("09", "M2")
+    with pytest.raises(ValueError):
+        normalized_role_config_key("administrator_role_id")
+    with pytest.raises(ValueError):
+        normalized_role_config_key("class_role_99")
+    with pytest.raises(ValueError):
+        normalized_class_module("01", "M9")
+
+
+def test_dm_outbox_claim_is_token_owned_and_retryable(tmp_path) -> None:
+    repo = Repository(tmp_path / "dm.sqlite3")
+    _case(repo)
+    case = repo.get_case_by_thread(1)
+    repo.enqueue_case_dm(
+        case_id=str(case["case_id"]),
+        recipient_id=3,
+        case_number=str(case["case_number"]),
+        jump_url="https://discord.example/case",
+    )
+    claim = repo.claim_dm_message("worker")
+    assert claim is not None
+    assert not repo.complete_dm_message(claim.message_key, "stale-token")
+    assert repo.fail_dm_message(
+        claim.message_key,
+        claim.claim_token,
+        error_code="DM_SEND_RETRY",
+        retryable=True,
+    )
+    row = repo.get_dm_message(claim.message_key)
+    assert row["status"] == "RETRYABLE_FAILURE"
+    assert row["next_attempt_at"] is not None
+
+
+def test_role_job_can_be_requeued_after_permanent_failure(tmp_path) -> None:
+    repo = Repository(tmp_path / "role-retry.sqlite3")
+    application, _ = repo.submit_join_application(
+        applicant_type="STUDENT",
+        discord_username="retry.student",
+        identity_email="retry@ntu.edu.tw",
+        class_code="01",
+    )
+    application_id = str(application["application_id"])
+    repo.bind_join_discord_member(application_id, 20)
+    repo.transition_join_application(
+        application_id,
+        action="APPROVE",
+        actor_id=91,
+        reason_code="FIRST_APPROVAL",
+        desired_role_ids=(100,),
+        desired_nickname="Student_01001",
+    )
+    first = repo.claim_course_role_job("worker")
+    assert first is not None
+    assert repo.fail_course_role_job(
+        first.job_id,
+        first.claim_token,
+        error_code="DISCORD_FORBIDDEN",
+        retryable=False,
+    )
+
+    repo.transition_join_application(
+        application_id,
+        action="APPROVE",
+        actor_id=91,
+        reason_code="CONFIG_FIXED",
+        desired_role_ids=(200,),
+        desired_nickname="Student_01001",
+    )
+    retried = repo.claim_course_role_job("worker")
+    assert retried is not None
+    job = repo.get_course_role_job(retried.job_id)
+    assert job["desired_roles_json"] == "[200]"

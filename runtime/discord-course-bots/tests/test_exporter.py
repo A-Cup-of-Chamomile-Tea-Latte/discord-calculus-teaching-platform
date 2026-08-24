@@ -22,17 +22,17 @@ def test_write_export_and_manifest(tmp_path: Path) -> None:
         channel_name="thread",
         messages=[message],
         export_scope="public",
-        case_number="C00-ABC123-0729-1015",
+        case_number="C01-ABC234-0729-1015",
     )
     assert all(path.exists() for path in paths.values())
     manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
     assert manifest["message_count"] == 1
     assert manifest["export_scope"] == "public"
-    assert manifest["case_number"] == "C00-ABC123-0729-1015"
+    assert manifest["case_number"] == "C01-ABC234-0729-1015"
     assert set(manifest["files"]) == {paths["json"].name, paths["markdown"].name}
     payload = json.loads(paths["json"].read_text(encoding="utf-8"))
     assert payload["export_scope"] == "public"
-    assert payload["case_number"] == "C00-ABC123-0729-1015"
+    assert payload["case_number"] == "C01-ABC234-0729-1015"
     assert verify_export(paths) is True
     paths["json"].write_text("tampered", encoding="utf-8")
     assert verify_export(paths) is False
