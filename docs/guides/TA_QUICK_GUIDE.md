@@ -1,14 +1,15 @@
 # 助教快速指南
 
-> 這是試用前操作指南，不是授課單位核准的正式 SOP。Discord 測試 Guild、兩隻 Mac bots 與精簡 Sheet／GAS Bridge 已完成實機或虛構案件驗證；Portal、email、Linux host、live cutover 與正式學生試用仍未放行。
+> 這是試用前操作指南，不是授課單位核准的正式 SOP。依 2026-08-22 最新交接，Discord 已切到遠端單一 writer；修正版完成後仍須重新進行觀察。Portal 動態提交、email 與正式學生試用尚未放行。
 
 ## 一般案件 triage
 
 1. 確認這是一般課程討論，不含需 Private Support 的敏感內容。
-2. 確認案件狀態，只使用 `OPEN`、`WAITING_FOR_STUDENT`、`ANSWERED`、`ESCALATED`、`CLOSED`。
+2. 確認案件狀態，只使用 `OPEN`、`TRACKED`、`IDLE`、`CLOSED`、`AUTO_CLOSED`。
 3. 回覆時確認作者顯示、可見範圍與 analysis permission；三者不可相互推導。
-4. 需學生補件時設 `WAITING_FOR_STUDENT`；需教師/負責助教判斷時設 `ESCALATED` 並留下非敏感責任紀錄。
-5. 正式課務問題一律指回 NTU COOL 上的公告或政策，不在 Discord/Portal 自行建立矛盾版本。
+4. 接手後設為 `TRACKED`。教學團隊最後回覆後 48 小時無學生回應才進入 `IDLE`；再 48 小時才自動結案。只有案件負責人可手動結案。
+5. 結案後有新回應時沿用原案號與討論串回到 `TRACKED`；「已重新開啟」只記在時間軸。
+6. 正式課務問題一律指回 NTU COOL 上的公告或政策，不在 Discord/Portal 自行建立矛盾版本。
 
 ## Private Support
 

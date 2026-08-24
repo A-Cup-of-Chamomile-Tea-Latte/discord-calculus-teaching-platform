@@ -2,7 +2,7 @@
 
 ## Intent
 
-這是一套供課程團隊審查的 UI foundation：先建立資訊層級、可存取性、mobile layout 與 semantic states，再由後續品牌決策調整 tokens。頁首可在「課程正式／學生友善」兩組色彩 token 間切換；沒有採用 Tailwind、component library、大型 template、logo 或 custom illustration。
+這是一套供課程團隊審查的 UI foundation：先建立資訊層級、可存取性、mobile layout 與 semantic states，再逐頁確認學生文案。視覺採深綠、暖白與燙金重點；警示使用真正的 danger red。沒有採用 Tailwind、component library、大型 template、logo 或 custom illustration。
 
 ## Token layers
 
@@ -18,7 +18,7 @@
 
 ## Components
 
-- `SiteHeader` / `SiteFooter`：語意 header/nav/footer、可注入 base-safe links、fixture mode 標籤。
+- `SiteHeader` / `SiteFooter`：精實的語意 header/nav/footer；公開版不顯示 mode badge、內部登入或 owner status。
 - `Card`：行動選項與摘要；title/eyebrow 可省略。
 - `StatusBadge`：五種固定案件狀態，永遠顯示 symbol + Traditional Chinese label。
 - `MetaLabel`：visibility 與 author display 前綴，不只顯示 enum。
@@ -44,13 +44,15 @@
 
 ## State communication
 
-| State     | Symbol/word          | Color role                          |
-| --------- | -------------------- | ----------------------------------- |
-| Open      | `○ Open · 待接手`    | info border/background only assists |
-| Idle      | `↩ Idle · 等待學生`  | warning assists                     |
-| Tracked   | `✓ Tracked · 已接手` | success assists                     |
-| Escalated | `↑ Tracked · 已升級` | danger assists                      |
-| Closed    | `■ Closed · 已結案`  | neutral assists                     |
+| State       | Symbol/word                  | Color role                          |
+| ----------- | ---------------------------- | ----------------------------------- |
+| Open        | `○ Open · 新案件`            | info border/background only assists |
+| Tracked     | `✓ Tracked · 進行中`         | success assists                     |
+| Idle        | `↩ Idle · 等待回覆`          | warning assists                     |
+| Closed      | `■ Closed · 已結案`          | neutral assists                     |
+| Auto Closed | `◇ Auto Closed · 已自動結案` | neutral assists                     |
+
+「重新開啟中」是操作中的暫時文案，「已重新開啟」是時間軸事件；兩者都不是第六個持久狀態。
 
 Loading、empty、error、success 也都有 heading、symbol 及具體下一步，不能只用 spinner／綠紅色。
 
@@ -62,8 +64,8 @@ Loading、empty、error、success 也都有 heading、symbol 及具體下一步�
 4. 以鍵盤走過 skip link、nav、forms、actions；error summary 能導回欄位。
 5. 在 forced colors 與 prefers-reduced-motion 模式檢查內容仍可理解。
 
-## Known prototype limits
+## Known integration limits
 
 - Astro compiler/build 已驗證 `.astro` 元件；目前 Portal diagnostics 為 0 errors、0 warnings、0 hints。
-- 尚未做 final branding、dark theme、institution logo 或 custom domain。
+- 尚未完成正式 backend、dark theme、institution logo 或 custom domain。
 - `FormField` 不自動修改 slotted control 的 ARIA；頁面作者必須連結 hint/error IDs，fixture forms tests 已覆蓋這項要求。

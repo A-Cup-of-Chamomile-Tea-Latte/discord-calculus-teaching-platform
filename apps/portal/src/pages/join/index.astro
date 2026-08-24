@@ -1,47 +1,107 @@
 ---
+import { readFileSync } from "node:fs";
+
 import Alert from "../../components/Alert.astro";
-import ButtonLink from "../../components/ButtonLink.astro";
 import FormField from "../../components/FormField.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { withBase } from "../../lib/paths";
+
+interface RegistrationSection {
+  classCode: string;
+  canonicalClassLabel: string;
+  moduleCode: string;
+  status: string;
+  instructorRef: string;
+}
+
+interface Instructor {
+  instructorRef: string;
+  publicDisplayName: string;
+}
+
+const academicSpec = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../../../../config/academic/115-1/course-operations.yaml",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as {
+  sections: RegistrationSection[];
+  peopleDirectory: { instructors: Instructor[] };
+};
+const instructorNames = new Map(
+  academicSpec.peopleDirectory.instructors.map((instructor) => [
+    instructor.instructorRef,
+    instructor.publicDisplayName,
+  ]),
+);
+const activeSections = academicSpec.sections.filter(
+  (section) => section.status === "ACTIVE",
+);
+const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
+const applicationConnected = Boolean(
+  import.meta.env.PUBLIC_JOIN_APPLICATION_ENDPOINT,
+);
 ---
 
 <BaseLayout
-  title="加入與設定"
-  description="約三分鐘完成課程身分、班別與隱私設定預覽。"
+  title="加入 Discord 伺服器"
+  description="申請臺大微積分 Discord 的學生或訪客權限。"
   currentPath="join"
 >
   <div class="join-shell shell stack section">
     <header class="join-intro">
       <p><a href={withBase("")}>首頁</a> / 加入與設定</p>
-      <p class="eyebrow">3 分鐘完成</p>
-      <h1>加入課程與設定</h1>
-      <p>依序確認身分、班別與隱私。目前是安全預覽，不會寄信或儲存資料。</p>
+      <h1>2 分鐘加入 Discord 伺服器</h1>
+      <p>
+        先加入課程伺服器的等候區，再送出這份申請。Course Manager
+        核對完成後，會套用課程權限並直接用 Discord 私訊通知你。
+      </p>
     </header>
 
-    <ol class="join-steps" aria-label="加入設定步驟">
-      <li><strong>1</strong><span>身分</span></li>
-      <li><strong>2</strong><span>班別</span></li>
-      <li><strong>3</strong><span>隱私</span></li>
+    <ol class="join-steps" aria-label="加入流程">
+      <li><strong>1</strong><span>加入等候區</span></li>
+      <li><strong>2</strong><span>送出申請</span></li>
+      <li><strong>3</strong><span>收到私訊</span></li>
     </ol>
 
-    <p class="connection-note">
-      <strong>Discord 連結尚未啟用。</strong> 本頁不會要求 token 或開啟 OAuth。
-    </p>
+    <Alert title="送出前，先確認 Discord 帳號">
+      <p>
+        請使用準備加入課程的帳號進入伺服器。若找不到成員，申請會保留在「等待加入伺服器」，不會被拒絕或刪除。
+      </p>
+    </Alert>
+
+    {
+      !isPublicBuild && (
+        <p class="review-only">
+          Reviewer
+          build：目前只驗證欄位與確認畫面，不會寫入正式申請佇列。正式接線前，公開
+          build 會停用送出。
+        </p>
+      )
+    }
 
     <section
-      class="prototype-panel"
-      data-fixture-form
-      data-form-kind="join"
+      class="application-panel"
+      data-join-application
+      data-review-mode={String(!isPublicBuild)}
       aria-labelledby="join-form-title"
     >
       <div>
-        <p class="fixture-marker">安全預覽 · 不會送出</p>
-        <h2 id="join-form-title">建立設定預覽</h2>
-        <p>重新整理後，這頁輸入的內容就會消失。</p>
+        <p class="eyebrow">加入申請</p>
+        <h2 id="join-form-title">告訴我們你的課程身分</h2>
       </div>
 
-      <form class="prototype-form" novalidate>
+      <form
+        class="prototype-form"
+        novalidate
+        action={applicationConnected
+          ? import.meta.env.PUBLIC_JOIN_APPLICATION_ENDPOINT
+          : undefined}
+        method="post"
+      >
         <div
           class="form-error-summary"
           data-form-errors
@@ -54,152 +114,261 @@ import { withBase } from "../../lib/paths";
           <ul></ul>
         </div>
 
+        <fieldset class="choice-group">
+          <legend>申請身分 *</legend>
+          <label>
+            <input type="radio" name="identityType" value="STUDENT" checked />
+            臺大學生
+          </label>
+          <label>
+            <input type="radio" name="identityType" value="GUEST" />
+            訪客
+          </label>
+          <p class="field-error" data-field-error="identityType" hidden></p>
+        </fieldset>
+
         <FormField
-          forId="join-ntu-email"
-          label="NTU Email"
-          hint="目前只檢查格式，不會寄信。"
+          forId="join-discord-username"
+          label="Discord 使用者名稱（不前綴 @）"
+          hint="例如 dingding124816。請填寫顯示名稱下方、可用來找到你的那一行。"
           required
         >
           <input
-            id="join-ntu-email"
-            name="ntuEmail"
-            type="email"
-            inputmode="email"
-            autocomplete="email"
-            placeholder="student@ntu.edu.tw"
-            aria-describedby="join-ntu-email-hint join-ntu-email-error"
+            id="join-discord-username"
+            name="discordUsername"
+            type="text"
+            autocomplete="off"
+            autocapitalize="none"
+            spellcheck="false"
+            maxlength="32"
+            placeholder="dingding124816"
+            aria-describedby="join-discord-username-hint join-discord-username-error"
           />
           <p
-            id="join-ntu-email-error"
+            id="join-discord-username-error"
             class="field-error"
-            data-field-error="ntuEmail"
+            data-field-error="discordUsername"
             hidden
           >
           </p>
         </FormField>
 
-        <FormField
-          forId="join-contact-gmail"
-          label="聯絡 Gmail"
-          hint="選填，作為後續聯絡信箱。"
-        >
-          <input
-            id="join-contact-gmail"
-            name="contactGmail"
-            type="email"
-            inputmode="email"
-            autocomplete="email"
-            placeholder="name@gmail.com"
-            aria-describedby="join-contact-gmail-hint join-contact-gmail-error"
-          />
-          <p
-            id="join-contact-gmail-error"
-            class="field-error"
-            data-field-error="contactGmail"
-            hidden
-          >
-          </p>
-        </FormField>
+        <details class="username-help">
+          <summary>怎麼找到 Discord 使用者名稱？</summary>
+          <div>
+            <p>
+              <strong>電腦版：</strong
+              >點自己的頭像，在個人資料中直接複製使用者名稱。
+            </p>
+            <p>
+              <strong>手機版：</strong>開啟個人資料，查看顯示名稱下方那一行。
+            </p>
+          </div>
+        </details>
 
-        <FormField
-          forId="join-class-code"
-          label="班別"
-          hint="用來分流課程問題與通知。"
-          required
-        >
-          <select
-            id="join-class-code"
-            name="classCode"
-            aria-describedby="join-class-code-hint join-class-code-error"
+        <div class="identity-fields" data-identity-fields="STUDENT">
+          <FormField
+            forId="join-ntu-email"
+            label="NTU Mail"
+            hint="用來核對臺大學生身分。"
+            required
           >
-            <option value="">請選擇</option>
-            <option value="01">01 班</option>
-            <option value="02">02 班</option>
-          </select>
-          <p
-            id="join-class-code-error"
-            class="field-error"
-            data-field-error="classCode"
-            hidden
-          >
-          </p>
-        </FormField>
+            <input
+              id="join-ntu-email"
+              name="ntuEmail"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              placeholder="student@ntu.edu.tw"
+              aria-describedby="join-ntu-email-hint join-ntu-email-error"
+            />
+            <p
+              id="join-ntu-email-error"
+              class="field-error"
+              data-field-error="ntuEmail"
+              hidden
+            >
+            </p>
+          </FormField>
 
-        <div class="alias-preview" aria-live="polite">
-          <strong>課程代號預覽：</strong>
-          <output data-alias-preview for="join-class-code">尚未選擇班別</output>
-          <p>預覽會使用範例順序 042，不是正式指派。</p>
+          <FormField
+            forId="join-class-code"
+            label="班別"
+            hint="Course Manager 會依此套用課程與班級權限。"
+            required
+          >
+            <select
+              id="join-class-code"
+              name="classCode"
+              aria-describedby="join-class-code-hint join-class-code-error"
+            >
+              <option value="">請選擇</option>
+              {
+                activeSections.map((section) => (
+                  <option value={section.classCode}>
+                    {section.moduleCode}－{section.canonicalClassLabel}－
+                    {instructorNames.get(section.instructorRef)}老師
+                  </option>
+                ))
+              }
+            </select>
+            <p
+              id="join-class-code-error"
+              class="field-error"
+              data-field-error="classCode"
+              hidden
+            >
+            </p>
+          </FormField>
+
+          <FormField
+            forId="join-contact-gmail"
+            label="聯絡 Gmail"
+            hint="選填；主要審核結果仍由 Discord 私訊通知。"
+          >
+            <input
+              id="join-contact-gmail"
+              name="contactGmail"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              placeholder="name@gmail.com"
+              aria-describedby="join-contact-gmail-hint join-contact-gmail-error"
+            />
+            <p
+              id="join-contact-gmail-error"
+              class="field-error"
+              data-field-error="contactGmail"
+              hidden
+            >
+            </p>
+          </FormField>
         </div>
 
-        <fieldset class="choice-group">
-          <legend>教學分析預設 *</legend>
-          <p>這與作者顯示、是否能獲得回覆分開設定，之後仍可更改。</p>
-          <label
-            ><input
-              type="radio"
-              name="analysisPermission"
-              value="INCLUDED"
-              checked
-            /> 允許教學分析</label
+        <div class="identity-fields" data-identity-fields="GUEST" hidden>
+          <Alert title="訪客申請會由教學團隊審核">
+            <p>訪客不會取得學生班級角色；核准時會套用獨立的訪客權限。</p>
+          </Alert>
+          <FormField
+            forId="join-guest-email"
+            label="聯絡 Email"
+            hint="訪客必填。"
+            required
           >
-          <label
-            ><input type="radio" name="analysisPermission" value="EXCLUDED" /> 排除教學分析</label
-          >
-          <p class="field-error" data-field-error="analysisPermission" hidden>
-          </p>
-        </fieldset>
-
-        <fieldset class="choice-group">
-          <legend>安全與隱私確認</legend>
-          <label>
             <input
-              type="checkbox"
-              name="dmRecommendation"
-              value="yes"
-              checked
+              id="join-guest-email"
+              name="guestEmail"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              aria-describedby="join-guest-email-hint join-guest-email-error"
             />
-            我會檢查「允許來自同一伺服器成員的私人訊息」設定；建議關閉陌生 DM。
-          </label>
-          <label>
-            <input type="checkbox" name="rulesPrivacy" value="yes" />
-            我已閱讀規則與隱私說明，了解 server nickname 不會隱藏全域帳號資訊。*
-          </label>
-          <p class="field-error" data-field-error="rulesPrivacy" hidden></p>
-        </fieldset>
+            <p
+              id="join-guest-email-error"
+              class="field-error"
+              data-field-error="guestEmail"
+              hidden
+            >
+            </p>
+          </FormField>
+          <FormField
+            forId="join-guest-reason"
+            label="來訪原因"
+            hint="請簡短說明你的身分與想加入的原因。"
+            required
+          >
+            <textarea
+              id="join-guest-reason"
+              name="guestReason"
+              rows="4"
+              maxlength="500"
+              aria-describedby="join-guest-reason-hint join-guest-reason-error"
+            ></textarea>
+            <p
+              id="join-guest-reason-error"
+              class="field-error"
+              data-field-error="guestReason"
+              hidden
+            >
+            </p>
+          </FormField>
+        </div>
+
+        <label class="rules-check">
+          <input type="checkbox" name="rulesPrivacy" value="yes" />
+          <span>
+            我已閱讀<a href={withBase("guide/")}>使用與隱私說明</a>，也了解
+            Discord 的伺服器暱稱不會隱藏全域帳號資訊。*
+          </span>
+        </label>
+        <p class="field-error" data-field-error="rulesPrivacy" hidden></p>
 
         <div class="form-actions">
-          <button type="submit">預覽我的設定</button>
-          <ButtonLink href={withBase("guide/")} variant="secondary"
-            >閱讀完整隱私指南</ButtonLink
+          <button
+            type="submit"
+            disabled={isPublicBuild && !applicationConnected}
           >
+            {
+              isPublicBuild && !applicationConnected
+                ? "申請服務接線中"
+                : "送出申請"
+            }
+          </button>
         </div>
       </form>
 
-      <section
-        class="fixture-confirmation"
-        data-fixture-confirmation
-        tabindex="-1"
-        hidden
-      >
-        <p class="fixture-marker">預覽完成 · 未送出</p>
-        <h2 data-confirmation-title>你的設定預覽已建立</h2>
-        <p>參考編號：<strong data-confirmation-reference></strong></p>
-        <dl data-confirmation-summary></dl>
-        <Alert title="尚未建立帳號或送出資料">
-          <p>這份預覽沒有連線 Discord、Email 或課程成員系統。</p>
-        </Alert>
-        <button
-          type="button"
-          class="button button--secondary"
-          data-fixture-reset>返回並清除表單</button
-        >
-      </section>
+      {
+        !isPublicBuild && (
+          <section
+            class="fixture-confirmation"
+            data-join-confirmation
+            tabindex="-1"
+            hidden
+          >
+            <p class="eyebrow">欄位驗證完成</p>
+            <h2>申請資料格式已確認</h2>
+            <dl>
+              <div>
+                <>
+                  <dt>申請身分</dt>
+                  <dd data-confirmation-identity />
+                </>
+              </div>
+              <div>
+                <>
+                  <dt>Discord 使用者名稱</dt>
+                  <dd data-confirmation-username />
+                </>
+              </div>
+              <div>
+                <>
+                  <dt>班別／聯絡 Email</dt>
+                  <dd data-confirmation-detail />
+                </>
+              </div>
+            </dl>
+            <Alert title="尚未寫入申請佇列">
+              <p>
+                這是 reviewer build 的介面驗證；沒有傳送 Email、Discord
+                私訊或正式資料。
+              </p>
+            </Alert>
+            <button
+              type="button"
+              class="button button--secondary"
+              data-join-reset
+            >
+              返回並清除表單
+            </button>
+          </section>
+        )
+      }
     </section>
   </div>
 </BaseLayout>
 
 <script>
-  import "../../scripts/fixture-forms";
+  import "../../scripts/join-application-form";
 </script>
 
 <style>
@@ -209,9 +378,7 @@ import { withBase } from "../../lib/paths";
   }
 
   .join-intro {
-    max-width: 40rem;
-    text-align: center;
-    margin-inline: auto;
+    max-width: 42rem;
   }
 
   .join-steps {
@@ -245,15 +412,52 @@ import { withBase } from "../../lib/paths";
     font-size: var(--font-size-xs);
   }
 
-  .connection-note {
-    margin: 0;
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-muted);
-    font-size: var(--font-size-sm);
+  .application-panel {
+    display: grid;
+    gap: var(--space-5);
+    padding: clamp(1rem, 4vw, 2rem);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-card);
   }
 
-  .prototype-panel {
-    padding: clamp(1rem, 4vw, 2rem);
+  .identity-fields {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .identity-fields[hidden] {
+    display: none;
+  }
+
+  .username-help {
+    padding: var(--space-3) var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+  }
+
+  .username-help summary {
+    cursor: pointer;
+    font-weight: 750;
+  }
+
+  .username-help div {
+    padding-top: var(--space-3);
+  }
+
+  .username-help p:last-child {
+    margin-bottom: 0;
+  }
+
+  .rules-check {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+  }
+
+  .rules-check a {
+    margin-inline: 0.25em;
   }
 </style>

@@ -1,93 +1,47 @@
 # Portal user journeys
 
-## 學生：直接在 Discord 發問
+更新日期：2026-08-24
 
-```mermaid
-sequenceDiagram
-  actor S as 學生
-  participant P as Portal
-  participant D as Discord
-  S->>P: 查看提問方式與隱私指南
-  P-->>S: 說明暱稱不會隱藏全域帳號、建議關閉陌生 DM
-  S->>D: 選擇直接前往 forum 發問
-  D-->>S: 依 Discord 身分與所選範圍顯示內容
-```
+## 加入課程伺服器
 
-網站不要求學生先填表，也不聲稱能替 Discord 上的普通發文完全匿名。
+1. 使用者先從課程提供的邀請進入 Discord 等候區。
+2. 在 Portal 選擇「臺大學生」或「訪客」，填 Discord 使用者名稱（不前綴 `@`）。
+3. 學生填 NTU Mail 與班別，聯絡 Gmail 選填；訪客填聯絡 Email 與來訪原因。
+4. backend 先以正規化 Email＋Discord username 去重；解析到成員後改綁穩定 Discord user ID，不以學期作 dedup key。
+5. Course Manager 找不到成員時保留為「等待加入伺服器」，不拒絕、不刪除。
+6. 教學審核者核准／拒絕；系統管理員另可管理審核者、設定、例外與封存。
+7. 核准後 Course Manager 套用角色／暱稱並以 Discord 私訊通知。重複申請則私訊「你已經註冊過了呦！」與目前權限。
 
-## 學生：透過網站代送一般問題（替代方案）
+## 公開提問
 
-```mermaid
-flowchart TD
-  start["首頁：選擇『透過網站代送（替代方案）』"] --> form["填 title／content／visibility／display／analysis"]
-  form --> review["確認 NTU COOL 權威與顯示限制"]
-  review --> mock["Fixture submission adapter"]
-  mock --> receipt["確認頁：一般案件編號"]
-  receipt --> lookup["按需查詢一般案件"]
-  lookup --> discord["可選：前往 Discord 討論"]
-```
+1. 學生在 Discord 選擇「數學問題／課務與系統／延伸討論」。
+2. 直接發文並附上需要的圖片。
+3. Bot 詢問題型、關鍵字與本案 AI 同意。
+4. Bot 整理標題、建立案件，並私訊案號與直達連結。
+5. 後續對話留在原討論串；結案後重新開啟仍沿用原 thread 與案號。
 
-完全匿名 follow-up 必須繼續使用網站或 Discord modal 讓 bot 代貼，不能直接在 thread 以本人帳號回覆。
+## 隱密支援
 
-## 學生：一般案件查詢
+1. 學生從 Discord 指令選單建立隱密支援。
+2. Course Manager 建立只讓案件建立者與授權教學團隊看見的空間。
+3. 問題、圖片、類型與 AI 同意沿用公開案件流程；差別只有可見度。
+4. Bot 私訊以 `-P` 結尾的案號與直達連結。
+5. Portal 不收內容或附件，也不另存 Discord 圖片副本。
 
-1. 在首頁第一主區塊輸入 `C01-7K4M2Q-0702-1000`；前後空白與大小寫可正規化。
-2. malformed：就地顯示格式範例，不送 request。
-3. found：前往／呈現一般案件詳情，顯示狀態、更新時間、可見範圍與允許公開的對話。
-4. not found / not public：顯示相同的「找不到可公開案件」文字，不揭露 Private Support 是否存在。
-5. 使用者可按「重新整理此案件」明確觸發單筆 lookup；沒有 timer 或背景 polling。
+目前 production 的 `/private open` 仍在獨立 UX／安全工作流中驗收；Portal 不把它預告成已完成的新功能。
 
-## 學生：Private Support
+## 查詢案件
 
-```mermaid
-flowchart TD
-  entry["獨立 Private Support 入口"] --> warning["只有授權教學團隊可見；不公開查詢；分析預設排除"]
-  warning --> form["填寫最少必要內容"]
-  form --> protected["Restricted mock adapter"]
-  protected --> receipt["私密收件確認；不顯示公開 case number"]
-  receipt -. "不得進入" .-> search["公開 case search"]
-```
+1. 在首頁或 `/cases/` 輸入完整案號；一般與 `-P` 隱密案號使用同一介面，不要求第二組驗證碼。
+2. 回應只包含案號、案件類型、狀態、最後更新、教學團隊是否回覆及 Discord 直達連結。
+3. 不回傳題目、對話、作者、附件、班級、AI 選擇或內部 ID。
+4. 不存在、無權限或不可用採最小揭露；不列出相似案件，不背景 polling。
+5. 主要下一步是「前往 Discord 查看與回覆」。
 
-## 學生：加入、設定與隱私引導
+## 失敗與恢復
 
-1. 先讀「Discord connection 不等於課程身分」與 `nnmmm` 限制。
-2. Discord connection 僅顯示 placeholder；填 NTU email、選填 contact Gmail、班別、規則／隱私確認與 analysis default。
-3. 預覽 course alias 只用 fixture joining order，不宣稱已保留或正式指派。
-4. 完成頁重申：全域 username/display/avatar 仍可見，建議停用 shared-server member unsolicited DMs。
-5. 回到 Discord join placeholder 或 `/guide/`；課務資訊回 NTU COOL。
-
-## 學生：先讀隱私指南再決定
-
-- 比較直接 Discord 與網站代送的身分顯示差異。
-- 分別選擇 author display、visibility、analysis permission。
-- 看到 Private Support 與「一般匿名」不同。
-- 若不接受目前原型限制，可不提交，返回 NTU COOL／Discord 指南；沒有強迫 onboarding。
-
-## 教學團隊：案件 triage
-
-```mermaid
-flowchart LR
-  new["收到 fixture/mock 一般或私密案件"] --> classify{"caseType"}
-  classify -->|"GENERAL"| project["投影公開 case number／status"]
-  classify -->|"PRIVATE_SUPPORT"| restrict["受保護 queue；analysis excluded"]
-  project --> respond["在 Discord／受控介面回覆"]
-  respond --> status["更新五種既定 status"]
-  status --> audit["寫入 audit event"]
-  restrict --> assigned["只指派授權教學人員"]
-  assigned --> audit
-```
-
-Portal 第一版不提供完整管理 dashboard；triage journey 先定義 adapter 與內容需求，正式管理介面由 GAS/Discord lane 驗證。
-
-## Failure and fallback journeys
-
-| 情境 | 使用者訊息 | 可採動作 | 不可採動作 |
-|---|---|---|---|
-| Case number malformed | 「格式似乎不完整，請參考 C01-7K4M2Q-0702-1000」 | 保留輸入、移焦到錯誤摘要後可修改 | 發送無效 request、責怪使用者 |
-| Case not found / not public | 「找不到可公開的一般案件」 | 重試、回首頁、閱讀指南 | 確認 Private Support 存在、列出相似案件 |
-| Lookup adapter unavailable | 「目前無法取得案件；資料沒有遺失的保證」 | 明確重試、看 status、稍後再試 | 自動連續 polling、顯示 stale 為最新 |
-| Discord unavailable | 「Discord 目前可能無法使用」 | 網站代送 mock／稍後重試；正式課務回 NTU COOL | 把網站說成正式課務替代品 |
-| Form validation fail | 就地具體提示並保留非敏感欄位 | 修改、取消、讀說明 | 清空整張表、儲存到 localStorage |
-| Mock submission | 「這是原型確認，沒有送出或寄信」 | 返回、查看 fixture receipt | 暗示真實 Discord/email/Sheet 已寫入 |
-| JavaScript disabled | 顯示靜態平台邊界與連結 | 前往指南、NTU COOL、Discord placeholder | 宣稱互動表單可用 |
-| 404 | 「找不到此頁，不代表案件不存在」 | 首頁、案件查詢、指南 | 以 URL 推測私密案件 |
+- 送出重複加入申請：回覆既有狀態，不新增資料。
+- 重複 Discord interaction：以 interaction／thread identity 冪等，不用問題內容 hash 判定。
+- Discord member 尚未出現：保留等待，不刪資料。
+- Discord title／archive 延遲：狀態先明確受理，內部 durable worker 最終收斂。
+- 動態 adapter 未接線：公開 UI 停用動作，不用 fixture 冒充正式成功。

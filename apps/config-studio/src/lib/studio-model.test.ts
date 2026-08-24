@@ -36,8 +36,8 @@ describe("config studio model", () => {
   });
 
   it("builds the confirmed canonical title format", () => {
-    expect(canonicalTitlePreview("M1", "觀念", "我不懂 chain rule")).toBe(
-      "[M1][觀念] 我不懂 chain rule",
+    expect(canonicalTitlePreview("M1", "01", "觀念", "我不懂 chain rule")).toBe(
+      "[M1 | C01][觀念] 我不懂 chain rule",
     );
   });
 

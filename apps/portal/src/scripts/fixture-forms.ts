@@ -119,6 +119,30 @@ function initializeFixtureForm(root: HTMLElement): void {
     "[data-fixture-reset]",
   );
 
+  const updateJoinIdentity = (): void => {
+    if (kind !== "join") return;
+    const identity = form.querySelector<HTMLInputElement>(
+      'input[name="identityType"]:checked',
+    )?.value;
+    for (const group of form.querySelectorAll<HTMLElement>(
+      "[data-identity-fields]",
+    )) {
+      const active = group.dataset.identityFields === identity;
+      group.hidden = !active;
+      for (const control of group.querySelectorAll<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >("input, select, textarea")) {
+        control.disabled = !active;
+      }
+    }
+  };
+  form
+    .querySelectorAll<HTMLInputElement>('input[name="identityType"]')
+    .forEach((control) =>
+      control.addEventListener("change", updateJoinIdentity),
+    );
+  updateJoinIdentity();
+
   const classSelect = form.querySelector<HTMLSelectElement>(
     'select[name="classCode"]',
   );
@@ -132,6 +156,23 @@ function initializeFixtureForm(root: HTMLElement): void {
   };
   classSelect?.addEventListener("change", updateAlias);
   updateAlias();
+
+  const questionClassSelect =
+    kind === "question"
+      ? form.querySelector<HTMLSelectElement>('select[name="classCode"]')
+      : null;
+  const questionModule =
+    kind === "question"
+      ? form.querySelector<HTMLInputElement>('input[name="module"]')
+      : null;
+  const updateQuestionModule = (): void => {
+    if (questionClassSelect && questionModule) {
+      questionModule.value =
+        questionClassSelect.selectedOptions[0]?.dataset.moduleCode ?? "";
+    }
+  };
+  questionClassSelect?.addEventListener("change", updateQuestionModule);
+  updateQuestionModule();
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -153,6 +194,8 @@ function initializeFixtureForm(root: HTMLElement): void {
     confirmation.hidden = true;
     form.hidden = false;
     updateAlias();
+    updateQuestionModule();
+    updateJoinIdentity();
     form.querySelector<HTMLElement>("input, select, textarea")?.focus();
   });
 }

@@ -1,43 +1,41 @@
-# Case search manual QA
+# 案件狀態查詢 QA
 
-Task 12 的 public case lookup 使用本機 fixture 與 client-side adapter；以下手動檢查於 2026-07-19 執行，沒有連線至 Discord、GAS、Sheets、email 或任何正式服務。
+更新日期：2026-08-24
 
-## 測試環境
+案件查詢現在是 one-case-at-a-time 的狀態摘要介面。Reviewer 使用完全虛構 fixture；
+public artifact 在 authenticated backend 尚未接線前 fail closed。
 
-- Astro preview：`ASTRO_BASE_PATH=/portal-test npm run preview --workspace @calculus/portal -- --host 127.0.0.1 --port 4322`
-- URL：`http://127.0.0.1:4322/portal-test/`
-- Browser viewport：375 × 812 px
-- build base path：`/portal-test/`
+## 現行介面契約
 
-## 查詢互動
+- 案號以信用卡式欄位分成 `C##`、六碼識別碼、`MMDD`、`HHMM`，隱密案件另有
+  選填末碼 `P`。
+- 分段欄位會轉成大寫、移除不允許字元並自動前進；整串案號可直接貼上並拆分。
+- 一般與 `-P` 使用同一介面，不要求第二組短驗證碼。
+- 結果只顯示：案號、一般／隱密、五態之一、最後更新、是否已有教學團隊回覆、
+  Discord 直達連結。
+- 不顯示題目、回覆內容、作者、班級、附件、AI 選擇、Discord／SQLite 內部 ID。
+- 單次查詢，不使用 polling 或背景 timer。
 
-| 情境 | 輸入 | 預期與結果 |
+## 2026-08-24 桌面驗收
+
+| 情境 | 輸入 | 結果 |
 | --- | --- | --- |
-| 可找到 | ` c01 - 7k4m2q - 0702 - 1000 ` | 通過。整理為 `C01-7K4M2Q-0702-1000`，顯示案件標題、狀態、更新時間與 base-safe 詳情連結。 |
-| 找不到 | `C01-Z9Y8X7-0702-2359` | 通過。顯示明確的找不到狀態，沒有導向任意案件頁。 |
-| 格式錯誤 | `421` | 通過。顯示格式提示，輸入框設為 `aria-invalid="true"`。 |
-| 匿名案件 | `C02-R8N6WX-0702-1100` | 通過。詳情顯示「對一般成員匿名」，畫面與 DOM snapshot 都沒有 raw user ID 或 private case ID。 |
+| 一般案 | `C01`／`7K4M2Q`／`0702`／`1000` | 通過；顯示一般案件、安全狀態摘要與 fixture Discord 連結。 |
+| 隱密案 | `C99`／`B4W9K6`／`0702`／`1500`／`P` | 通過；顯示隱密案件與安全狀態摘要，不揭露內容或內部識別碼。 |
+| 大小寫 | 分段輸入 `c99`／`b4w9k6`／`p` | 通過；整理成大寫 canonical 案號。 |
+| 無直達連結 | 隱密 fixture | 通過；只提示從 Bot 私訊或伺服器返回，不產生虛假 URL。 |
+| Public build | `http://127.0.0.1:4330/cases/` | 通過；所有分段與按鈕停用，顯示「案件查詢服務尚未啟用」。 |
 
-## Accessibility
+## Privacy 與 artifact 邊界
 
-- 頁面有可辨識的「跳到主要內容」連結，目標 `#main-content` 存在。
-- 案件輸入框可由 `一般案件編號` accessible name 唯一定位；查詢按鈕也有可辨識文字。
-- 所有 `input`、`select`、`textarea` 均有 label 或等價 accessible name；沒有無名稱按鈕。
-- 查詢結果區使用 `aria-live="polite"`；格式錯誤同步設定 `aria-invalid="true"`。
-- 以鍵盤對 skip link 執行 Enter 後，焦點仍可明確落在該連結；原生連結、按鈕與輸入框未改寫鍵盤語意。
-- 匿名案件的 follow-up placeholder 保持 disabled，避免誤以為內容會送出。
+- `listPublicCases()` 仍排除 Private Support 全文 projection。
+- `listCaseStatuses()` 才能提供 `-P` 的 content-free 狀態 projection；測試固定欄位且拒絕
+  title、message、attachment、author、analysis 與 Discord mapping。
+- Public build 不攜帶 reviewer fixtures，未接線時不顯示成功結果或虛構 Discord 連結。
+- 不存在、無權限與 backend 不可用都應採最小揭露文案，避免案件枚舉。
 
-## Mobile and base-path checks
+## 驗證結果
 
-- 首頁與匿名案件詳情頁在 375 px 寬度下，`scrollWidth === clientWidth`，沒有水平溢位。
-- 頁首導覽可換行，主要內容、卡片、表單與 footer 仍保持可讀。
-- 所有站內 absolute links 都以 `/portal-test/` 開頭；沒有逃離 project-site base path 的連結。
-- 手動畫面檢查未發現文字被裁切、控制項重疊或 disabled 狀態不清楚。
-- Browser console 的 warning/error 數量：0。
-
-## Privacy and update behavior
-
-- Public adapter 只使用允許公開的 projection；Private Support fixture 不會出現在清單或 public lookup。
-- 頁面提供明確的「重新整理此案件」連結，沒有 `setInterval`、背景 timer 或 polling。
-- Discord action 只顯示 disabled placeholder；沒有真實 server/channel/message URL。
-- Public case lookup 不要求 secret token；正式 rate limit、欄位政策與後端存取控制仍留待後續安全任務確認。
+- Portal Vitest：60／60。
+- Astro check：66 files，0 error、0 warning、0 hint。
+- Public artifact：5 required pages，54 個 base-safe local references，驗證通過。

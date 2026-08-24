@@ -7,10 +7,11 @@ import {
   type ClosureState,
 } from "./closure-state-machine";
 
-const answered: ClosureState = {
-  status: "ANSWERED",
-  lastUpdateAt: "2026-07-01T00:00:00Z",
-  lastReadAt: "2026-07-01T01:00:00Z",
+const tracked: ClosureState = {
+  status: "TRACKED",
+  lastActivityAt: "2026-08-20T00:00:00Z",
+  lastTeachingResponseAt: "2026-08-20T00:00:00Z",
+  idleAt: null,
   closureSource: null,
   closedAt: null,
   reopenedAt: null,
@@ -18,60 +19,75 @@ const answered: ClosureState = {
 
 describe("closure state machine", () => {
   it("manually closes with a MANUAL source and timestamp", () => {
-    expect(manualClose(answered, "2026-07-02T00:00:00Z")).toMatchObject({
+    expect(
+      manualClose(tracked, "2026-08-21T00:00:00Z", {
+        isResponsibleStaff: true,
+      }),
+    ).toMatchObject({
       status: "CLOSED",
       closureSource: "MANUAL",
-      closedAt: "2026-07-02T00:00:00Z",
+      closedAt: "2026-08-21T00:00:00Z",
     });
+    expect(() =>
+      manualClose(tracked, "2026-08-21T00:00:00Z", {
+        isResponsibleStaff: false,
+      }),
+    ).toThrow("MANUAL_CLOSE_NOT_ALLOWED");
   });
 
-  it("temporarily auto-closes after the configurable threshold and verified view", () => {
-    const state = applyAutomaticClosure(answered, "2026-07-04T00:00:00Z", {
-      temporaryCloseAfterDays: 3,
-      automaticCloseAfterDays: 7,
-    });
+  it("moves Tracked to Idle after 48 hours without a learner reply", () => {
+    const state = applyAutomaticClosure(tracked, "2026-08-22T00:00:00Z");
     expect(state).toMatchObject({
-      status: "TEMPORARILY_CLOSED",
-      closureSource: "AUTO",
+      status: "IDLE",
+      idleAt: "2026-08-22T00:00:00Z",
+      closureSource: null,
     });
   });
 
-  it("does not infer read evidence from inactivity", () => {
+  it("does not start the timer without a teaching-team response", () => {
     expect(
       applyAutomaticClosure(
-        { ...answered, lastReadAt: null },
-        "2026-07-05T00:00:00Z",
+        { ...tracked, lastTeachingResponseAt: null },
+        "2026-08-24T00:00:00Z",
       ),
-    ).toEqual({ ...answered, lastReadAt: null });
+    ).toEqual({ ...tracked, lastTeachingResponseAt: null });
   });
 
-  it("automatically closes a temporary case after seven cumulative inactive days", () => {
-    const temporary: ClosureState = {
-      ...answered,
-      status: "TEMPORARILY_CLOSED",
-      closureSource: "AUTO",
-      closedAt: "2026-07-04T00:00:00Z",
+  it("moves Idle to Auto Closed after another 48 hours", () => {
+    const idle: ClosureState = {
+      ...tracked,
+      status: "IDLE",
+      idleAt: "2026-08-22T00:00:00Z",
     };
-    expect(
-      applyAutomaticClosure(temporary, "2026-07-08T00:00:00Z"),
-    ).toMatchObject({ status: "CLOSED", closureSource: "AUTO" });
-  });
-
-  it("reopens a manually or automatically closed case on new activity", () => {
-    const closed = manualClose(answered, "2026-07-02T00:00:00Z");
-    expect(recordNewActivity(closed, "2026-07-03T00:00:00Z")).toMatchObject({
-      status: "REOPENED",
-      closureSource: null,
-      closedAt: null,
-      reopenedAt: "2026-07-03T00:00:00Z",
+    expect(applyAutomaticClosure(idle, "2026-08-24T00:00:00Z")).toMatchObject({
+      status: "AUTO_CLOSED",
+      closureSource: "AUTO",
     });
   });
 
-  it("rejects inverted or hard-to-interpret policy thresholds", () => {
+  it("returns Idle and closed cases to Tracked on new activity", () => {
+    const closed = manualClose(tracked, "2026-08-21T00:00:00Z", {
+      isResponsibleStaff: true,
+    });
+    expect(recordNewActivity(closed, "2026-08-22T00:00:00Z")).toMatchObject({
+      status: "TRACKED",
+      closureSource: null,
+      closedAt: null,
+      reopenedAt: "2026-08-22T00:00:00Z",
+    });
+    expect(
+      recordNewActivity(
+        { ...tracked, status: "IDLE", idleAt: "2026-08-22T00:00:00Z" },
+        "2026-08-22T01:00:00Z",
+      ),
+    ).toMatchObject({ status: "TRACKED", idleAt: null, reopenedAt: null });
+  });
+
+  it("rejects non-positive policy thresholds", () => {
     expect(() =>
-      applyAutomaticClosure(answered, "2026-07-08T00:00:00Z", {
-        temporaryCloseAfterDays: 7,
-        automaticCloseAfterDays: 3,
+      applyAutomaticClosure(tracked, "2026-08-22T00:00:00Z", {
+        idleAfterHours: 48,
+        autoCloseAfterIdleHours: 0,
       }),
     ).toThrow("INVALID_CLOSURE_POLICY");
   });

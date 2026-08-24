@@ -1,38 +1,49 @@
 # Ordered next steps
 
-## 已壓縮完成
+更新日期：2026-08-24
 
-本機 implementation、compact Sheet、雙向 Google Bridge smoke、安全 synthetic cleanup、SQLite
-live-copy backup／restore／migration rehearsal 均已完成。不要重跑 44-action Sheet migration、另建 OAuth
-client、另寫一份 Phase 2C 報告，或把 corpus／LLM 分析拉進本階段。
+## 已完成 checkpoint：Portal 架構改版
 
-Mac `course_assistant` 與 `dump_bot` 仍是唯一 live writers；status digest 未啟用。
+- 2026-08-24 已完成首頁、加入、案件查詢、合併指南、Footer 與管理員 status 的架構改版與 QA。
+- Public artifact 只剩 5 個允許頁面；無內部登入、舊路由、reviewer 文案或 fixture Discord 連結。
+- 未接線的加入與案件查詢在 public build fail closed；fixture 操作只留 reviewer build。
+- 舊 Portal 資料位於可逆 archive stage，不再與現行設計並列。
+- 已完成手機／iPad 橫式瀏覽器檢查與 10 頁 A4 landscape 列印驗收。
 
-## 1. 需要人工開網頁或提供／核對外部資訊
+## 1. 完成 production observation 與 source reconciliation
 
-依序完成：
+1. 2026-08-24 17:12 後取得新的 owner-only `/ops status` 安全摘要。
+2. 確認三服務健康、heartbeat 新鮮、remote 是唯一 writer、queue 排空、manual attention 為 0。
+3. PASS 後依檔案 ownership 將 v6 runtime／migration／tests 安全吸收回 canonical repository；不得覆寫 Portal 與 115-1 進行中變更。
 
-1. **Google OAuth 長期模式**：在 Google Auth Platform 將 External app 切到 Production，並處理
-   Google 要求的驗證；或明確接受 Testing 模式約每 7 天重新授權。必要時只使用 Chrome
-   「Ding Ding」重新授權一次。
-2. **Remote host identity**：提供 SSH username、Tailscale hostname／private IP、預期 host-key
-   fingerprint。不要在聊天傳 password、private key、Discord token 或 OAuth credential。
-3. **Remote staging**：Codex 取得 host identity 後，執行唯讀 audit、staging install、remote
-   synthetic smoke、backup／restore rehearsal 與 one-writer readiness。Mac bots保持運作。
-4. **Live cutover approval**：所有 remote receipts PASS 後，使用者輸入精確
-   `GO-LIVE-CUTOVER`。在此之前不得停 Mac writer 或啟動 remote production writer。
-5. **Bound digest**：remote heartbeat 穩定後才安裝 trigger；若 Google 要求，人工在 Ding Ding
-   完成授權。
+## 2. Portal 動態能力
 
-## 2. 必須等待 24 小時
+### 加入申請
 
-Cutover 成功後才開始計時。期間驗證單一 writer、三個 remote services、Discord connectivity、
-queue depth、OAuth refresh、GAS heartbeat、backup 與 compact Sheet projection。滿 24 小時後原地更新
-Phase 2C report，再決定是否進入小規模試用。
+- same-origin backend、CSRF／rate limit、SQLite state machine。
+- Course Manager 兩級審核權限。
+- Discord 成員比對、學生／訪客角色、暱稱與 Discord DM。
+- duplicate／waiting／approved／rejected／archived 的冪等與稽核。
+
+### 案件查詢
+
+- 接受一般與 `-P` 完整案號。
+- 只回傳案號、類型、狀態、更新時間、是否有教學團隊回覆與 Discord 連結。
+- 不回傳題目、對話、作者、附件、AI、內部 ID；不提供 list-all 或背景 polling。
+
+## 3. Discord 隱密支援
+
+現有 production `/private open` 必須依最新 UX checklist 完成 production 化或暫時隱藏。公開／隱密共用案件設定，差別只在 visibility；Portal 不收內容或附件。初始限制為每人 2 分鐘 1 次、每小時 5 次、24 小時 20 次，超量時保留 queue。
+
+## 4. 教學上線準備
+
+- Owner 使用教師白帳號走一次 Discord 新手流程後，再補圖解簡報。
+- 完成資料告知、保留／刪除、Private ACL regression、事故責任與 rollback。
+- Repository、網址、backend origin 與首次 deploy 仍需明示核准。
 
 ## 固定停止線
 
-- SQLite 是 authority；任何 cloud fetch 都必須驗 version、checksum、source 與 operator confirmation。
-- 不把 raw messages、姓名、學號、Discord ID、Email、附件、Private Support、credential 放進
-  chat、Git、公開 ZIP 或 LLM。
-- 不建立 public SSH、public GAS endpoint、第二個 production writer，或未經核准的 email／分析流程。
+- 不以 Portal 工作覆寫尚未吸收的 production v6 runtime。
+- 不把 raw messages、學生姓名／ID、Email、Discord ID、附件、Private Support、SQLite rows、credential 或 secrets 放進 Git、聊天或公開 artifact。
+- SQLite 是 operational authority；Browser 永不持有 Bot token、Google owner credential 或 SQLite write access。
+- 未完成 auth、rate limit 與 storage gate 前，不開啟公開動態 submission／lookup。

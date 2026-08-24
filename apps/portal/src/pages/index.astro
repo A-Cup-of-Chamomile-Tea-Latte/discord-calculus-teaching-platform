@@ -6,78 +6,58 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import { fixtureCaseLookupAdapter } from "../lib/fixture-case-adapter";
 import { withBase } from "../lib/paths";
 
-const publicCases = await fixtureCaseLookupAdapter.listPublicCases();
+const caseStatuses = await fixtureCaseLookupAdapter.listCaseStatuses();
+const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
 ---
 
 <BaseLayout
   title="首頁"
-  description="加入課程社群、選擇提問方式、查詢案件，並了解 Discord 與 NTU COOL 的分工。"
+  description="加入臺大微積分 Discord、在伺服器提問，或用案號查詢案件進度。"
 >
   <section class="hero">
-    <div class="shell stack" style="--stack-gap: var(--space-5)">
-      <p class="eyebrow">Calculus learning support</p>
-      <h1>有問題時，知道從哪裡開始。</h1>
+    <div class="shell hero__content">
+      <p class="eyebrow">臺大微積分教學支援</p>
+      <h1>充實的課程，需要專業的後盾。</h1>
       <p>
-        在 Discord 直接討論、透過網站整理問題，或使用 Private
-        Support。每一條路徑都會清楚告訴你可見範圍與下一步。
+        加入課程
+        Discord，和同學、助教與教師一起處理數學問題、課務系統與值得延伸的討論。
       </p>
       <div class="cluster">
-        <ButtonLink href={withBase("discord-guide/")}
-          >先看 Discord 提問方式</ButtonLink
-        >
-        <ButtonLink href={withBase("ask/")} variant="secondary"
-          >使用網站代為提問</ButtonLink
+        <ButtonLink href={withBase("join/")}>加入 Discord 伺服器</ButtonLink>
+        <ButtonLink href={withBase("guide/")} variant="secondary"
+          >看看怎麼提問</ButtonLink
         >
       </div>
     </div>
   </section>
 
   <div class="shell stack section" style="--stack-gap: var(--space-7)">
-    <Alert title="正式課務請以 NTU COOL 為準" tone="warning">
-      <p>
-        教材、作業、成績、期限、正式公告與課程政策仍由 NTU COOL
-        提供；這裡負責提問、討論與支援流程。
-      </p>
+    <Alert title="正式課務以各班 NTU COOL 為準" tone="danger">
+      <p>教材、作業、成績、期限、公告與課程政策，以各班 NTU COOL 為準。</p>
     </Alert>
 
     <section class="stack" aria-labelledby="start-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Start here</p>
-          <h2 id="start-title">你現在想做什麼？</h2>
-          <p>所有入口目前都使用虛構資料展示，不會送出內容。</p>
+          <p class="eyebrow">從這裡開始</p>
+          <h2 id="start-title">找到你現在需要的入口</h2>
         </div>
       </div>
-      <div class="action-grid">
+      <div class="action-grid action-grid--compact">
         <a class="action-tile" href={withBase("join/")}>
-          <span class="action-tile__number">01 · 加入</span>
-          <h3>加入課程社群</h3>
-          <p>預覽 Email 驗證、班級／Module、顯示名稱與隱私步驟。</p>
-        </a>
-        <a class="action-tile" href={withBase("discord-guide/")}>
-          <span class="action-tile__number">02 · 直接提問</span>
-          <h3>在 Discord 發問</h3>
-          <p>本人發文，再由 Bot 協助補欄位、整理標題與標籤。</p>
-        </a>
-        <a class="action-tile" href={withBase("ask/")}>
-          <span class="action-tile__number">03 · 網站入口</span>
-          <h3>透過網站代為提問</h3>
-          <p>用完整表單一次整理 Forum、Module、main tag 與 AI 選擇。</p>
-        </a>
-        <a class="action-tile" href={withBase("cases/")}>
-          <span class="action-tile__number">04 · 追蹤</span>
-          <h3>使用案號查詢</h3>
-          <p>一次輸入一個完整案號；Private Support 不會出現在公開查詢。</p>
-        </a>
-        <a class="action-tile" href={withBase("private-support/")}>
-          <span class="action-tile__number">05 · 私密支援</span>
-          <h3>Private Support</h3>
-          <p>只讓案件建立者與授權教學團隊看見，與公開問題分流。</p>
+          <span class="action-tile__number">加入</span>
+          <h3>進入課程伺服器</h3>
+          <p>送出學生或訪客申請，等待 Course Manager 核准權限。</p>
         </a>
         <a class="action-tile" href={withBase("guide/")}>
-          <span class="action-tile__number">06 · 指南</span>
-          <h3>了解使用與隱私</h3>
-          <p>Forum、聊天與語音的差別，以及陌生人私訊與 AI 選項。</p>
+          <span class="action-tile__number">提問</span>
+          <h3>在 Discord 發問</h3>
+          <p>公開問題直接發文；隱密支援用指令建立專屬空間。</p>
+        </a>
+        <a class="action-tile" href={withBase("cases/")}>
+          <span class="action-tile__number">追蹤</span>
+          <h3>查詢案件進度</h3>
+          <p>用 Bot 私訊提供的案號查看狀態，再回 Discord 閱讀內容。</p>
         </a>
       </div>
     </section>
@@ -85,32 +65,55 @@ const publicCases = await fixtureCaseLookupAdapter.listPublicCases();
     <section class="stack" aria-labelledby="lookup-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Case lookup</p>
-          <h2 id="lookup-title">已有案號？查看最新進度</h2>
-          <p>輸入完整案號。這個展示只讀取虛構案件，不會連線或持續輪詢。</p>
+          <p class="eyebrow">案件查詢</p>
+          <h2 id="lookup-title">已經有案號？</h2>
+          <p>
+            一般與隱密案件都從同一個地方查詢；網頁只顯示進度，不呈現提問內容。
+          </p>
         </div>
       </div>
-      <CaseSearch cases={publicCases} inputId="home-case-number" />
+      <CaseSearch
+        cases={isPublicBuild ? [] : caseStatuses}
+        inputId="home-case-number"
+        enabled={!isPublicBuild}
+      />
     </section>
 
     <section class="platform-strip" aria-labelledby="platform-title">
-      <h2 id="platform-title">三個平台，各自負責一件事</h2>
+      <h2 id="platform-title">每個地方，只做它最擅長的事</h2>
       <div class="grid grid--auto">
-        <p><strong>NTU COOL</strong><br />正式課務、作業、成績與政策。</p>
-        <p><strong>Discord</strong><br />提問、回覆、討論與社群互動。</p>
-        <p><strong>本入口</strong><br />加入設定、結構化提問與案件追蹤。</p>
-      </div>
-    </section>
-
-    <section class="reading-width" aria-label="系統狀態入口">
-      <div class="prototype-panel">
-        <p class="eyebrow">System status</p>
-        <h2>確認目前可用狀態</h2>
-        <p>查看 Portal、Discord Bot、Email 與案件同步的展示狀態及備援管道。</p>
-        <ButtonLink href={withBase("status/")} variant="secondary"
-          >查看系統狀態</ButtonLink
-        >
+        <p>
+          <strong>各班 NTU COOL</strong><br />正式教材、作業、成績、期限與公告。
+        </p>
+        <p><strong>Discord</strong><br />提問、回覆、討論、隱密支援與通知。</p>
+        <p><strong>本網站</strong><br />加入申請、使用說明與簡要案件進度。</p>
       </div>
     </section>
   </div>
 </BaseLayout>
+
+<style>
+  .hero__content {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .hero__content p:not(.eyebrow) {
+    max-width: 39rem;
+    font-size: var(--font-size-lg);
+  }
+
+  .action-grid--compact .action-tile {
+    min-height: 0;
+  }
+
+  .action-grid--compact .action-tile h3 {
+    margin-top: var(--space-5);
+  }
+
+  @media (min-width: 58rem) {
+    .action-grid--compact {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+</style>

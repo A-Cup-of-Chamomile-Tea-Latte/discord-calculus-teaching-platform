@@ -1,39 +1,42 @@
 # Portal 本機審查指南
 
-本指南只審查虛構資料與本機介面。它不會連接 Discord、Google、Email、OAuth 或 AI API，也不會部署。
+更新日期：2026-08-24
 
-## 啟動與停止
-
-在 Terminal 輸入：
+## 啟動
 
 ```bash
 cd "/Users/chamomiletea/Documents/Curricular/115-1/Calculus TA/Discord_微積分模組教學優化專案"
 npm run review
 ```
 
-開啟 `http://127.0.0.1:4321/`。完成後回到 Terminal 按一次 Ctrl+C；Portal 與 Config Studio 都會停止。若只想看 Portal，可執行 `npm run review:portal`，之後用 `npm exec --workspace @calculus/portal -- astro dev stop` 停止。
+開啟 `http://127.0.0.1:4321/`。這是 reviewer build，不會部署，也不代表 Portal backend 已接線。
 
-## 建議審查順序
+## 2026-08-24 驗收結果
 
-1. 首頁：確認七個主要入口、NTU COOL 分工與案號查詢。
-2. 加入／設定：確認 Discord、Email、班級／Module、顯示名稱、隱私、規則及完成步驟都明示為 fixture。
-3. Discord 直接提問：確認流程是「學生本人發文 → 選單補充屬性 → Bot 整理標題與標籤 → 建立案件」。
-4. 網站代為提問：不選 AI Yes／No 先送出，應看到可讀錯誤；補齊後只產生未持久化 confirmation。
-5. 案號查詢：正常案號用 `C01-7K4M2Q-0702-1000`；不存在用 `C01-Z9Y8X7-0702-2359`；錯誤格式用 `hello`。
-6. 案件頁：檢查遮罩案號、Last Update／Response／Synced、附件 marker、文字對話、Discord fixture 連結與結案／重新開啟預覽。
-7. Private Support：確認可見對象、附件、明確 AI Yes／No、不可公開查詢與 fixture confirmation。
-8. 我的設定、指南、系統狀態、教學團隊與情境庫：確認都沒有真實帳號或管理寫入功能。
+- Reviewer artifact：16 頁完整；public artifact：5 頁，10 個內部／封存 route tree 與 3 個 internal-only assets 已排除。
+- Public 四個學生頁在 390px 手機寬度無橫向溢出、無內部連結、無 browser console warning／error。
+- Public 案件查詢在 backend 未接線時停用，不顯示 fixture 成功結果或虛構 Discord 連結。
+- A4 landscape 列印共 10 頁，已逐頁檢查中文字型、標題、表單、警示色、分頁與裁切。
 
-## 兩種外觀
+## 本輪審查順序
 
-頁首的「切換學生友善版／切換課程正式版」按鈕可在相同元件上切換設計變數。選擇只存於瀏覽器 `localStorage`，不會送出。正式預設建議採「課程正式版」；「學生友善版」保留作低門檻入口比較。
+1. 首頁：Hero、紅色 NTU COOL 警示、三個主要入口與平台分工。
+2. 加入：學生／訪客欄位、Discord username、正式班別標籤、單一送出動作。
+3. 查案件：信用卡式分段輸入同時接受一般／`-P`，只顯示狀態摘要，不出現內容或詳情頁。
+4. 使用指南：公開／隱密 Discord 流程、三個提問區、逐案 AI 同意、DM 與 FAQ。
+5. 內部登入：從 `http://127.0.0.1:4321/access/?role=admin` 進入；助教／教師與
+   系統管理員是兩級權限，第一位本機管理員就是 reviewer 的最高本機權限。
+6. 加入申請：兩級審核權限、等待 Discord 成員與可逆封存 stage。
+7. 管理員狀態：建造 gate 與未來 monitor dashboard 的切換條件。
+8. 舊路由：`/ask/`、`/private-support/`、`/discord-guide/` 只應顯示封存提示；公開 artifact 不得包含。
 
-## 可操作與展示邊界
+## 視覺基準
 
-- 可操作：導覽、外觀切換、案號查詢、fixture 表單驗證與 confirmation、案件狀態預覽。
-- 只展示：Discord 連結、Email、同步、教學團隊佇列、結案與 Private Support 建立。
-- 不存在：登入、真實送出、持久化、外部 API、檔案上傳、部署。
+採深綠、暖白與燙金重點色。頁首維持精實，不放「課程入口預覽」肥標籤。學生文字以自然繁中為主；英文只保留產品名稱、指令與必要術語。字級應有清楚層級，但卡片不靠超大字製造重要性。
 
-## 鍵盤與窄螢幕
+## 安全邊界
 
-用 Tab／Shift+Tab 走過 skip link、導覽、外觀切換、表單與按鈕；焦點應清楚。用瀏覽器窄化到約 375 px，頁面不得水平爆版。錯誤與狀態均有文字，不只靠顏色。
+- reviewer build 可操作本機欄位驗證與 browser-only 身份展示。
+- 尚未接線：正式加入申請、單案 lookup backend、Discord role write。
+- Public build 不得包含 fixture 案件內容、內部登入、狀態 dashboard、舊路由或管理工具。
+- Runtime 以最新 canonical repo 與 AI 交接核對；Portal 工作不得機械覆寫 production v6 支線。

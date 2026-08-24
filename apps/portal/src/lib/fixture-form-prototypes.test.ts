@@ -17,13 +17,20 @@ describe("fixture form prototypes", () => {
 
   it("accepts a complete join fixture and rejects wrong email domains", () => {
     const valid = {
+      identityType: "STUDENT",
+      discordUsername: "dingding124816",
       ntuEmail: "student@ntu.edu.tw",
       contactGmail: "student.fixture@gmail.com",
       classCode: "01",
-      analysisPermission: "INCLUDED",
       rulesPrivacy: "yes",
     };
     expect(validateFixtureSubmission("join", valid)).toEqual({});
+    expect(
+      validateFixtureSubmission("join", { ...valid, classCode: "16" }),
+    ).toEqual({});
+    expect(
+      validateFixtureSubmission("join", { ...valid, classCode: "21" }),
+    ).toHaveProperty("classCode");
     expect(
       validateFixtureSubmission("join", {
         ...valid,
@@ -34,6 +41,21 @@ describe("fixture form prototypes", () => {
       ntuEmail: expect.any(String),
       contactGmail: expect.any(String),
     });
+    expect(
+      validateFixtureSubmission("join", {
+        ...valid,
+        discordUsername: "@dingding124816",
+      }),
+    ).toHaveProperty("discordUsername");
+    expect(
+      validateFixtureSubmission("join", {
+        identityType: "GUEST",
+        discordUsername: "guest.viewer",
+        guestEmail: "visitor@example.org",
+        guestReason: "我是校外教師，想觀摩課程討論方式。",
+        rulesPrivacy: "yes",
+      }),
+    ).toEqual({});
   });
 
   it("accepts an anonymous general question after the NTU COOL acknowledgement", () => {
@@ -45,6 +67,7 @@ describe("fixture form prototypes", () => {
       authorDisplayMode: "ANONYMOUS",
       analysisPermission: "EXCLUDED",
       forum: "MATH",
+      classCode: "01",
       module: "M1",
       mainTag: "觀念",
       problemType: "微積分觀念",
@@ -53,8 +76,17 @@ describe("fixture form prototypes", () => {
     };
     expect(validateFixtureSubmission("question", values)).toEqual({});
     expect(
+      validateFixtureSubmission("question", { ...values, module: "M4" }),
+    ).toHaveProperty("module");
+    expect(
       createFixtureConfirmation("question", values).summary,
     ).toContainEqual({ label: "作者顯示", value: "對一般成員匿名" });
+    expect(
+      createFixtureConfirmation("question", values).summary,
+    ).toContainEqual({
+      label: "Discord 標題預覽",
+      value: "[M1 | C01][觀念] Fixture limit question",
+    });
     expect(createFixtureConfirmation("question", values).reference).toMatch(
       /^C01-[A-HJ-NP-Z2-9]{6}-\d{4}-\d{4}$/,
     );
@@ -89,6 +121,7 @@ describe("fixture form prototypes", () => {
       authorDisplayMode: "COURSE_ALIAS",
       analysisPermission: "",
       forum: "MATH",
+      classCode: "01",
       module: "M1",
       mainTag: "觀念",
       problemType: "微積分觀念",

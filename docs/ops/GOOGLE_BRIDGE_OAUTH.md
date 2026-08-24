@@ -1,8 +1,8 @@
 # Google Bridge OAuth
 
-> 2026-08-20 現況：本機 Bridge 授權與 `scripts.run` 已可用，但 Google Auth Platform 仍是
-> External／Testing。因 token 含 Sheets scope，目前 refresh token 通常只有 7 天測試生命週期，
-> 不得把它稱為長期 production credential。
+> 2026-08-20 現況：Google Auth Platform 已是 External／Production，且 consent config 只登記
+> Sheets scope。新的 Production credential 已在本機以 owner 帳號完成授權與 refresh 驗證，
+> 並維持 `0600`；remote owner-only staging refresh 也已通過，尚未安裝成 production secret。
 
 ## 為什麼分兩種授權
 
@@ -16,6 +16,18 @@ https://www.googleapis.com/auth/spreadsheets
 ```
 
 寄信與 trigger 權限只存在 bound GAS，不進 local bridge token。
+
+## 固定資料邊界
+
+Google 的 Sheets scope 在 OAuth 層無法限制到某個 Drive 資料夾，因此 runtime 必須維持更窄的
+應用層邊界：
+
+- 只呼叫既有 owner-only Apps Script deployment。
+- GAS 只開啟 Script Properties 中明確設定的單一 `BRIDGE_SPREADSHEET_ID`，並核對
+  `BRIDGE_SPREADSHEET_FINGERPRINT`。
+- 不列舉、搜尋、掃描或開啟其他 Drive／Sheets 檔案，也不遍歷該帳號的資料夾。
+- 不以除錯、盤點或方便為由新增 Drive-wide scope；任何 target 或 scope 擴張都必須先取得使用者明示。
+- 文件、log 與交接只記錄 safe result，不輸出其他檔案名稱、內容或識別碼。
 
 ## 建立與更新
 
@@ -38,11 +50,9 @@ bridge 只讀此檔，access token 在記憶體刷新。撤銷後 bridge 轉為 
 
 ## 上線前人工 gate
 
-在 24h production observation 前，由專案 owner 在 Google Auth Platform 二選一：
-
-1. 將 OAuth consent publishing status 切到 Production，處理 Google 畫面要求的驗證，再用
-   Chrome「Ding Ding」重新授權一次；或
-2. 明確接受 Testing 模式，並把約每 7 天重新授權列為人工維運工作。
+在 24h production observation 前，專案 owner 必須在 Production 狀態用「Ding Ding」專案帳號
+重新授權一次，產生新的長期 credential。重新授權前後都必須維持上方的單一 Spreadsheet
+ID／fingerprint 邊界；不得藉 OAuth 流程探索其他 Drive／Sheets 資料。
 
 官方規則見 [Google OAuth 2.0 refresh token expiration](https://developers.google.com/identity/protocols/oauth2#expiration)。
 切換 publishing status 不等於放寬 GAS access；standalone deployment 仍必須維持 owner-only，

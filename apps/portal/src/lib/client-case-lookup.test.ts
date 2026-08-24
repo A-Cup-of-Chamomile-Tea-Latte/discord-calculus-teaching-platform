@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { lookupPublicCase } from "./client-case-lookup";
+import { toCaseStatusView } from "./case-adapter";
+import { lookupCaseStatus, lookupPublicCase } from "./client-case-lookup";
 import { FixtureCaseLookupAdapter } from "./fixture-case-adapter";
 
 describe("offline public case lookup", () => {
@@ -60,6 +61,44 @@ describe("offline public case lookup", () => {
     const result = lookupPublicCase(cases, "C99-B4W9K6-0702-1500-P");
     expect(result.outcome).toBe("NOT_FOUND");
     expect(JSON.stringify(cases)).not.toContain("PRIVATE_SUPPORT");
+  });
+
+  it("uses a content-free projection for the student status widget", async () => {
+    const cases = (await adapter.listPublicCases()).map(toCaseStatusView);
+    const result = lookupCaseStatus(cases, "C01-7K4M2Q-0702-1000");
+    expect(result.outcome).toBe("FOUND");
+    if (result.outcome !== "FOUND") return;
+    expect(Object.keys(result.case).sort()).toEqual(
+      [
+        "caseNumber",
+        "caseType",
+        "discordDeepLink",
+        "status",
+        "teachingTeamReplied",
+        "updatedAt",
+      ].sort(),
+    );
+    expect(JSON.stringify(result.case)).not.toMatch(
+      /title|message|attachment|author|analysis/i,
+    );
+  });
+
+  it("accepts a private-number shape without requiring a second verification code", () => {
+    expect(
+      lookupCaseStatus(
+        [
+          {
+            caseNumber: "C99-B4W9K6-0702-1500-P",
+            caseType: "PRIVATE_SUPPORT",
+            status: "TRACKED",
+            updatedAt: "2026-07-02T15:00:00+08:00",
+            teachingTeamReplied: false,
+            discordDeepLink: null,
+          },
+        ],
+        "c99-b4w9k6-0702-1500-p",
+      ).outcome,
+    ).toBe("FOUND");
   });
 
   it("contains no polling timer", () => {

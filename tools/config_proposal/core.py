@@ -307,7 +307,15 @@ def _portal_issues(portal: Document, workflow: Document) -> list[ValidationIssue
                 ValidationIssue("ERROR", code, f"portal.pages.{field}", f"duplicate: {value}")
             )
     submission_fields = set(portal.get("submissionFields", []))
-    required_fields = {"forum", "title", "content", "module", "mainTag", "aiPermission"}
+    required_fields = {
+        "forum",
+        "title",
+        "content",
+        "classCode",
+        "module",
+        "mainTag",
+        "aiPermission",
+    }
     missing = required_fields - submission_fields
     if missing:
         issues.append(
@@ -529,7 +537,8 @@ def _config_summary(bundle: ConfigBundle, issues: tuple[ValidationIssue, ...]) -
             "",
             "- `fixtureOnly=true`；不連 Discord、Google、Email、OAuth 或 AI API。",
             "- 沒有 `--apply`、token 欄位或部署入口。",
-            "- Class → Module 正式對照、資料保存政策與部分產品項目仍明確未決。",
+            "- 115-1 Class → Module 對照已經來源與課程 owner 確認；尚未套用至 Discord。",
+            "- 資料保存政策與部分產品項目仍明確未決。",
         ]
     )
     return "\n".join(lines) + "\n"
@@ -563,7 +572,14 @@ def _drift_report(issues: tuple[ValidationIssue, ...]) -> str:
                 "- 本輪 Portal 以顯示轉譯與新情境庫呈現最新提案；"
                 "既有 fixture contracts 保留相容性並列為後續 domain migration。"
             ),
-            "- 正式 Class → Module 對照尚未取得，因此設定保持空表且 fail closed。",
+            (
+                "- 115-1 已有 C01–C16 對應 M1–M4 的來源確認對照；"
+                "Portal fixture 與實際 Discord membership 尚未套用。"
+            ),
+            (
+                "- Canonical title 提案已更新為 `[M1 | C01][main tag] 標題`；"
+                "正式 Discord runtime 仍使用舊格式，必須先接上可信任的 Class membership resolver。"
+            ),
         ]
     )
     return "\n".join(lines) + "\n"
@@ -572,7 +588,11 @@ def _drift_report(issues: tuple[ValidationIssue, ...]) -> str:
 def _decision_migration() -> str:
     rows = [
         ("身份模型", "Staff／Student／Guest／Bot；Module 是屬性", "程式落後設定"),
-        ("班級與 Module", "Class 選擇、後端換算 M1–M4", "設定仍未決"),
+        (
+            "班級與 Module",
+            "C01–C04 → M1、C05–C09 → M2、C10–C13 → M3、C14–C16 → M4",
+            "115-1 spec 已確認；尚未套用 Discord",
+        ),
         ("學生暱稱", "Discord 身份或 Student_nnmmm", "只有假資料"),
         ("公開 Forum", "三個 Questions Forum", "一致"),
         ("Forum 標籤", "單一 main tag；最終清單未決", "設定仍未決"),

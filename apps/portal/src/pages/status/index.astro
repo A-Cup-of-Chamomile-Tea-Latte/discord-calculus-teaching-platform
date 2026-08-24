@@ -1,93 +1,196 @@
 ---
-import StatePanel from "../../components/StatePanel.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { withBase } from "../../lib/paths";
+
+const buildGates = [
+  {
+    label: "公開／內部路由分離",
+    status: "DONE",
+    note: "公開 artifact 移除內部工具、舊路由與管理狀態頁。",
+  },
+  {
+    label: "學生資訊架構與文案",
+    status: "IN_PROGRESS",
+    note: "首頁、加入、案件查詢與合併指南正在逐頁驗收。",
+  },
+  {
+    label: "Course Manager 加入審核",
+    status: "PENDING",
+    note: "資料模型與 reviewer UI 已建立；正式 Discord／SQLite adapter 尚未接線。",
+  },
+  {
+    label: "隱密支援 production 化",
+    status: "PENDING",
+    note: "現有 /private open 不先宣稱完成；需通過權限、關閉與匯出流程驗收。",
+  },
+  {
+    label: "案件狀態查詢 backend",
+    status: "PENDING",
+    note: "前端已縮為最小欄位；正式單案 adapter、rate limit 與存取紀錄尚待完成。",
+  },
+  {
+    label: "Portal 公開發布",
+    status: "PENDING",
+    note: "repository、網址、backend origin 與首次 deploy 仍是人工 gate。",
+  },
+];
+
+const monitorCards = [
+  {
+    label: "Production writer",
+    value: "Remote Linux",
+    note: "最新交接：唯一 writer；本頁未重新連線探測。",
+  },
+  {
+    label: "Discord runtime",
+    value: "v6／觀察中",
+    note: "2026-08-23 17:12 的安全快照為三服務 HEALTHY、queue 0。",
+  },
+  {
+    label: "Portal",
+    value: "建造中",
+    note: "public artifact 會逐批執行 build 與洩漏檢查。",
+  },
+  {
+    label: "動態服務",
+    value: "尚未接線",
+    note: "加入申請與案件查詢不因靜態介面完成而自動啟用。",
+  },
+];
 ---
 
 <BaseLayout
-  title="系統狀態"
-  description="Portal、Discord 測試伺服器、資料層與外部整合的人工驗證狀態。"
-  currentPath="status"
+  title="建造與系統狀態"
+  description="專案 owner 使用的建造清單與長期監控入口。"
+  requiredRole="admin"
 >
-  <div class="shell stack section" style="--stack-gap: var(--space-6)">
-    <header class="reading-width">
-      <p><a href={withBase("")}>首頁</a> / 系統狀態</p>
-      <p class="eyebrow">Human-verified snapshot</p>
-      <h1>系統狀態</h1>
-      <p>
-        最後人工更新：2026-08-10（Asia/Taipei）。這是開發階段的人工快照，不是正式
-        SLA 或即時監控。
-      </p>
+  <div class="shell stack section" style="--stack-gap: var(--space-7)">
+    <header class="status-intro">
+      <div>
+        <p><a href={withBase("access/")}>內部工作區</a> / 建造與系統狀態</p>
+        <p class="eyebrow">Owner dashboard</p>
+        <h1>建造與系統狀態</h1>
+        <p>
+          現在是建造模式。等發布 gate 全部完成後，這一頁會轉成長期 monitor
+          dashboard，不再保留施工待辦。
+        </p>
+      </div>
+      <span class="mode-badge">建造模式</span>
     </header>
 
-    <dl class="status-overview" aria-label="系統狀態摘要">
-      <div>
-        <dt>Portal</dt>
-        <dd><span class="status-dot status-dot--ready"></span>本機可審查</dd>
-        <p>18 個靜態頁面，使用虛構資料。</p>
+    <section aria-labelledby="snapshot-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">安全快照</p>
+          <h2 id="snapshot-title">目前可確認的系統輪廓</h2>
+          <p>
+            文件核對日期：2026-08-24。Live runtime 依 2026-08-23
+            17:12（Asia/Taipei）最新交接；本輪沒有重新連線探測。
+          </p>
+        </div>
       </div>
-      <div>
-        <dt>Discord</dt>
-        <dd>
-          <span class="status-dot status-dot--review"></span>待再次人工確認
-        </dd>
-        <p>測試伺服器最後驗證於 2026-07-30。</p>
-      </div>
-      <div>
-        <dt>資料層</dt>
-        <dd><span class="status-dot status-dot--ready"></span>本機契約可用</dd>
-        <p>SQLite 已稽核；Sheets schema v1.3.0。</p>
-      </div>
-      <div>
-        <dt>外部整合</dt>
-        <dd><span class="status-dot status-dot--pending"></span>尚未啟用</dd>
-        <p>Google、Email 與雲端資料庫仍未連接。</p>
-      </div>
-    </dl>
+      <dl class="monitor-grid">
+        {
+          monitorCards.map((item) => (
+            <div>
+              <dt>{item.label}</dt>
+              <dd>{item.value}</dd>
+              <p>{item.note}</p>
+            </div>
+          ))
+        }
+      </dl>
+    </section>
 
-    <StatePanel kind="success" title="Portal static build：本機可用">
+    <section aria-labelledby="gates-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">建造清單</p>
+          <h2 id="gates-title">進入長期監控前的 gate</h2>
+          <p>完成介面不等於服務已上線；每一項都要有對應測試或人工驗收。</p>
+        </div>
+      </div>
+      <ol class="gate-list">
+        {
+          buildGates.map((gate) => (
+            <li data-status={gate.status}>
+              <span class="gate-symbol" aria-hidden="true">
+                {gate.status === "DONE"
+                  ? "✓"
+                  : gate.status === "IN_PROGRESS"
+                    ? "◐"
+                    : "○"}
+              </span>
+              <div>
+                <h3>{gate.label}</h3>
+                <p>{gate.note}</p>
+              </div>
+              <strong>
+                {gate.status === "DONE"
+                  ? "完成"
+                  : gate.status === "IN_PROGRESS"
+                    ? "進行中"
+                    : "待處理"}
+              </strong>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <section class="transition-note" aria-labelledby="monitor-title">
+      <div>
+        <p class="eyebrow">下一個模式</p>
+        <h2 id="monitor-title">全部勾選後：長期 monitor dashboard</h2>
+        <p>
+          屆時只保留服務健康與
+          freshness、待處理工作量、最近發布、備份／恢復驗證及人工注意事項；顯示安全摘要，不放學生內容、ID、路徑、錯誤原文或
+          secrets。
+        </p>
+      </div>
+      <span aria-label="尚未切換">尚未啟用</span>
+    </section>
+
+    <details class="source-note">
+      <summary>事實來源與更新規則</summary>
       <p>
-        所有頁面由 repository fixtures 產生，不需要 backend；表單只建立本機
-        confirmation，不會送出內容。
+        Runtime 現況以 canonical repository、最新 AI 交接與 owner-only
+        <code>/ops status</code> 的安全摘要交叉核對。交接吸收後再更新本頁；舊快照移入封存
+        stage，不與現況並列。
       </p>
-    </StatePanel>
-    <StatePanel kind="success" title="資料契約：本機驗證完成">
-      <p>
-        目前 SQLite 實作已完成結構稽核；GAS／Sheets schema v1.3.0 已加入命令與
-        Email metadata 佇列。這不代表 Google 雲端已建立或資料已同步。
-      </p>
-    </StatePanel>
-    <StatePanel kind="empty" title="Discord：有既有測試成果，非即時監控">
-      <p>
-        頻道與 Bot 的最近一次測試伺服器驗證日期是 2026-07-30；本頁不會探測 Bot
-        在線狀態，也不把過去驗證誤標為即時可用。
-      </p>
-    </StatePanel>
-    <StatePanel kind="empty" title="Google / Sheets / Email：尚未連接">
-      <p>
-        Schema 與本機 adapter 可以審查，但沒有 clasp 部署、Drive adapter
-        或寄信動作。 這是預期的開發狀態，不是正式服務故障。
-      </p>
-    </StatePanel>
-    <StatePanel kind="empty" title="備援：請保留正確管道">
-      <p>
-        正式課務資訊以 NTU COOL 為準。若未來 Portal 或 Discord
-        不可用，請改用課程已公告的備援管道；Private Support
-        內容不要改貼到公開討論區。
-      </p>
-    </StatePanel>
+    </details>
   </div>
 </BaseLayout>
 
 <style>
-  .status-overview {
+  .status-intro {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-4);
+    align-items: flex-start;
+  }
+
+  .status-intro > div {
+    max-width: var(--reading-width);
+  }
+
+  .mode-badge {
+    padding: var(--space-2) var(--space-4);
+    border: var(--border-thin) solid var(--color-warning-border);
+    border-radius: 999px;
+    background: var(--color-warning-bg);
+    font-weight: 800;
+  }
+
+  .monitor-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
     margin: 0;
     gap: var(--space-3);
   }
 
-  .status-overview > div {
+  .monitor-grid > div {
     padding: var(--space-4);
     border: var(--border-thin) solid var(--color-border);
     border-radius: var(--radius-md);
@@ -95,7 +198,7 @@ import { withBase } from "../../lib/paths";
     box-shadow: var(--shadow-low);
   }
 
-  .status-overview dt {
+  .monitor-grid dt {
     color: var(--color-text-muted);
     font-size: var(--font-size-xs);
     font-weight: 800;
@@ -103,39 +206,117 @@ import { withBase } from "../../lib/paths";
     text-transform: uppercase;
   }
 
-  .status-overview dd {
-    display: flex;
+  .monitor-grid dd {
     margin: var(--space-2) 0;
-    gap: var(--space-2);
-    align-items: center;
+    color: var(--color-action);
+    font-size: var(--font-size-lg);
     font-weight: 800;
   }
 
-  .status-overview p {
+  .monitor-grid p {
     margin: 0;
     color: var(--color-text-muted);
     font-size: var(--font-size-sm);
   }
 
-  .status-dot {
-    width: 0.7rem;
-    height: 0.7rem;
-    border: 2px solid currentColor;
-    border-radius: 50%;
+  .gate-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--space-3);
+    list-style: none;
   }
 
-  .status-dot--ready {
-    background: var(--color-success-border);
+  .gate-list li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    align-items: start;
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .gate-list h3,
+  .gate-list p {
+    margin-bottom: var(--space-1);
+  }
+
+  .gate-list li > strong {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .gate-symbol {
+    display: grid;
+    width: 1.75rem;
+    height: 1.75rem;
+    place-items: center;
+    border: var(--border-thin) solid currentColor;
+    border-radius: 50%;
+    color: var(--color-neutral-border);
+    font-weight: 850;
+  }
+
+  .gate-list li[data-status="DONE"] .gate-symbol {
+    background: var(--color-success-bg);
     color: var(--color-success-border);
   }
 
-  .status-dot--review {
+  .gate-list li[data-status="IN_PROGRESS"] .gate-symbol {
     background: var(--color-warning-bg);
     color: var(--color-warning-border);
   }
 
-  .status-dot--pending {
+  .transition-note {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-4);
+    align-items: center;
+    padding: var(--space-5);
+    border: var(--border-thin) solid var(--color-action);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .transition-note > div {
+    max-width: var(--reading-width);
+  }
+
+  .transition-note > span {
+    padding: var(--space-2) var(--space-3);
+    border-radius: 999px;
     background: var(--color-neutral-bg);
-    color: var(--color-neutral-border);
+    color: var(--color-text-muted);
+    font-weight: 750;
+  }
+
+  .source-note {
+    max-width: var(--reading-width);
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+  }
+
+  .source-note summary {
+    cursor: pointer;
+    font-weight: 750;
+  }
+
+  .source-note p {
+    padding-top: var(--space-3);
+  }
+
+  @media (max-width: 34rem) {
+    .gate-list li {
+      grid-template-columns: auto 1fr;
+    }
+
+    .gate-list li > strong {
+      grid-column: 2;
+    }
   }
 </style>

@@ -4,11 +4,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { fixtureCaseLookupAdapter } from "../../lib/fixture-case-adapter";
 import { withBase } from "../../lib/paths";
 
-const publicCases = await fixtureCaseLookupAdapter.listPublicCases();
+const caseStatuses = await fixtureCaseLookupAdapter.listCaseStatuses();
+const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
 ---
 
 <BaseLayout
-  title="查詢一般案件"
+  title="查詢案件"
   description="輸入案件編號，查看最新進度。"
   currentPath="cases"
 >
@@ -17,13 +18,19 @@ const publicCases = await fixtureCaseLookupAdapter.listPublicCases();
       <p><a href={withBase("")}>首頁</a> / 案件查詢</p>
       <p class="eyebrow">案件進度</p>
       <h1>查案件</h1>
-      <p>輸入案號，查看最新狀態。Private Support 不在這裡顯示。</p>
+      <p>一般與隱密案件都可以查；只顯示狀態、更新時間與是否已有回覆。</p>
     </header>
 
-    <CaseSearch cases={publicCases} inputId="case-number" syncUrl compact />
+    <CaseSearch
+      cases={isPublicBuild ? [] : caseStatuses}
+      inputId="case-number"
+      syncUrl
+      compact
+      enabled={!isPublicBuild}
+    />
 
     <p class="case-help">
-      案號會出現在建案完成頁、Discord 案件貼文與通知信中。目前為離線預覽。
+      公開與隱密案件建立完成後，Bot 都會用 Discord 私訊提供案號與直達連結。
     </p>
   </div>
 </BaseLayout>

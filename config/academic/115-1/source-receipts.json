@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0",
+  "termCode": "115-1",
+  "visibility": "PUBLIC_COURSE_OPERATIONS_SOURCE",
+  "sources": [
+    {
+      "sourceId": "practice-grouping-pdf",
+      "path": "docs/sources/115-1/1151實習課分組方式及地點.pdf",
+      "sha256": "ac99c8519f1740042a658303bb4220eb0083ac0ca5788eac0e6944d53c32c19e",
+      "pages": 1,
+      "role": "PRACTICE_GROUPING_AND_CLASSROOMS"
+    },
+    {
+      "sourceId": "ta-directory-pdf",
+      "path": "docs/sources/115-1/1151各班TA資料.pdf",
+      "sha256": "984a0bb1b9d25654e7ef18097d4284431ce6b716bac14a1532776032214e39f4",
+      "pages": 3,
+      "role": "FULL_TA_ROSTER_PUBLIC_COURSE_SOURCE"
+    }
+  ]
+}

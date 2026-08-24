@@ -12,18 +12,30 @@ interface Props {
 }
 
 const { title, description, currentPath = "", requiredRole } = Astro.props;
+const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
 const pageTitle = `${title}｜微積分教學支援`;
+const accessSessionScript = `
+  (() => {
+    try {
+      const raw = sessionStorage.getItem("calculus-local-session-v1");
+      const session = raw ? JSON.parse(raw) : null;
+      const role = session?.role;
+      document.documentElement.dataset.accessRole =
+        (role === "staff" || role === "admin") &&
+        typeof session?.expiresAt === "number" &&
+        session.expiresAt > Date.now()
+          ? role
+          : "guest";
+    } catch {
+      document.documentElement.dataset.accessRole = "guest";
+    }
+  })();
+`;
 const navItems = [
   {
     href: withBase("join/"),
     label: "加入與設定",
     current: currentPath === "join",
-  },
-  { href: withBase("ask/"), label: "提問", current: currentPath === "ask" },
-  {
-    href: withBase("discord-guide/"),
-    label: "Discord 指南",
-    current: currentPath === "discord-guide",
   },
   {
     href: withBase("cases/"),
@@ -47,23 +59,7 @@ const navItems = [
     {requiredRole && <meta name="robots" content="noindex, nofollow" />}
     <meta name="generator" content={Astro.generator} />
     <title>{pageTitle}</title>
-    <script is:inline>
-      (() => {
-        try {
-          const raw = sessionStorage.getItem("calculus-local-session-v1");
-          const session = raw ? JSON.parse(raw) : null;
-          const role = session?.role;
-          document.documentElement.dataset.accessRole =
-            (role === "staff" || role === "admin") &&
-            typeof session?.expiresAt === "number" &&
-            session.expiresAt > Date.now()
-              ? role
-              : "guest";
-        } catch {
-          document.documentElement.dataset.accessRole = "guest";
-        }
-      })();
-    </script>
+    {!isPublicBuild && <script is:inline set:html={accessSessionScript} />}
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳到主要內容</a>
@@ -71,6 +67,7 @@ const navItems = [
       homeHref={withBase("")}
       accessHref={withBase("access/")}
       navItems={navItems}
+      showInternalAccess={!isPublicBuild}
     />
     <main id="main-content" tabindex="-1" data-required-role={requiredRole}>
       {
@@ -83,14 +80,14 @@ const navItems = [
             <h1 id="access-required-title">這一頁需要內部身份</h1>
             <p>
               {requiredRole === "admin"
-                ? "請以管理員身份登入後開啟。"
-                : "請以助教或管理員身份登入後開啟。"}
+                ? "請以系統管理員身份登入後開啟。"
+                : "請以助教、教師或系統管理員身份登入後開啟。"}
             </p>
             <a
               class="button"
               href={`${withBase("access/")}?role=${requiredRole}`}
             >
-              {requiredRole === "admin" ? "管理員登入" : "助教登入"}
+              {requiredRole === "admin" ? "系統管理員登入" : "助教／教師登入"}
             </a>
           </section>
         )
@@ -100,6 +97,7 @@ const navItems = [
     <SiteFooter
       guideHref={withBase("guide/")}
       statusHref={withBase("status/")}
+      showInternalLinks={!isPublicBuild}
     />
   </body>
 </html>

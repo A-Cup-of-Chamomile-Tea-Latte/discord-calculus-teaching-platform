@@ -29,6 +29,15 @@ const analysisLabels: Record<string, string> = {
   EXCLUDED: "No — 排除 AI 輔助教學分析",
 };
 
+function moduleForClassCode(classCode: string): string | undefined {
+  const numeric = Number(classCode);
+  if (numeric >= 1 && numeric <= 4) return "M1";
+  if (numeric >= 5 && numeric <= 9) return "M2";
+  if (numeric >= 10 && numeric <= 13) return "M3";
+  if (numeric >= 14 && numeric <= 16) return "M4";
+  return undefined;
+}
+
 function trimmed(values: FixtureFormValues, name: string): string {
   return (values[name] ?? "").trim();
 }
@@ -65,27 +74,51 @@ export function validateFixtureSubmission(
   const errors: Record<string, string> = {};
 
   if (kind === "join") {
+    const identityType = trimmed(values, "identityType");
+    const discordUsername = trimmed(values, "discordUsername");
     const ntuEmail = trimmed(values, "ntuEmail").toLowerCase();
+    const guestEmail = trimmed(values, "guestEmail").toLowerCase();
     const contactGmail = trimmed(values, "contactGmail").toLowerCase();
-    if (!emailPattern.test(ntuEmail) || !ntuEmail.endsWith("@ntu.edu.tw")) {
-      errors.ntuEmail = "請使用格式完整的 NTU email（結尾為 @ntu.edu.tw）。";
-    }
     if (
-      contactGmail &&
-      (!emailPattern.test(contactGmail) || !contactGmail.endsWith("@gmail.com"))
+      discordUsername.length < 2 ||
+      discordUsername.length > 32 ||
+      /[@#:\s]/.test(discordUsername)
     ) {
-      errors.contactGmail =
-        "若要填寫聯絡 Gmail，請使用結尾為 @gmail.com 的地址。";
+      errors.discordUsername =
+        "請填寫 2–32 個字元的 Discord 使用者名稱，不要加 @、# 或空格。";
     }
-    if (!/^(01|02)$/.test(trimmed(values, "classCode"))) {
-      errors.classCode = "請選擇 01 或 02 班；這只會產生 fixture alias 預覽。";
-    }
-    if (!/^(INCLUDED|EXCLUDED)$/.test(trimmed(values, "analysisPermission"))) {
-      errors.analysisPermission = "請選擇是否允許教學分析；之後仍可更改。";
+    if (identityType === "STUDENT") {
+      if (!emailPattern.test(ntuEmail) || !ntuEmail.endsWith("@ntu.edu.tw")) {
+        errors.ntuEmail = "請使用格式完整的 NTU email（結尾為 @ntu.edu.tw）。";
+      }
+      if (
+        contactGmail &&
+        (!emailPattern.test(contactGmail) ||
+          !contactGmail.endsWith("@gmail.com"))
+      ) {
+        errors.contactGmail =
+          "若要填寫聯絡 Gmail，請使用結尾為 @gmail.com 的地址。";
+      }
+      if (!/^(0[1-9]|1[0-6])$/.test(trimmed(values, "classCode"))) {
+        errors.classCode = "請選擇 C01–C16 的正式班別。";
+      }
+    } else if (identityType === "GUEST") {
+      if (!emailPattern.test(guestEmail)) {
+        errors.guestEmail = "請填寫可聯絡的 Email。";
+      }
+      validateLength(
+        errors,
+        "guestReason",
+        trimmed(values, "guestReason"),
+        10,
+        500,
+        "來訪原因",
+      );
+    } else {
+      errors.identityType = "請選擇學生或訪客。";
     }
     if (trimmed(values, "rulesPrivacy") !== "yes") {
-      errors.rulesPrivacy =
-        "請先確認已閱讀規則與隱私說明，再建立 fixture 預覽。";
+      errors.rulesPrivacy = "請先確認已閱讀使用與隱私說明。";
     }
     return errors;
   }
@@ -99,8 +132,15 @@ export function validateFixtureSubmission(
     if (!/^(MATH|COURSEWORK|OTHER)$/.test(trimmed(values, "forum"))) {
       errors.forum = "請選擇問題要進入的 Forum。";
     }
-    if (!/^(M1|M2|M3|M4)$/.test(trimmed(values, "module"))) {
-      errors.module = "Module 必須由 fixture Class 對照為 M1–M4。";
+    if (!/^(0[1-9]|1[0-6])$/.test(trimmed(values, "classCode"))) {
+      errors.classCode = "請選擇 C01–C16；Module 會由班別自動推導。";
+    }
+    const expectedModule = moduleForClassCode(trimmed(values, "classCode"));
+    if (
+      !/^(M1|M2|M3|M4)$/.test(trimmed(values, "module")) ||
+      trimmed(values, "module") !== expectedModule
+    ) {
+      errors.module = "Module 必須與 115-1 Class 對照一致。";
     }
     validateLength(
       errors,
@@ -108,7 +148,7 @@ export function validateFixtureSubmission(
       trimmed(values, "mainTag"),
       1,
       20,
-      "Main tag",
+      "主要標籤",
     );
     validateLength(
       errors,
@@ -140,7 +180,7 @@ export function validateFixtureSubmission(
 
   if (trimmed(values, "privacyAcknowledgement") !== "yes") {
     errors.privacyAcknowledgement =
-      "請確認了解 Private Support 不會進入公開查詢，才能建立 fixture confirmation。";
+      "請確認了解 Private Support 不會進入公開查詢，才能建立預覽。";
   }
   if (!(trimmed(values, "analysisPermission") in analysisLabels)) {
     errors.analysisPermission =
@@ -154,26 +194,31 @@ export function createFixtureConfirmation(
   values: FixtureFormValues,
 ): FixtureConfirmation {
   if (kind === "join") {
+    const isGuest = trimmed(values, "identityType") === "GUEST";
     return {
-      reference: "FIXTURE-JOIN-001",
-      title: "加入與設定 fixture 已建立",
+      reference: "PREVIEW-JOIN-001",
+      title: isGuest ? "訪客審核預覽已建立" : "加入與設定預覽已建立",
       publicLookup: false,
       persisted: false,
       summary: [
-        { label: "NTU email", value: trimmed(values, "ntuEmail") },
+        { label: "申請身份", value: isGuest ? "訪客" : "學生" },
         {
-          label: "聯絡 Gmail",
-          value: trimmed(values, "contactGmail") || "未提供",
+          label: "Discord 使用者名稱",
+          value: trimmed(values, "discordUsername"),
         },
-        { label: "班別", value: trimmed(values, "classCode") },
-        {
-          label: "course alias 預覽",
-          value: createAliasPreview(trimmed(values, "classCode")),
-        },
-        {
-          label: "教學分析預設",
-          value: analysisLabels[trimmed(values, "analysisPermission")],
-        },
+        ...(isGuest
+          ? [
+              { label: "聯絡 Email", value: trimmed(values, "guestEmail") },
+              { label: "審核方式", value: "由管理員人工確認" },
+            ]
+          : [
+              { label: "NTU email", value: trimmed(values, "ntuEmail") },
+              {
+                label: "聯絡 Gmail",
+                value: trimmed(values, "contactGmail") || "未提供",
+              },
+              { label: "班別", value: `C${trimmed(values, "classCode")}` },
+            ]),
       ],
     };
   }
@@ -181,15 +226,16 @@ export function createFixtureConfirmation(
   if (kind === "question") {
     return {
       reference: "C01-N4Y7D2-0723-1030",
-      title: "一般問題 fixture 已建立（未送出）",
+      title: "一般問題預覽已建立（未送出）",
       publicLookup: false,
       persisted: false,
       summary: [
         { label: "標題", value: trimmed(values, "title") },
         { label: "Forum", value: trimmed(values, "forum") },
+        { label: "Class", value: `C${trimmed(values, "classCode")}` },
         {
-          label: "Canonical title 預覽",
-          value: `[${trimmed(values, "module")}][${trimmed(values, "mainTag")}] ${trimmed(values, "title")}`,
+          label: "Discord 標題預覽",
+          value: `[${trimmed(values, "module")} | C${trimmed(values, "classCode")}][${trimmed(values, "mainTag")}] ${trimmed(values, "title")}`,
         },
         {
           label: "可見範圍",
@@ -200,11 +246,11 @@ export function createFixtureConfirmation(
           value: authorLabels[trimmed(values, "authorDisplayMode")],
         },
         {
-          label: "OP 的 AI 分析決定（database fixture）",
+          label: "提問者的 AI 分析選擇",
           value: analysisLabels[trimmed(values, "analysisPermission")],
         },
         {
-          label: "附件 metadata",
+          label: "附件資訊",
           value: trimmed(values, "attachmentName") || "未提供",
         },
       ],
@@ -213,7 +259,7 @@ export function createFixtureConfirmation(
 
   return {
     reference: "C99-F6Q2S8-0723-1031-P",
-    title: "Private Support fixture 已建立（未送出）",
+    title: "Private Support 預覽已建立（未送出）",
     publicLookup: false,
     persisted: false,
     summary: [

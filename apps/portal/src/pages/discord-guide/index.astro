@@ -1,82 +1,15 @@
 ---
-import Alert from "../../components/Alert.astro";
-import ButtonLink from "../../components/ButtonLink.astro";
+import ArchivedRouteNotice from "../../components/ArchivedRouteNotice.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { withBase } from "../../lib/paths";
 ---
 
 <BaseLayout
-  title="Discord 直接提問指南"
-  description="學生本人在 Discord 發文，再由 Bot 補齊欄位、標題與標籤的提問流程。"
-  currentPath="discord-guide"
+  title="已封存：Discord 指南"
+  description="舊版 Discord 指南路由的內部封存提示。"
+  requiredRole="admin"
 >
-  <div class="shell stack section" style="--stack-gap: var(--space-6)">
-    <header class="reading-width">
-      <p><a href={withBase("")}>首頁</a> / Discord 直接提問指南</p>
-      <p class="eyebrow">Discord first</p>
-      <h1>你本人發文，Bot 幫忙整理。</h1>
-      <p>
-        一般公開問題不需要由 Bot 冒充作者。你可以直接建立 Forum
-        文章，再用選單補齊案件需要的屬性。
-      </p>
-    </header>
-
-    <Alert title="目前尚未連接正式 Discord">
-      <p>這是本機流程展示；沒有邀請連結、OAuth、Slash Command 或訊息送出。</p>
-    </Alert>
-
-    <section aria-labelledby="flow-title">
-      <h2 id="flow-title">四個步驟</h2>
-      <ol class="step-list">
-        <li>
-          <strong>學生本人在適合的 Forum 發文</strong><br />
-          Math Questions、Coursework / Systems 或 Other Problem / Free Talk。
-        </li>
-        <li>
-          <strong>Discord 選單補充屬性</strong><br />
-          問題類型、main tag、Module 與 AI 分析 Yes／No。
-        </li>
-        <li>
-          <strong>Bot 整理標題與標籤</strong><br />
-          依規則改成 <code>[M#][main_tag] 使用者標題</code>，原作者仍是你本人。
-        </li>
-        <li>
-          <strong>建立案件並回傳案號</strong><br />
-          後續可用完整案號在入口網站查詢 reduced projection。
-        </li>
-      </ol>
-    </section>
-
-    <section class="grid grid--auto" aria-label="提問區域">
-      <article class="prototype-panel">
-        <p class="eyebrow">Math Questions</p>
-        <h2>數學內容</h2>
-        <p>微積分觀念、計算、技巧與解題討論。</p>
-      </article>
-      <article class="prototype-panel">
-        <p class="eyebrow">Coursework / Systems</p>
-        <h2>課程系統</h2>
-        <p>WeBWorK、Gradescope、NTU COOL、測驗、教材勘誤或報名。</p>
-      </article>
-      <article class="prototype-panel">
-        <p class="eyebrow">Other / Free Talk</p>
-        <h2>其他完整討論</h2>
-        <p>趣味題、課外延伸與希望長期保留脈絡的內容。</p>
-      </article>
-    </section>
-
-    <section class="prototype-panel reading-width">
-      <h2>需要匿名或 Private Support？</h2>
-      <p>
-        匿名內容不能先公開再刪除；請使用網站或 `/help-me-post` 的私人表單，由
-        Bot 直接匿名發布。只限教學團隊可見的內容則使用 Private Support。
-      </p>
-      <div class="cluster">
-        <ButtonLink href={withBase("ask/")}>使用網站代為提問</ButtonLink>
-        <ButtonLink href={withBase("private-support/")} variant="secondary"
-          >前往 Private Support</ButtonLink
-        >
-      </div>
-    </section>
-  </div>
+  <ArchivedRouteNotice
+    formerTitle="Discord 指南"
+    replacement="Discord 提問、隱私與案件追蹤說明已合併到單一使用指南。"
+  />
 </BaseLayout>

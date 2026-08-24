@@ -10,21 +10,28 @@ interface Props {
   homeHref: string;
   accessHref: string;
   navItems: NavItem[];
-  modeLabel?: string;
+  showInternalAccess?: boolean;
 }
 
 const {
   homeHref,
   accessHref,
   navItems,
-  modeLabel = "本機展示版",
+  showInternalAccess = true,
 } = Astro.props;
+const accessControlScript = `
+  document.querySelectorAll("[data-local-signout]").forEach((button) => {
+    button.addEventListener("click", () => {
+      try { sessionStorage.removeItem("calculus-local-session-v1"); } catch {}
+      window.location.reload();
+    });
+  });
+`;
 ---
 
 <header class="site-header">
   <div class="shell site-header__inner">
     <a class="site-header__brand" href={homeHref}>微積分教學支援</a>
-    <span class="site-header__mode">{modeLabel}</span>
     <nav aria-label="主要導覽">
       <ul>
         {
@@ -41,18 +48,27 @@ const {
         }
       </ul>
     </nav>
-    <div class="access-controls">
-      <div class="access-links access-links--guest" aria-label="內部登入">
-        <a href={`${accessHref}?role=staff`}>助教登入</a>
-        <a href={`${accessHref}?role=admin`}>管理員登入</a>
-      </div>
-      <div class="access-links access-links--signed-in" aria-label="已登入身份">
-        <a href={accessHref}><span data-access-role-label>內部</span>工作區</a>
-        <button type="button" class="access-signout" data-local-signout
-          >登出</button
-        >
-      </div>
-    </div>
+    {
+      showInternalAccess && (
+        <div class="access-controls">
+          <div class="access-links access-links--guest" aria-label="內部登入">
+            <a href={`${accessHref}?role=staff`}>助教／教師</a>
+            <a href={`${accessHref}?role=admin`}>系統管理員</a>
+          </div>
+          <div
+            class="access-links access-links--signed-in"
+            aria-label="已登入身份"
+          >
+            <a href={accessHref}>
+              <span data-access-role-label>內部</span>工作區
+            </a>
+            <button type="button" class="access-signout" data-local-signout>
+              登出
+            </button>
+          </div>
+        </div>
+      )
+    }
   </div>
 </header>
 
@@ -67,7 +83,7 @@ const {
     flex-wrap: wrap;
     gap: var(--space-3) var(--space-4);
     align-items: center;
-    padding-block: var(--space-4);
+    padding-block: var(--space-3);
   }
 
   .site-header__brand {
@@ -75,15 +91,6 @@ const {
     font-size: var(--font-size-lg);
     font-weight: 800;
     text-decoration: none;
-  }
-
-  .site-header__mode {
-    padding: var(--space-1) var(--space-2);
-    border: var(--border-thin) solid var(--color-warning-border);
-    border-radius: var(--radius-sm);
-    background: var(--color-warning-bg);
-    font-size: var(--font-size-xs);
-    font-weight: 700;
   }
 
   nav {
@@ -97,6 +104,12 @@ const {
     gap: var(--space-2) var(--space-4);
     flex-wrap: wrap;
     list-style: none;
+  }
+
+  nav a {
+    display: inline-flex;
+    min-height: 1.5rem;
+    align-items: center;
   }
 
   a[aria-current="page"] {
@@ -149,11 +162,11 @@ const {
   }
 
   html[data-access-role="staff"] [data-access-role-label]::before {
-    content: "助教";
+    content: "助教／教師";
   }
 
   html[data-access-role="admin"] [data-access-role-label]::before {
-    content: "管理員";
+    content: "系統管理員";
   }
 
   [data-access-role-label] {
@@ -176,6 +189,4 @@ const {
   }
 </style>
 
-<script>
-  import "../scripts/access-session";
-</script>
+{showInternalAccess && <script is:inline set:html={accessControlScript} />}

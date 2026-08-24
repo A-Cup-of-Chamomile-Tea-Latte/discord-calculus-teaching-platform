@@ -2,32 +2,23 @@
 interface Props {
   guideHref: string;
   statusHref: string;
-  coolHref?: string;
+  showInternalLinks?: boolean;
 }
 
-const { guideHref, statusHref, coolHref } = Astro.props;
+const { guideHref, statusHref, showInternalLinks = false } = Astro.props;
+const calculusHref = "https://www.math.ntu.edu.tw/~calc/Default.html";
 ---
 
 <footer class="site-footer">
   <div class="shell site-footer__inner">
-    <p><strong>正式課務請以 NTU COOL 為準。</strong></p>
+    <p><strong>正式課務以各班 NTU COOL 為準。</strong></p>
     <nav aria-label="頁尾導覽">
-      <a href={guideHref}>使用與隱私指南</a>
-      <a href={statusHref}>系統狀態</a>
-      {
-        coolHref ? (
-          <a href={coolHref} target="_blank" rel="noreferrer">
-            前往 NTU COOL<span class="visually-hidden">（另開新分頁）</span>
-          </a>
-        ) : (
-          <span>NTU COOL 連結尚未設定</span>
-        )
-      }
+      <a href={guideHref}>使用指南</a>
+      <a href={calculusHref} target="_blank" rel="noreferrer">
+        微積分統一教學網<span class="visually-hidden">（另開新分頁）</span>
+      </a>
+      {showInternalLinks && <a href={statusHref}>建造與系統狀態</a>}
     </nav>
-    <p class="site-footer__note">
-      本頁是本機展示系統，只使用虛構資料；尚未連接正式 Discord、Email、Google 或
-      AI 服務。
-    </p>
   </div>
 </footer>
 
@@ -46,12 +37,5 @@ const { guideHref, statusHref, coolHref } = Astro.props;
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3) var(--space-5);
-  }
-
-  .site-footer__note {
-    max-width: var(--reading-width);
-    margin-top: var(--space-4);
-    color: var(--color-text-muted);
-    font-size: var(--font-size-sm);
   }
 </style>

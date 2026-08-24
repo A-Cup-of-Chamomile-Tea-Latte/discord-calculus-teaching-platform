@@ -3,23 +3,37 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const dist = fileURLToPath(new URL("../dist/", import.meta.url));
+const cliArguments = process.argv.slice(2);
+const publicMode = cliArguments.includes("--public");
+const baseArgument = cliArguments.find((value) => value !== "--public");
 const expectedBase =
-  `/${(process.argv[2] ?? "/").replace(/^\/+|\/+$/g, "")}`.replace(/^\/$/, "/");
+  `/${(baseArgument ?? "/").replace(/^\/+|\/+$/g, "")}`.replace(/^\/$/, "/");
 const normalizedBase = expectedBase === "/" ? "/" : `${expectedBase}/`;
-const requiredPages = [
+const publicPages = [
   "index.html",
   "404.html",
   "cases/index.html",
-  "cases/C01-7K4M2Q-0702-1000/index.html",
   "join/index.html",
-  "ask/index.html",
-  "private-support/index.html",
   "guide/index.html",
+];
+const internalPages = [
   "access/index.html",
+  "components/index.html",
+  "scenarios/index.html",
+  "settings/index.html",
   "sqlite-lab/index.html",
   "status/index.html",
-  "components/index.html",
+  "team/index.html",
+  "team/registrations/index.html",
 ];
+const archivedPages = [
+  "ask/index.html",
+  "discord-guide/index.html",
+  "private-support/index.html",
+];
+const requiredPages = publicMode
+  ? publicPages
+  : [...publicPages, ...internalPages, ...archivedPages];
 
 function collectHtmlFiles(directory, prefix = "") {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -31,39 +45,86 @@ function collectHtmlFiles(directory, prefix = "") {
   });
 }
 
+function collectFiles(directory, prefix = "") {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const relativePath = `${prefix}${entry.name}`;
+    if (entry.isDirectory()) {
+      return collectFiles(join(directory, entry.name), `${relativePath}/`);
+    }
+    return entry.isFile() ? [relativePath] : [];
+  });
+}
+
 const htmlFiles = collectHtmlFiles(dist).sort();
 for (const relativePath of requiredPages) {
   if (!htmlFiles.includes(relativePath)) {
     throw new Error(`missing required page: ${relativePath}`);
   }
 }
-const sqliteLab = readFileSync(join(dist, "sqlite-lab/index.html"), "utf8");
-for (const requiredText of [
-  "SQLite 學習實驗室",
-  "安全查詢實驗台",
-  "交易（transaction）",
-  "可靠工作佇列（reliable queue）",
-  "雲端資料驗證關卡",
-]) {
-  if (!sqliteLab.includes(requiredText)) {
-    throw new Error(
-      `sqlite-lab/index.html: missing learning module ${requiredText}`,
-    );
+if (publicMode) {
+  for (const relativePath of internalPages) {
+    if (htmlFiles.includes(relativePath)) {
+      throw new Error(
+        `public artifact contains internal page: ${relativePath}`,
+      );
+    }
   }
-}
-if (!/data-sqlite-lab/.test(sqliteLab)) {
-  throw new Error("sqlite-lab/index.html: missing interactive lab root");
-}
-const accessPage = readFileSync(join(dist, "access/index.html"), "utf8");
-for (const requiredText of [
-  "助教／管理員登入",
-  "帳號 123，密碼 123",
-  "不是正式授權邊界",
-]) {
-  if (!accessPage.includes(requiredText)) {
-    throw new Error(
-      `access/index.html: missing local access notice ${requiredText}`,
-    );
+  for (const relativePath of archivedPages) {
+    if (htmlFiles.includes(relativePath)) {
+      throw new Error(
+        `public artifact contains archived page: ${relativePath}`,
+      );
+    }
+  }
+  for (const relativePath of collectFiles(dist)) {
+    const contents = readFileSync(join(dist, relativePath), "utf8");
+    if (
+      /calculus-local-access|data-local-access|PBKDF2|建立第一位管理員|SQLite 學習實驗室|discord\.com\/channels\/111111111111111111/.test(
+        contents,
+      )
+    ) {
+      throw new Error(
+        `public artifact contains internal access or tool code: ${relativePath}`,
+      );
+    }
+  }
+  for (const relativePath of ["index.html", "cases/index.html"]) {
+    const contents = readFileSync(join(dist, relativePath), "utf8");
+    if (!contents.includes("案件查詢服務尚未啟用")) {
+      throw new Error(
+        `${relativePath}: public lookup must fail closed until its adapter is connected`,
+      );
+    }
+  }
+} else {
+  const sqliteLab = readFileSync(join(dist, "sqlite-lab/index.html"), "utf8");
+  for (const requiredText of [
+    "SQLite 學習實驗室",
+    "安全查詢實驗台",
+    "交易（transaction）",
+    "可靠工作佇列（reliable queue）",
+    "雲端資料驗證關卡",
+  ]) {
+    if (!sqliteLab.includes(requiredText)) {
+      throw new Error(
+        `sqlite-lab/index.html: missing learning module ${requiredText}`,
+      );
+    }
+  }
+  if (!/data-sqlite-lab/.test(sqliteLab)) {
+    throw new Error("sqlite-lab/index.html: missing interactive lab root");
+  }
+  const accessPage = readFileSync(join(dist, "access/index.html"), "utf8");
+  for (const requiredText of [
+    "助教／管理員登入",
+    "建立第一位管理員",
+    "不是正式授權邊界",
+  ]) {
+    if (!accessPage.includes(requiredText)) {
+      throw new Error(
+        `access/index.html: missing local access notice ${requiredText}`,
+      );
+    }
   }
 }
 let referenceCount = 0;
@@ -73,6 +134,17 @@ for (const relativePath of htmlFiles) {
     throw new Error(`${relativePath}: missing zh-Hant`);
   if (/223456789012345678|case_private_001/.test(html)) {
     throw new Error(`${relativePath}: leaked an internal fixture identifier`);
+  }
+  if (/帳號 123|密碼 123|管理員本機預設/.test(html)) {
+    throw new Error(`${relativePath}: contains a legacy preset credential`);
+  }
+  if (
+    publicMode &&
+    /working projection|VERIFIED_VIEW|source of truth|AI eligibility|Case actions|Task 13|scaffold|fixture confirmation|technical spike|PREVIEW-JOIN-001|建立 Private Support 預覽|網站代為提問/.test(
+      html,
+    )
+  ) {
+    throw new Error(`${relativePath}: contains reviewer-only wording`);
   }
   for (const [, attribute, reference] of html.matchAll(
     /\b(href|src|action)="([^"]+)"/g,
@@ -113,5 +185,5 @@ for (const relativePath of htmlFiles) {
 }
 
 console.log(
-  `static portal verified: ${htmlFiles.length} generated pages (${requiredPages.length} required), ${referenceCount} base-safe local references, base=${normalizedBase}`,
+  `${publicMode ? "public" : "reviewer"} portal verified: ${htmlFiles.length} generated pages (${requiredPages.length} required), ${referenceCount} base-safe local references, base=${normalizedBase}`,
 );

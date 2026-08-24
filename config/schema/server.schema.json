@@ -112,6 +112,7 @@
         "status": {
           "enum": [
             "PENDING_AUGUST_ROSTER",
+            "PENDING_CLASS_ROSTER",
             "APPROVED"
           ]
         },
@@ -122,14 +123,14 @@
             "additionalProperties": false,
             "required": [
               "classCode",
-              "module"
+              "moduleCode"
             ],
             "properties": {
               "classCode": {
                 "type": "string",
                 "pattern": "^[0-9]{2}$"
               },
-              "module": {
+              "moduleCode": {
                 "enum": [
                   "M1",
                   "M2",

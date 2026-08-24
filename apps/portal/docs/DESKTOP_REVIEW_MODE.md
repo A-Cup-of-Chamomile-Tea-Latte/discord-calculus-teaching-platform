@@ -8,17 +8,15 @@
 - 匿名案件：`C02-R8N6WX-0702-1100`
 - Private fixture：`C99-B4W9K6-0702-1500-P`（不得由 public lookup 確認存在）
 
-案件詳情顯示 Case、Status、Last Update、Last Response、Last Student Activity、Last Read、Last Synced、Latest Teaching Response、Timeline、文字對話、附件 marker、Discord deep link 與結案資訊。附件只顯示「請至 Discord 查看」，不下載、不代理、不重新託管檔案。
-
-`Last Read` 只有在 `VerifiedViewProvider` 回傳 `VERIFIED_VIEW` evidence 時才能填入；載入頁面本身不是已讀證明。Temporary close 與 Close Case 按鈕只是 DOM 內預覽，不寫回任何資料。
+學生案件詳情只顯示案件編號、處理狀態、最近更新、教學團隊最近回覆、公開對話與附件數量。同步、雜湊、資料來源、分析資格與管理操作只留在內部審查頁。附件只顯示「請至 Discord 查看」，不下載、不代理、不重新託管檔案。
 
 ## Closure review assumptions
 
-- Manual close：`CLOSED` + `MANUAL` + `closedAt`。
-- Answered 且具有 verified view，達可設定的暫結案門檻：`TEMPORARILY_CLOSED` + `AUTO`。
-- 達可設定的自動結案門檻：`CLOSED` + `AUTO`。
-- 結案後有新活動：`REOPENED` + `reopenedAt`，清除 closure fields。
-- 預設 fixture policy 為 3／7 日，但 UI 不硬編碼門檻。
+- Open 由負責助教接手後進入 `TRACKED`。
+- 自教學團隊最後回覆起 48 小時沒有學生回應，進入 `IDLE` 並寄出提醒。
+- `IDLE` 後再 48 小時沒有回應，進入 `AUTO_CLOSED`。
+- 只有案件負責人可手動設為 `CLOSED`；學生端不顯示手動結案控制。
+- `IDLE`、`CLOSED` 或 `AUTO_CLOSED` 有新回應時回到 `TRACKED`；重新開啟只記時間軸事件。
 
 ## AI review assumptions
 

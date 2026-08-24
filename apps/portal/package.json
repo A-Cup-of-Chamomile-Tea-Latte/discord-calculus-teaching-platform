@@ -6,11 +6,13 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "build:public": "PUBLIC_PORTAL_BUILD=true astro build && node scripts/prepare-public-dist.mjs",
     "preview": "astro preview",
     "check": "astro check",
     "typecheck": "npm run check",
     "test": "vitest run",
     "verify:dist": "node scripts/verify-dist.mjs",
+    "verify:public": "node scripts/verify-dist.mjs --public",
     "verify:pages": "node scripts/verify-pages-workflow.mjs"
   },
   "devDependencies": {

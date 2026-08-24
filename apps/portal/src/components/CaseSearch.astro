@@ -1,16 +1,23 @@
 ---
-import type { PublicCaseView } from "../lib/case-adapter";
+import type { CaseStatusView } from "../lib/case-adapter";
 import { withBase } from "../lib/paths";
 import FormField from "./FormField.astro";
 
 interface Props {
-  cases: PublicCaseView[];
+  cases: CaseStatusView[];
   inputId: string;
   syncUrl?: boolean;
   compact?: boolean;
+  enabled?: boolean;
 }
 
-const { cases, inputId, syncUrl = false, compact = false } = Astro.props;
+const {
+  cases,
+  inputId,
+  syncUrl = false,
+  compact = false,
+  enabled = true,
+} = Astro.props;
 const safeJson = JSON.stringify(cases).replaceAll("<", "\\u003c");
 ---
 
@@ -18,7 +25,7 @@ const safeJson = JSON.stringify(cases).replaceAll("<", "\\u003c");
   class:list={["case-search-widget", compact && "case-search-widget--compact"]}
   data-case-search
   data-sync-url={String(syncUrl)}
-  data-detail-base={withBase("cases/")}
+  data-case-search-enabled={String(enabled)}
   aria-labelledby={`${inputId}-title`}
 >
   <div>
@@ -34,49 +41,142 @@ const safeJson = JSON.stringify(cases).replaceAll("<", "\\u003c");
     <FormField
       forId={inputId}
       label="案號"
-      hint="例如 C01-7K4M2Q-0702-1000"
+      hint="依案號分段輸入；也可以直接貼上整串案號。隱密案件才需要最後的 P。"
       required
     >
-      <input
-        id={inputId}
-        name="case"
-        autocomplete="off"
-        autocapitalize="characters"
-        aria-describedby={`${inputId}-hint`}
-        required
-      />
+      <div class="case-number-control" data-case-number-control>
+        <div class="case-number-control__heading" aria-hidden="true">
+          <span>CASE ID</span>
+          <span>案件查詢卡</span>
+        </div>
+        <div class="case-number-control__fields">
+          <input
+            id={inputId}
+            class="case-number-control__segment case-number-control__segment--course"
+            data-case-segment="course"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="characters"
+            maxlength="3"
+            placeholder="C01"
+            aria-label="案號第一段，班別代碼"
+            aria-describedby={`${inputId}-hint`}
+            required
+            disabled={!enabled}
+          />
+          <span class="case-number-control__separator" aria-hidden="true"
+            >–</span
+          >
+          <input
+            class="case-number-control__segment case-number-control__segment--token"
+            data-case-segment="token"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="characters"
+            maxlength="6"
+            placeholder="7K4M2Q"
+            aria-label="案號第二段，六碼識別碼"
+            aria-describedby={`${inputId}-hint`}
+            required
+            disabled={!enabled}
+          />
+          <span class="case-number-control__separator" aria-hidden="true"
+            >–</span
+          >
+          <input
+            class="case-number-control__segment case-number-control__segment--date"
+            data-case-segment="date"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="4"
+            placeholder="0702"
+            aria-label="案號第三段，四碼日期"
+            aria-describedby={`${inputId}-hint`}
+            required
+            disabled={!enabled}
+          />
+          <span class="case-number-control__separator" aria-hidden="true"
+            >–</span
+          >
+          <input
+            class="case-number-control__segment case-number-control__segment--time"
+            data-case-segment="time"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="4"
+            placeholder="1000"
+            aria-label="案號第四段，四碼時間"
+            aria-describedby={`${inputId}-hint`}
+            required
+            disabled={!enabled}
+          />
+          <span
+            class="case-number-control__separator case-number-control__private-separator"
+            aria-hidden="true">–</span
+          >
+          <input
+            class="case-number-control__segment case-number-control__segment--private"
+            data-case-segment="private"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="characters"
+            maxlength="1"
+            placeholder="P"
+            aria-label="隱密案件末碼 P，非隱密案件留空"
+            aria-describedby={`${inputId}-hint`}
+            disabled={!enabled}
+          />
+        </div>
+        <div class="case-number-control__labels" aria-hidden="true">
+          <span>班別</span><span>識別碼</span><span>日期</span><span>時間</span
+          ><span>隱密</span>
+        </div>
+      </div>
+      <input type="hidden" name="case" data-case-value disabled={!enabled} />
     </FormField>
-    <button type="submit">查詢此案件</button>
+    <button type="submit" disabled={!enabled}>
+      {enabled ? "查詢此案件" : "查詢服務接線中"}
+    </button>
   </form>
 
   <div class="search-states" aria-live="polite">
-    <div data-search-state="empty">
+    <div data-search-state="empty" hidden={!enabled}>
       <p>輸入完整案號後開始。前後空白與大小寫會自動整理。</p>
+    </div>
+    <div data-search-state="unavailable" hidden={enabled} role="status">
+      <p>
+        <strong>案件查詢服務尚未啟用。</strong>
+        目前請使用 Bot 私訊中的直達連結回到 Discord 查看案件。
+      </p>
     </div>
     <div data-search-state="loading" hidden aria-busy="true">
       <p><strong>… 正在查詢</strong></p>
     </div>
     <div data-search-state="invalid" hidden role="alert">
       <p>
-        <strong>格式似乎不完整。</strong> 請參考 `C01-7K4M2Q-0702-1000`。Private Support
-        案號不在這裡查詢。
+        <strong>格式似乎不完整。</strong> 請參考 `C01-7K4M2Q-0702-1000`；隱密案件的案號會以
+        <code>-P</code> 結尾。
       </p>
     </div>
     <div data-search-state="not-found" hidden role="status">
       <p>
-        <strong>找不到可公開的一般案件。</strong> 請檢查編號或稍後再試；這不會確認
-        Private Support 是否存在。
+        <strong>目前查不到這個案件。</strong> 請檢查編號或稍後再試；為了保護隱私，這裡不會提供更多辨識資訊。
       </p>
     </div>
     <article data-search-state="found" hidden class="found-card">
-      <p><strong data-result-status></strong></p>
-      <h3>
-        <span data-result-number></span> · <span data-result-title></span>
-      </h3>
-      <p>最後更新：<time data-result-updated></time></p>
-      <a class="button" data-result-link href={withBase("cases/")}
-        >查看案件詳情</a
+      <p class="eyebrow" data-result-type></p>
+      <h3 data-result-number></h3>
+      <dl class="result-grid">
+        <div><dt>目前狀態</dt><dd data-result-status></dd></div>
+        <div><dt>最後更新</dt><dd><time data-result-updated></time></dd></div>
+        <div><dt>教學團隊回覆</dt><dd data-result-replied></dd></div>
+      </dl>
+      <a class="button" data-result-link hidden target="_blank" rel="noreferrer"
+        >前往 Discord 查看與回覆</a
       >
+      <p data-result-no-link hidden>
+        目前沒有可用的 Discord 直達連結，請從 Bot 私訊或伺服器返回案件。
+      </p>
     </article>
   </div>
 
@@ -112,6 +212,111 @@ const safeJson = JSON.stringify(cases).replaceAll("<", "\\u003c");
     align-items: end;
   }
 
+  .case-number-control {
+    display: grid;
+    gap: 0.55rem;
+    padding: clamp(0.8rem, 2.5vw, 1rem);
+    overflow-x: auto;
+    border: var(--border-thin) solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background:
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-action) 8%, transparent),
+        transparent 55%
+      ),
+      var(--color-surface);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, white 70%, transparent);
+  }
+
+  .case-number-control:focus-within {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: 3px;
+  }
+
+  .case-number-control[data-invalid="true"] {
+    border-width: var(--border-strong);
+    border-color: var(--color-danger-border);
+  }
+
+  .case-number-control__heading {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 750;
+    letter-spacing: 0.08em;
+  }
+
+  .case-number-control__fields,
+  .case-number-control__labels {
+    display: grid;
+    grid-template-columns: 3.4rem 0.7rem 7rem 0.7rem 4.8rem 0.7rem 4.8rem 0.7rem 2.5rem;
+    align-items: center;
+    min-width: 27.7rem;
+  }
+
+  .case-number-control__segment {
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0.45rem 0.35rem;
+    border: 0;
+    border-bottom: var(--border-thin) solid var(--color-border-strong);
+    border-radius: 0;
+    background: transparent;
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    font-weight: 750;
+    letter-spacing: 0.06em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .case-number-control__segment:focus-visible {
+    outline: 0;
+    border-bottom-width: var(--border-strong);
+    border-bottom-color: var(--color-action);
+  }
+
+  .case-number-control__segment:disabled {
+    color: var(--color-text-muted);
+    opacity: 0.72;
+  }
+
+  .case-number-control__separator {
+    color: var(--color-text-muted);
+    font-weight: 750;
+    text-align: center;
+  }
+
+  .case-number-control__labels {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    text-align: center;
+  }
+
+  .case-number-control__labels span:nth-child(1) {
+    grid-column: 1;
+  }
+
+  .case-number-control__labels span:nth-child(2) {
+    grid-column: 3;
+  }
+
+  .case-number-control__labels span:nth-child(3) {
+    grid-column: 5;
+  }
+
+  .case-number-control__labels span:nth-child(4) {
+    grid-column: 7;
+  }
+
+  .case-number-control__labels span:nth-child(5) {
+    grid-column: 9;
+  }
+
   .search-states {
     padding-top: var(--space-3);
     border-top: var(--border-thin) solid var(--color-border);
@@ -126,6 +331,26 @@ const safeJson = JSON.stringify(cases).replaceAll("<", "\\u003c");
     border-inline-start: 0.35rem solid var(--color-success-border);
     border-radius: var(--radius-md);
     background: var(--color-success-bg);
+  }
+
+  .result-grid {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-4);
+  }
+
+  .result-grid > div {
+    display: grid;
+    grid-template-columns: minmax(7rem, 0.45fr) 1fr;
+    gap: var(--space-2);
+  }
+
+  .result-grid dt {
+    font-weight: 750;
+  }
+
+  .result-grid dd {
+    margin: 0;
   }
 
   @media (min-width: 42rem) {

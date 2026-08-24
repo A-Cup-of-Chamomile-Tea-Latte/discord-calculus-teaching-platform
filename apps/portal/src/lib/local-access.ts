@@ -108,7 +108,7 @@ export function passwordPolicyError(
   password: string,
   accountId: string,
 ): string | null {
-  if (password.length < 10) return "新密碼至少需要 10 個字元。";
+  if (password.length < 6) return "密碼至少需要 6 個字元。";
   if (password.length > 128) return "新密碼不可超過 128 個字元。";
   if (password === accountId || password === normalizeAccountId(accountId)) {
     return "新密碼不可與帳號相同。";

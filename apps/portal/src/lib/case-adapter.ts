@@ -1,11 +1,4 @@
-export type CaseStatus =
-  | "OPEN"
-  | "WAITING_FOR_STUDENT"
-  | "ANSWERED"
-  | "ESCALATED"
-  | "TEMPORARILY_CLOSED"
-  | "CLOSED"
-  | "REOPENED";
+export type CaseStatus = "OPEN" | "TRACKED" | "IDLE" | "CLOSED" | "AUTO_CLOSED";
 export type PublicVisibility = "CLASS" | "COURSE";
 export type AuthorDisplayMode = "REAL_NAME" | "COURSE_ALIAS" | "ANONYMOUS";
 
@@ -19,11 +12,10 @@ export type TimelineEventType =
   | "SUBMITTED"
   | "TEACHING_RESPONSE"
   | "STUDENT_FOLLOW_UP"
-  | "ANSWERED"
-  | "ESCALATED"
-  | "VERIFIED_VIEW"
-  | "TEMPORARILY_CLOSED"
+  | "TRACKED"
+  | "IDLE"
   | "CLOSED"
+  | "AUTO_CLOSED"
   | "REOPENED";
 
 export interface PublicTimelineEvent {
@@ -67,6 +59,26 @@ export interface PublicCaseView {
   analysisDecisionSource: "DATABASE";
   latestTeachingResponse: PublicMessage | null;
   messages: PublicMessage[];
+}
+
+export interface CaseStatusView {
+  caseNumber: string;
+  caseType: "GENERAL" | "PRIVATE_SUPPORT";
+  status: CaseStatus;
+  updatedAt: string;
+  teachingTeamReplied: boolean;
+  discordDeepLink: string | null;
+}
+
+export function toCaseStatusView(item: PublicCaseView): CaseStatusView {
+  return {
+    caseNumber: item.caseNumber,
+    caseType: item.caseNumber.endsWith("-P") ? "PRIVATE_SUPPORT" : "GENERAL",
+    status: item.status,
+    updatedAt: item.updatedAt,
+    teachingTeamReplied: item.lastTeachingResponseAt !== null,
+    discordDeepLink: item.discordDeepLink,
+  };
 }
 
 export type LookupResult =

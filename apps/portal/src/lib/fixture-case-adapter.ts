@@ -8,19 +8,39 @@ import type {
   AuthorDisplayMode,
   CaseLookupAdapter,
   CaseStatus,
+  CaseStatusView,
   LookupResult,
   PublicCaseView,
   PublicMessage,
   PublicTimelineEvent,
   PublicVisibility,
 } from "./case-adapter";
-import { isCaseNumberWellFormed, normalizeCaseNumber } from "./case-adapter";
+import {
+  isCaseNumberWellFormed,
+  normalizeCaseNumber,
+  toCaseStatusView,
+} from "./case-adapter";
+
+type LegacyCaseStatus =
+  | CaseStatus
+  | "WAITING_FOR_STUDENT"
+  | "ANSWERED"
+  | "ESCALATED"
+  | "TEMPORARILY_CLOSED"
+  | "REOPENED";
+
+type LegacyTimelineEventType =
+  | PublicTimelineEvent["eventType"]
+  | "ANSWERED"
+  | "ESCALATED"
+  | "VERIFIED_VIEW"
+  | "TEMPORARILY_CLOSED";
 
 interface FixtureCase {
   caseId: string;
   caseNumber: string | null;
   caseType: "GENERAL" | "PRIVATE_SUPPORT";
-  status: CaseStatus;
+  status: LegacyCaseStatus;
   visibility: "CLASS" | "COURSE" | "TEACHING_STAFF";
   authorDisplayMode: AuthorDisplayMode;
   title: string;
@@ -53,7 +73,7 @@ interface FixtureUser {
 interface FixtureProjection {
   caseId: string;
   caseNumber: string;
-  status: CaseStatus;
+  status: LegacyCaseStatus;
   lastUpdateAt: string;
   lastTeachingResponseAt: string | null;
   lastStudentActivityAt: string | null;
@@ -62,7 +82,11 @@ interface FixtureProjection {
   latestTeachingResponseExcerpt: string | null;
   attachmentCount: number;
   hasAttachments: boolean;
-  timelineEvents: PublicTimelineEvent[];
+  timelineEvents: Array<
+    Omit<PublicTimelineEvent, "eventType"> & {
+      eventType: LegacyTimelineEventType;
+    }
+  >;
   discordDeepLink: string | null;
   closureSource: "MANUAL" | "AUTO" | null;
   closedAt: string | null;
@@ -83,6 +107,68 @@ const publicFixtureTitles: Record<string, string> = {
   case_000423: "導數記號提問",
   case_000424: "定理解讀提問",
   case_000425: "積分設定提問",
+};
+
+const publicFixtureMessageBodies: Record<string, string> = {
+  msg_000421_a: "這一步為什麼可以先做因式分解，再代入極限？",
+  msg_000421_b: "你先嘗試拆出哪一個共同因式？",
+  msg_000421_c: "我補上了一張示意圖，也修正了前一則訊息中的算式。",
+  msg_000421_d: "先把共同因式約掉，再代入極限值，就能避開原本的未定形。",
+};
+
+const currentStatus = (status: LegacyCaseStatus): CaseStatus => {
+  const mapping: Record<LegacyCaseStatus, CaseStatus> = {
+    OPEN: "OPEN",
+    TRACKED: "TRACKED",
+    IDLE: "IDLE",
+    CLOSED: "CLOSED",
+    AUTO_CLOSED: "AUTO_CLOSED",
+    WAITING_FOR_STUDENT: "IDLE",
+    ANSWERED: "TRACKED",
+    ESCALATED: "TRACKED",
+    TEMPORARILY_CLOSED: "IDLE",
+    REOPENED: "TRACKED",
+  };
+  return mapping[status];
+};
+
+const publicTimeline = (
+  events: FixtureProjection["timelineEvents"],
+  closureSource: FixtureProjection["closureSource"],
+): PublicTimelineEvent[] => {
+  const eventCopy: Record<
+    LegacyTimelineEventType,
+    { eventType: PublicTimelineEvent["eventType"]; label: string }
+  > = {
+    SUBMITTED: { eventType: "SUBMITTED", label: "已建立案件" },
+    TEACHING_RESPONSE: {
+      eventType: "TEACHING_RESPONSE",
+      label: "教學團隊已回覆",
+    },
+    STUDENT_FOLLOW_UP: {
+      eventType: "STUDENT_FOLLOW_UP",
+      label: "學生已補充內容",
+    },
+    TRACKED: { eventType: "TRACKED", label: "教學團隊處理中" },
+    IDLE: { eventType: "IDLE", label: "已寄出未回覆提醒" },
+    CLOSED: {
+      eventType: closureSource === "AUTO" ? "AUTO_CLOSED" : "CLOSED",
+      label: closureSource === "AUTO" ? "已自動結案" : "負責人已結案",
+    },
+    AUTO_CLOSED: { eventType: "AUTO_CLOSED", label: "已自動結案" },
+    REOPENED: { eventType: "REOPENED", label: "已重新開啟" },
+    ANSWERED: { eventType: "TRACKED", label: "教學團隊已回覆" },
+    ESCALATED: { eventType: "TRACKED", label: "教學團隊持續處理" },
+    VERIFIED_VIEW: { eventType: "TRACKED", label: "已查看最新回覆" },
+    TEMPORARILY_CLOSED: {
+      eventType: "IDLE",
+      label: "已寄出未回覆提醒",
+    },
+  };
+  return events.map((event) => ({
+    ...event,
+    ...eventCopy[event.eventType],
+  }));
 };
 
 function authorLabel(message: FixtureMessage): string {
@@ -114,7 +200,7 @@ function publicMessages(caseId: string): PublicMessage[] {
       : null,
     authorLabel: authorLabel(message),
     authorRole: message.authorRole,
-    body: message.body,
+    body: publicFixtureMessageBodies[message.messageId] ?? message.body,
     createdAt: message.createdAt,
     editedAt: message.editedAt,
     attachments: message.attachments.map(
@@ -151,7 +237,7 @@ function toPublicCase(item: FixtureCase): PublicCaseView | null {
   return {
     caseNumber: item.caseNumber,
     title: publicFixtureTitles[item.caseId] ?? item.title,
-    status: reducedProjection.status,
+    status: currentStatus(reducedProjection.status),
     visibility: item.visibility as PublicVisibility,
     authorDisplayMode: item.authorDisplayMode,
     updatedAt: reducedProjection.lastUpdateAt,
@@ -160,11 +246,13 @@ function toPublicCase(item: FixtureCase): PublicCaseView | null {
     lastStudentActivityAt: reducedProjection.lastStudentActivityAt,
     lastReadAt: reducedProjection.lastReadAt,
     lastSyncedAt: reducedProjection.lastSyncedAt,
-    latestTeachingResponseExcerpt:
-      reducedProjection.latestTeachingResponseExcerpt,
+    latestTeachingResponseExcerpt: latestTeachingResponse?.body ?? null,
     attachmentCount: reducedProjection.attachmentCount,
     hasAttachments: reducedProjection.hasAttachments,
-    timelineEvents: reducedProjection.timelineEvents,
+    timelineEvents: publicTimeline(
+      reducedProjection.timelineEvents,
+      reducedProjection.closureSource,
+    ),
     discordDeepLink: reducedProjection.discordDeepLink,
     closureSource: reducedProjection.closureSource,
     closedAt: reducedProjection.closedAt,
@@ -195,6 +283,25 @@ export class FixtureCaseLookupAdapter implements CaseLookupAdapter {
     return cases
       .map(toPublicCase)
       .filter((item): item is PublicCaseView => item !== null);
+  }
+
+  async listCaseStatuses(): Promise<CaseStatusView[]> {
+    return cases.flatMap((item) => {
+      if (!item.caseNumber) return [];
+      const publicCase = toPublicCase(item);
+      if (publicCase) return [toCaseStatusView(publicCase)];
+      if (item.caseType !== "PRIVATE_SUPPORT") return [];
+      return [
+        {
+          caseNumber: item.caseNumber,
+          caseType: "PRIVATE_SUPPORT",
+          status: currentStatus(item.status),
+          updatedAt: item.updatedAt,
+          teachingTeamReplied: false,
+          discordDeepLink: null,
+        },
+      ];
+    });
   }
 }
 

@@ -7,13 +7,7 @@ import MetaLabel from "./MetaLabel.astro";
 import StatePanel from "./StatePanel.astro";
 import StatusBadge from "./StatusBadge.astro";
 
-const statuses = [
-  "OPEN",
-  "WAITING_FOR_STUDENT",
-  "ANSWERED",
-  "ESCALATED",
-  "CLOSED",
-] as const;
+const statuses = ["OPEN", "TRACKED", "IDLE", "CLOSED", "AUTO_CLOSED"] as const;
 ---
 
 <div class="gallery">

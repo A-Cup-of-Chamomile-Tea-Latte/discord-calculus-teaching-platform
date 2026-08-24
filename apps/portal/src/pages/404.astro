@@ -7,15 +7,16 @@ import { withBase } from "../lib/paths";
 
 <BaseLayout title="找不到頁面" description="找不到此 Portal 頁面。">
   <div class="shell section">
+    <h1 class="visually-hidden">找不到頁面</h1>
     <StatePanel kind="error" title="找不到這個頁面">
-      <p>這不代表某個案件存在或不存在；請由首頁或一般案件查詢重新開始。</p>
+      <p>這不代表某個案件存在或不存在；請由首頁或案件查詢重新開始。</p>
       <div slot="action" class="cluster">
         <ButtonLink href={withBase("")}>回首頁</ButtonLink>
         <ButtonLink href={withBase("cases/")} variant="secondary"
-          >查一般案件</ButtonLink
+          >查案件</ButtonLink
         >
         <ButtonLink href={withBase("guide/")} variant="quiet"
-          >使用與隱私指南</ButtonLink
+          >使用指南</ButtonLink
         >
       </div>
     </StatePanel>

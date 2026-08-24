@@ -4,10 +4,9 @@
 
 ## 預期位置
 
-- 待再次確認的 owner：`A-Cup-of-Chamomile-Tea-Latte`
-- 建議 repository：`discord-calculus-teaching-platform`
+- Owner：尚未決定；優先評估課程專用 GitHub Organization，不把它默認成個人網站的一部分。
+- Repository 名稱：尚未決定。
 - 預期 project-site URL pattern：`https://<owner>.github.io/<repository>/`
-- 依目前假設的預期 URL：`https://A-Cup-of-Chamomile-Tea-Latte.github.io/discord-calculus-teaching-platform/`
 
 既有 owner-site repository 不在本專案範圍內，不得改名、覆蓋、force-push、搬移內容或改用本 artifact。
 
@@ -30,17 +29,17 @@ GitHub 官方的 custom workflow 流程是 checkout、build、`upload-pages-arti
 ## 本機 dry run
 
 ```sh
-ASTRO_BASE_PATH=/discord-calculus-teaching-platform \
-ASTRO_SITE_URL=https://A-Cup-of-Chamomile-Tea-Latte.github.io \
-npm run build --workspace @calculus/portal
+ASTRO_BASE_PATH=/repository-name \
+ASTRO_SITE_URL=https://organization.github.io \
+npm run build:public --workspace @calculus/portal
 
-npm run verify:dist --workspace @calculus/portal -- \
-  /discord-calculus-teaching-platform/
+npm run verify:public --workspace @calculus/portal -- \
+  /repository-name/
 
 npm run verify:pages --workspace @calculus/portal
 ```
 
-`verify:dist` 檢查必要頁面、`zh-Hant`、base-safe links 與已知 internal fixture identifier；`verify:pages` 檢查手動 deploy gate、最小 job permissions、無 secrets、artifact path 與 Pages Actions。
+`verify:public` 檢查必要頁面、`zh-Hant`、base-safe links、已知 internal identifier，並要求 `/access/`、`/team/`、`/settings/`、`/sqlite-lab/`、`/components/`、`/scenarios/` 全部不存在；`verify:pages` 檢查手動 deploy gate、最小 job permissions、無 secrets、artifact path 與 Pages Actions。
 
 ## 尚待人工授權與操作
 

@@ -1,98 +1,237 @@
 ---
 import Alert from "../../components/Alert.astro";
-import Card from "../../components/Card.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { withBase } from "../../lib/paths";
 ---
 
 <BaseLayout
-  title="使用與隱私指南"
-  description="了解 NTU COOL、Discord、Portal、作者顯示、可見範圍與分析同意。"
+  title="使用指南"
+  description="在 Discord 提問、使用隱密支援、管理隱私與追蹤案件的完整指南。"
   currentPath="guide"
 >
-  <div class="shell stack section" style="--stack-gap: var(--space-6)">
-    <header class="reading-width">
-      <p><a href={withBase("")}>首頁</a> / 使用與隱私指南</p>
-      <h1>使用與隱私指南</h1>
-      <p>先了解每個選項真正改變什麼，再決定如何發問。</p>
+  <div class="shell stack section" style="--stack-gap: var(--space-7)">
+    <header class="guide-intro reading-width">
+      <p><a href={withBase("")}>首頁</a> / 使用指南</p>
+      <p class="eyebrow">Discord 提問與隱私</p>
+      <h1>在 Discord 提問</h1>
+      <p>
+        公開問題直接發文；需要隱密協助時，請由 Course Manager
+        開啟專屬空間。兩種方式使用同一套案件流程，差別只在誰看得到。
+      </p>
     </header>
-    <Alert title="NTU COOL 是正式課務依據" tone="warning">
-      <p>
-        教材、作業、成績、期限、正式公告與政策以 NTU COOL 為準；Discord 與
-        Portal 只補充。
-      </p>
+
+    <Alert title="正式課務以各班 NTU COOL 為準" tone="danger">
+      <p>教材、作業、成績、期限、公告與課程政策，以各班 NTU COOL 為準。</p>
     </Alert>
-    <section class="grid grid--auto" aria-label="平台分工">
-      <Card title="NTU COOL"><p>正式課務與政策。</p></Card>
-      <Card title="Discord"
-        ><p>提問、討論、助教回覆與社群互動；第一版不錄音或轉錄。</p></Card
-      >
-      <Card title="Portal"
-        ><p>
-          Onboarding、隱私指引、替代代送、一般案件查詢與 Private Support 入口。
-        </p></Card
-      >
+
+    <section aria-labelledby="public-title">
+      <p class="eyebrow">公開提問</p>
+      <h2 id="public-title">發一篇問題，剩下的交給 Bot 整理</h2>
+      <ol class="step-list">
+        <li><strong>選擇討論區</strong><br />依問題內容進入合適的區域。</li>
+        <li>
+          <strong>貼上問題與圖片</strong><br
+          />先把你卡住的位置、已嘗試的方法與希望釐清的部分說清楚。
+        </li>
+        <li>
+          <strong>完成案件設定</strong><br />Bot
+          會詢問題型、關鍵字，以及是否允許這一案用於 AI 輔助教學分析。
+        </li>
+        <li>
+          <strong>收到案號與連結</strong><br />Bot 整理標題後，會用 Discord
+          私訊傳送案號與直達連結。
+        </li>
+      </ol>
     </section>
-    <section class="reading-width">
-      <h2>三個必須分開的選擇</h2>
-      <dl>
-        <dt>作者顯示方式</dt><dd>
-          目前 Discord 身份、course alias、對一般成員匿名。
-        </dd>
-        <dt>可見範圍</dt><dd>班級、全課程、或只限教學團隊。</dd>
-        <dt>教學分析同意</dt><dd>
-          能否進入明確匯出後的教學品質檢視，不等於公開、模型訓練或評分。
-        </dd>
-      </dl>
+
+    <section aria-labelledby="areas-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">提問區域</p>
+          <h2 id="areas-title">先看問題屬於哪一類</h2>
+        </div>
+      </div>
+      <div class="guide-cards">
+        <article>
+          <span aria-hidden="true">∫</span>
+          <h3>數學問題</h3>
+          <p>微積分觀念、計算與解題方法。</p>
+        </article>
+        <article>
+          <span aria-hidden="true">⌘</span>
+          <h3>課務與系統</h3>
+          <p>WeBWorK、Gradescope、教材勘誤與課程系統。</p>
+        </article>
+        <article>
+          <span aria-hidden="true">↗</span>
+          <h3>延伸討論</h3>
+          <p>趣味題、課外延伸與值得保留的討論。</p>
+        </article>
+      </div>
     </section>
-    <section class="reading-width">
-      <h2>Discord 暱稱與 DM</h2>
+
+    <section class="private-guide" aria-labelledby="private-title">
+      <div>
+        <p class="eyebrow">隱密支援</p>
+        <h2 id="private-title">需要談個資、成績或不適合公開的內容？</h2>
+        <p>
+          從 Discord 的指令選單建立隱密支援。Course Manager
+          會開啟只有你與授權教學團隊可見的空間；接著照公開提問相同的步驟貼問題、選類型與決定
+          AI 同意。
+        </p>
+      </div>
+      <ul>
+        <li>內容與圖片留在受限 Discord 空間，不經 Portal 上傳。</li>
+        <li>案件同樣會收到以 <code>-P</code> 結尾的案號與直達連結。</li>
+        <li>網頁查詢只顯示狀態，不顯示題目、對話、作者或附件。</li>
+      </ul>
+    </section>
+
+    <section class="privacy-grid" aria-labelledby="privacy-title">
+      <div class="section-heading privacy-heading">
+        <div>
+          <p class="eyebrow">隱私與同意</p>
+          <h2 id="privacy-title">三件容易混在一起的事</h2>
+        </div>
+      </div>
+      <article>
+        <h3>誰看得到</h3>
+        <p>
+          公開討論區由伺服器成員依權限閱讀；隱密支援只開給案件建立者與授權教學團隊。
+        </p>
+      </article>
+      <article>
+        <h3>帳號怎麼顯示</h3>
+        <p>
+          伺服器暱稱不會隱藏 Discord
+          的全域使用者名稱、顯示名稱、頭像或個人資料。
+        </p>
+      </article>
+      <article>
+        <h3>是否允許 AI 分析</h3>
+        <p>每一案分開選擇「允許／不允許」；不允許仍會得到相同的教學支援。</p>
+      </article>
+    </section>
+
+    <section class="reading-width" aria-labelledby="dm-title">
+      <h2 id="dm-title">Discord 私訊與帳號安全</h2>
       <p>
-        `nnmmm` 暱稱不會隱藏全域 username、display name、avatar 或
-        profile。建議在 Discord privacy settings 停用 shared-server members 的
-        unsolicited DMs。
+        Course Manager
+        會用私訊傳送申請結果、案號與直達連結。若你不希望伺服器中的陌生成員私訊，請在
+        Discord 的隱私設定關閉「允許來自同一伺服器成員的私人訊息」；Bot
+        能否私訊仍可能受你的個人設定影響。
       </p>
       <p>
-        完全匿名 follow-up 必須透過網站或 modal 由 bot
-        代貼，不能先以本人發文再刪除。
+        教學語音空間不錄音，也不自動轉錄。不要在公開頻道貼出他人的個資、成績或私人對話。
       </p>
     </section>
-    <section class="reading-width">
-      <h2>Private Support</h2>
-      <p>
-        Private Support
-        不等於一般匿名案件；它使用獨立路徑、不公開查詢，且每案仍須明確選擇 AI
-        Yes／No。
-      </p>
-    </section>
-    <section class="reading-width">
-      <h2>Forum、聊天與語音怎麼選？</h2>
-      <p>
-        希望形成可追蹤案件的問題使用 Questions Forum；即時、輕量交流使用中文或
-        English Chat；語音自習室不錄音、不自動轉錄。
-      </p>
-    </section>
-    <section class="reading-width">
-      <h2>當機或聯絡不上時</h2>
-      <p>
-        正式課務先回到 NTU COOL。一般教學支援可依課程公告改用 NTU Mail；Private
-        Support 內容不要改貼到公開頻道。
-      </p>
+
+    <section class="faq" aria-labelledby="faq-title">
+      <p class="eyebrow">常見問題</p>
+      <h2 id="faq-title">遇到這些情況怎麼辦？</h2>
+      <details>
+        <summary>沒有收到 Bot 私訊</summary>
+        <p>
+          先確認私訊設定，再回到原討論串查看 Bot
+          是否已完成建案；不要重複建立同一個問題。
+        </p>
+      </details>
+      <details>
+        <summary>我已經送過加入申請</summary>
+        <p>
+          Course Manager
+          會回覆「你已經註冊過了呦！」並附上目前班級與權限，不會再建立第二筆。
+        </p>
+      </details>
+      <details>
+        <summary>案件已結案，但我還有問題</summary>
+        <p>
+          使用原討論串的「重新開啟並繼續提問」。案件會沿用同一個討論串與案號。
+        </p>
+      </details>
+      <details>
+        <summary>案件狀態和 Discord 畫面暫時不同</summary>
+        <p>
+          Discord 偶爾會延後更新標題或封存狀態。先保留原案號，稍後從 Bot
+          私訊的連結回去查看。
+        </p>
+      </details>
     </section>
   </div>
 </BaseLayout>
 
 <style>
-  dl {
+  .guide-intro > p:last-child {
+    font-size: var(--font-size-lg);
+  }
+
+  .guide-cards,
+  .privacy-grid {
     display: grid;
-    gap: var(--space-2);
+    gap: var(--space-4);
   }
 
-  dt {
-    font-weight: 800;
+  .guide-cards article,
+  .privacy-grid article {
+    padding: var(--space-5);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-low);
   }
 
-  dd {
-    margin: 0 0 var(--space-3);
+  .guide-cards article > span {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin-bottom: var(--space-4);
+    place-items: center;
+    border-radius: 50%;
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+    font-weight: 850;
+  }
+
+  .private-guide {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    border: var(--border-thin) solid var(--color-accent);
+    border-inline-start-width: 0.45rem;
+    border-radius: var(--radius-lg);
+    background: var(--color-accent-soft);
+  }
+
+  .private-guide ul {
+    margin-bottom: 0;
+  }
+
+  .privacy-heading {
+    grid-column: 1 / -1;
+  }
+
+  .faq details {
+    padding-block: var(--space-3);
+    border-bottom: var(--border-thin) solid var(--color-border);
+  }
+
+  .faq summary {
+    cursor: pointer;
+    font-weight: 750;
+  }
+
+  .faq details p {
+    padding-top: var(--space-3);
+  }
+
+  @media (min-width: 48rem) {
+    .guide-cards,
+    .privacy-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .private-guide {
+      grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.75fr);
+    }
   }
 </style>

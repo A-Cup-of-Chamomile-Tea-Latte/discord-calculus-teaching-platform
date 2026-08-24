@@ -10,7 +10,13 @@ import { isCaseNumberWellFormed, normalizeCaseNumber } from "./case-adapter";
 export interface GasPublicCaseSummary {
   caseNumber: string;
   caseType: "GENERAL";
-  status: CaseStatus;
+  status:
+    | CaseStatus
+    | "WAITING_FOR_STUDENT"
+    | "ANSWERED"
+    | "ESCALATED"
+    | "TEMPORARILY_CLOSED"
+    | "REOPENED";
   visibility: PublicVisibility;
   publicSummary: string;
   updatedAt: string;
@@ -74,10 +80,23 @@ function assertSafeResponse(response: GasCaseLookupResponse): void {
 }
 
 function toPortalCase(summary: GasPublicCaseSummary): PublicCaseView {
+  const status: CaseStatus = (() => {
+    switch (summary.status) {
+      case "WAITING_FOR_STUDENT":
+      case "TEMPORARILY_CLOSED":
+        return "IDLE";
+      case "ANSWERED":
+      case "ESCALATED":
+      case "REOPENED":
+        return "TRACKED";
+      default:
+        return summary.status;
+    }
+  })();
   return {
     caseNumber: summary.caseNumber,
     title: summary.publicSummary,
-    status: summary.status,
+    status,
     visibility: summary.visibility,
     authorDisplayMode: "ANONYMOUS",
     updatedAt: summary.updatedAt,
@@ -91,8 +110,12 @@ function toPortalCase(summary: GasPublicCaseSummary): PublicCaseView {
     hasAttachments: false,
     timelineEvents: [],
     discordDeepLink: null,
-    closureSource: summary.status === "CLOSED" ? "MANUAL" : null,
-    closedAt: summary.status === "CLOSED" ? summary.updatedAt : null,
+    closureSource:
+      status === "AUTO_CLOSED" ? "AUTO" : status === "CLOSED" ? "MANUAL" : null,
+    closedAt:
+      status === "CLOSED" || status === "AUTO_CLOSED"
+        ? summary.updatedAt
+        : null,
     reopenedAt: null,
     analysisEligibility: "EXCLUDED",
     analysisDecisionSource: "DATABASE",

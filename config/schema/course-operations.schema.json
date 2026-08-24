@@ -1,0 +1,372 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/config/course-operations.schema.json",
+  "title": "Academic term class and teaching-team operations",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "term",
+    "sourceReceiptPath",
+    "localOperationalDirectoryPath",
+    "groupingPolicy",
+    "registrationPolicy",
+    "modules",
+    "classModuleMapping",
+    "taCategoryCodes",
+    "peopleDirectory",
+    "sections",
+    "referenceOnlySections",
+    "privacyBoundary"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "status": { "const": "SOURCE_CONFIRMED" },
+    "term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "termCode",
+        "calendarSystem",
+        "academicYearRoc",
+        "semester",
+        "displayName"
+      ],
+      "properties": {
+        "termCode": { "pattern": "^[0-9]{3}-[12]$" },
+        "calendarSystem": { "const": "MINGUO" },
+        "academicYearRoc": { "type": "integer", "minimum": 1 },
+        "semester": { "enum": [1, 2] },
+        "displayName": { "type": "string", "minLength": 1 }
+      }
+    },
+    "sourceReceiptPath": {
+      "type": "string",
+      "pattern": "^config/academic/[0-9]{3}-[12]/source-receipts\\.json$"
+    },
+    "localOperationalDirectoryPath": {
+      "type": "string",
+      "pattern": "^\\.local/course-data/[0-9]{3}-[12]/private-directory\\.json$"
+    },
+    "groupingPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defaultRule",
+        "selfAllocatedClassRosterDueWeek",
+        "sourceNote"
+      ],
+      "properties": {
+        "defaultRule": {
+          "const": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT"
+        },
+        "selfAllocatedClassRosterDueWeek": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "sourceNote": { "type": "string", "minLength": 1 }
+      }
+    },
+    "registrationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classSelectionMode",
+        "activeClassCodesSource",
+        "moduleDerivation",
+        "discordMembershipMode",
+        "moduleRepresentation",
+        "optionalClassCodeStart"
+      ],
+      "properties": {
+        "classSelectionMode": {
+          "const": "USER_SELECTS_DURING_WEB_REGISTRATION"
+        },
+        "activeClassCodesSource": { "const": "SECTIONS" },
+        "moduleDerivation": { "const": "CLASS_MODULE_MAPPING" },
+        "discordMembershipMode": {
+          "const": "BROAD_COURSE_ROLE_PLUS_ALLOWLISTED_CLASS_ROLE"
+        },
+        "moduleRepresentation": { "const": "BACKEND_ATTRIBUTE_ONLY" },
+        "optionalClassCodeStart": { "const": "21" }
+      }
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/module" }
+    },
+    "classModuleMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "entries"],
+      "properties": {
+        "status": { "const": "APPROVED" },
+        "entries": {
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "items": { "$ref": "#/$defs/classModuleEntry" }
+        }
+      }
+    },
+    "taCategoryCodes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "meaning", "discordRoleKeys"],
+        "properties": {
+          "code": { "enum": ["L", "G", "G_L", "UNSPECIFIED"] },
+          "meaning": {
+            "enum": [
+              "TA_LECTURER",
+              "TA_GRADER",
+              "TA_LECTURER_AND_TA_GRADER",
+              "SOURCE_BLANK"
+            ]
+          },
+          "discordRoleKeys": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "enum": ["ta_lecturer", "ta_grader"] }
+          }
+        }
+      }
+    },
+    "peopleDirectory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instructors", "teachingAssistants"],
+      "properties": {
+        "instructors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/instructor" }
+        },
+        "teachingAssistants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/teachingAssistant" }
+        }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 16,
+      "maxItems": 16,
+      "items": { "$ref": "#/$defs/activeSection" }
+    },
+    "referenceOnlySections": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/referenceSection" }
+    },
+    "privacyBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trackedSpecContains", "privateOnly"],
+      "properties": {
+        "trackedSpecContains": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "OPAQUE_PERSON_REFS",
+              "PUBLIC_DISPLAY_NAMES",
+              "CLASS_STRUCTURE",
+              "ROOMS",
+              "ASSIGNMENT_RULES",
+              "PUBLIC_SOURCE_PDFS"
+            ]
+          }
+        },
+        "privateOnly": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "ACADEMIC_IDS",
+              "PHONES",
+              "EMAILS",
+              "AFFILIATIONS"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "moduleCode": { "enum": ["M1", "M2", "M3", "M4"] },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["moduleCode", "displayName", "classCodes"],
+      "properties": {
+        "moduleCode": { "$ref": "#/$defs/moduleCode" },
+        "displayName": { "type": "string", "minLength": 1 },
+        "classCodes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^(0[1-9]|1[0-6])$" }
+        }
+      }
+    },
+    "classModuleEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classCode", "moduleCode"],
+      "properties": {
+        "classCode": { "type": "string", "pattern": "^(0[1-9]|1[0-6])$" },
+        "moduleCode": { "$ref": "#/$defs/moduleCode" }
+      }
+    },
+    "personRef": {
+      "type": "string",
+      "pattern": "^(ta|instructor)-[0-9]{4}-[0-9]{2,3}$"
+    },
+    "instructor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instructorRef", "publicDisplayName"],
+      "properties": {
+        "instructorRef": { "$ref": "#/$defs/personRef" },
+        "publicDisplayName": { "type": "string", "minLength": 1 }
+      }
+    },
+    "teachingAssistant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taRef", "publicDisplayName"],
+      "properties": {
+        "taRef": { "$ref": "#/$defs/personRef" },
+        "publicDisplayName": { "type": "string", "minLength": 1 }
+      }
+    },
+    "taAssignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taRef", "categoryCode"],
+      "properties": {
+        "taRef": { "$ref": "#/$defs/personRef" },
+        "categoryCode": { "enum": ["L", "G", "G_L", "UNSPECIFIED"] }
+      }
+    },
+    "assignmentRule": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "ALL_STUDENTS" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "remainder"],
+          "properties": {
+            "kind": {
+              "const": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT"
+            },
+            "remainder": { "type": "integer", "minimum": 0 }
+          }
+        }
+      ]
+    },
+    "practiceSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "practiceSectionKey",
+        "taRef",
+        "room",
+        "assignmentRule",
+        "sourceOrder"
+      ],
+      "properties": {
+        "practiceSectionKey": {
+          "type": "string",
+          "pattern": "^[0-9]{2}-(all|remainder-[0-9]+)$"
+        },
+        "taRef": { "$ref": "#/$defs/personRef" },
+        "room": { "type": "string", "minLength": 1 },
+        "assignmentRule": { "$ref": "#/$defs/assignmentRule" },
+        "sourceOrder": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "activeSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classCode",
+        "sourceLabel",
+        "canonicalClassLabel",
+        "moduleCode",
+        "status",
+        "instructorRef",
+        "taAssignments",
+        "practiceSections",
+        "sourceCoverage"
+      ],
+      "properties": {
+        "classCode": { "type": "string", "pattern": "^(0[1-9]|1[0-6])$" },
+        "sourceLabel": { "type": "string", "pattern": "^模(0[1-9]|1[0-6])$" },
+        "canonicalClassLabel": { "type": "string", "pattern": "^C(0[1-9]|1[0-6])$" },
+        "moduleCode": { "$ref": "#/$defs/moduleCode" },
+        "status": { "const": "ACTIVE" },
+        "instructorRef": { "$ref": "#/$defs/personRef" },
+        "taAssignments": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/taAssignment" }
+        },
+        "practiceSections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/practiceSection" }
+        },
+        "sourceCoverage": { "const": ["TA_ROSTER", "PRACTICE_GROUPING"] }
+      }
+    },
+    "referenceSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classCode",
+        "sourceLabel",
+        "canonicalClassLabel",
+        "moduleCode",
+        "status",
+        "instructorRef",
+        "taAssignments",
+        "practiceSections",
+        "sourceCoverage",
+        "note"
+      ],
+      "properties": {
+        "classCode": { "type": "string", "pattern": "^(2[1-9]|[3-9][0-9])$" },
+        "sourceLabel": { "type": "string", "minLength": 1 },
+        "canonicalClassLabel": {
+          "type": "string",
+          "pattern": "^C(2[1-9]|[3-9][0-9])$"
+        },
+        "moduleCode": { "type": "null" },
+        "status": { "const": "REFERENCE_ONLY_PENDING_CONFIRMATION" },
+        "instructorRef": { "$ref": "#/$defs/personRef" },
+        "taAssignments": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/taAssignment" }
+        },
+        "practiceSections": { "const": [] },
+        "sourceCoverage": { "const": ["TA_ROSTER"] },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

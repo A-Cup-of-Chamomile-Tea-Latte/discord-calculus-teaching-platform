@@ -3,48 +3,55 @@ import type { CaseStatus } from "./case-adapter";
 export type ClosureSource = "MANUAL" | "AUTO";
 
 export interface ClosurePolicy {
-  temporaryCloseAfterDays: number;
-  automaticCloseAfterDays: number;
+  idleAfterHours: number;
+  autoCloseAfterIdleHours: number;
 }
 
 export interface ClosureState {
   status: CaseStatus;
-  lastUpdateAt: string;
-  lastReadAt: string | null;
+  lastActivityAt: string;
+  lastTeachingResponseAt: string | null;
+  idleAt: string | null;
   closureSource: ClosureSource | null;
   closedAt: string | null;
   reopenedAt: string | null;
 }
 
 export const DEFAULT_CLOSURE_POLICY: Readonly<ClosurePolicy> = {
-  temporaryCloseAfterDays: 3,
-  automaticCloseAfterDays: 7,
+  idleAfterHours: 48,
+  autoCloseAfterIdleHours: 48,
 };
 
-const DAY_MS = 86_400_000;
+const HOUR_MS = 3_600_000;
 
 function assertPolicy(policy: ClosurePolicy): void {
   if (
-    !Number.isFinite(policy.temporaryCloseAfterDays) ||
-    !Number.isFinite(policy.automaticCloseAfterDays) ||
-    policy.temporaryCloseAfterDays <= 0 ||
-    policy.automaticCloseAfterDays <= policy.temporaryCloseAfterDays
+    !Number.isFinite(policy.idleAfterHours) ||
+    !Number.isFinite(policy.autoCloseAfterIdleHours) ||
+    policy.idleAfterHours <= 0 ||
+    policy.autoCloseAfterIdleHours <= 0
   ) {
     throw new Error("INVALID_CLOSURE_POLICY");
   }
 }
 
-function elapsedDays(from: string, to: string): number {
+function elapsedHours(from: string, to: string): number {
   const elapsed = new Date(to).getTime() - new Date(from).getTime();
   if (!Number.isFinite(elapsed)) throw new Error("INVALID_CLOSURE_TIMESTAMP");
-  return elapsed / DAY_MS;
+  return elapsed / HOUR_MS;
 }
 
-export function manualClose(state: ClosureState, at: string): ClosureState {
+export function manualClose(
+  state: ClosureState,
+  at: string,
+  actor: { isResponsibleStaff: boolean },
+): ClosureState {
+  if (!actor.isResponsibleStaff) throw new Error("MANUAL_CLOSE_NOT_ALLOWED");
   return {
     ...state,
     status: "CLOSED",
-    lastUpdateAt: at,
+    lastActivityAt: at,
+    idleAt: null,
     closureSource: "MANUAL",
     closedAt: at,
   };
@@ -56,28 +63,29 @@ export function applyAutomaticClosure(
   policy: ClosurePolicy = DEFAULT_CLOSURE_POLICY,
 ): ClosureState {
   assertPolicy(policy);
-  const inactiveDays = elapsedDays(state.lastUpdateAt, now);
 
   if (
-    state.status === "ANSWERED" &&
-    state.lastReadAt !== null &&
-    inactiveDays >= policy.temporaryCloseAfterDays
+    state.status === "TRACKED" &&
+    state.lastTeachingResponseAt !== null &&
+    elapsedHours(state.lastTeachingResponseAt, now) >= policy.idleAfterHours
   ) {
     return {
       ...state,
-      status: "TEMPORARILY_CLOSED",
-      closureSource: "AUTO",
-      closedAt: now,
+      status: "IDLE",
+      idleAt: now,
+      closureSource: null,
+      closedAt: null,
     };
   }
 
   if (
-    state.status === "TEMPORARILY_CLOSED" &&
-    inactiveDays >= policy.automaticCloseAfterDays
+    state.status === "IDLE" &&
+    state.idleAt !== null &&
+    elapsedHours(state.idleAt, now) >= policy.autoCloseAfterIdleHours
   ) {
     return {
       ...state,
-      status: "CLOSED",
+      status: "AUTO_CLOSED",
       closureSource: "AUTO",
       closedAt: now,
     };
@@ -90,15 +98,17 @@ export function recordNewActivity(
   state: ClosureState,
   at: string,
 ): ClosureState {
-  if (!["TEMPORARILY_CLOSED", "CLOSED"].includes(state.status)) {
-    return { ...state, lastUpdateAt: at };
+  const wasClosed = state.status === "CLOSED" || state.status === "AUTO_CLOSED";
+  if (state.status === "OPEN" || state.status === "TRACKED") {
+    return { ...state, lastActivityAt: at };
   }
   return {
     ...state,
-    status: "REOPENED",
-    lastUpdateAt: at,
+    status: "TRACKED",
+    lastActivityAt: at,
+    idleAt: null,
     closureSource: null,
     closedAt: null,
-    reopenedAt: at,
+    reopenedAt: wasClosed ? at : state.reopenedAt,
   };
 }

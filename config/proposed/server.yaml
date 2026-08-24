@@ -102,8 +102,33 @@
     "PROFESSOR_STAFF",
     "ADMINISTRATOR"
   ],
-  "modules": ["M1", "M2", "M3", "M4"],
-  "classModuleMapping": { "status": "PENDING_AUGUST_ROSTER", "entries": [] },
+  "modules": [
+    "M1",
+    "M2",
+    "M3",
+    "M4"
+  ],
+  "classModuleMapping": {
+    "status": "APPROVED",
+    "entries": [
+      { "classCode": "01", "moduleCode": "M1" },
+      { "classCode": "02", "moduleCode": "M1" },
+      { "classCode": "03", "moduleCode": "M1" },
+      { "classCode": "04", "moduleCode": "M1" },
+      { "classCode": "05", "moduleCode": "M2" },
+      { "classCode": "06", "moduleCode": "M2" },
+      { "classCode": "07", "moduleCode": "M2" },
+      { "classCode": "08", "moduleCode": "M2" },
+      { "classCode": "09", "moduleCode": "M2" },
+      { "classCode": "10", "moduleCode": "M3" },
+      { "classCode": "11", "moduleCode": "M3" },
+      { "classCode": "12", "moduleCode": "M3" },
+      { "classCode": "13", "moduleCode": "M3" },
+      { "classCode": "14", "moduleCode": "M4" },
+      { "classCode": "15", "moduleCode": "M4" },
+      { "classCode": "16", "moduleCode": "M4" }
+    ]
+  },
   "nicknameRules": {
     "modes": ["DISCORD_IDENTITY", "STUDENT_NNMMM", "GUEST_NNMMM"],
     "studentPattern": "Student_{classCode}{sequence:03d}",

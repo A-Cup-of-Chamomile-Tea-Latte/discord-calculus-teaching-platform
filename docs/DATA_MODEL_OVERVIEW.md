@@ -25,22 +25,22 @@ erDiagram
 
 ## 主要 record
 
-| Record             | 用途                                             | 重要邊界                                                                     |
-| ------------------ | ------------------------------------------------ | ---------------------------------------------------------------------------- |
-| `User`             | 內部使用者關聯點                                 | 不將顯示名作為關聯主鍵                                                       |
-| `VerifiedEmail`    | 信箱控制驗證                                     | 機構信箱、聯絡信箱與課程 membership 不可混同                                 |
-| `DiscordAccount`   | Discord OAuth/binding 狀態                       | OAuth 不等於課程資格證明                                                     |
-| `CourseMembership` | 班別、狀態、`nnmmm` course alias                 | alias 不隱藏 Discord 全域 profile                                            |
-| `Case`             | 一個可追蹤的提問/求助                            | status 只有 `OPEN`、`WAITING_FOR_STUDENT`、`ANSWERED`、`ESCALATED`、`CLOSED` |
-| `CaseIdMapping`    | public case number 與 internal UUID 的受保護映射 | 不得出現在 public projection；兩欄皆須 unique                                |
-| `CaseMessage`      | 案件中的單則訊息                                 | 保留 timezone、edit、parent reply、source 與 attachment metadata             |
-| `Consent`          | account default 或 per-message analysis override | 不等於公開、模型訓練或自動評分同意                                           |
-| `ActivationCode`   | 單次、限時、可稽核的例外啟用 nonce               | 儲存 verifier/hash，不儲存或回傳明文                                         |
-| `ExportManifest`   | 一次明確 dump/follow 的索引與 hashes             | Private Support 內容預設不得匯出                                             |
-| `AuditEvent`       | 最少必要事件紀錄                                 | 不得以 arbitrary metadata 儲存內容/secrets                                   |
-| `ThreadExport`     | Task 26 raw selected-thread package              | 含 internal/Discord IDs，只限 Git-ignored authorized local area              |
-| `AttachmentIndex`  | 附件 metadata 索引                               | 不包 CDN URL，不下載 binary                                                  |
-| `SanitizedThread`  | 同意過濾與 case-local pseudonym package          | 不宣稱不可逆匿名，必須人工複核                                               |
+| Record             | 用途                                             | 重要邊界                                                                          |
+| ------------------ | ------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `User`             | 內部使用者關聯點                                 | 不將顯示名作為關聯主鍵                                                            |
+| `VerifiedEmail`    | 信箱控制驗證                                     | 機構信箱、聯絡信箱與課程 membership 不可混同                                      |
+| `DiscordAccount`   | Discord OAuth/binding 狀態                       | OAuth 不等於課程資格證明                                                          |
+| `CourseMembership` | 班別、狀態、`nnmmm` course alias                 | alias 不隱藏 Discord 全域 profile                                                 |
+| `Case`             | 一個可追蹤的提問/求助                            | 持久狀態只有 `OPEN`、`TRACKED`、`IDLE`、`CLOSED`、`AUTO_CLOSED`；舊值由相容層轉換 |
+| `CaseIdMapping`    | public case number 與 internal UUID 的受保護映射 | 不得出現在 public projection；兩欄皆須 unique                                     |
+| `CaseMessage`      | 案件中的單則訊息                                 | 保留 timezone、edit、parent reply、source 與 attachment metadata                  |
+| `Consent`          | account default 或 per-message analysis override | 不等於公開、模型訓練或自動評分同意                                                |
+| `ActivationCode`   | 單次、限時、可稽核的例外啟用 nonce               | 儲存 verifier/hash，不儲存或回傳明文                                              |
+| `ExportManifest`   | 一次明確 dump/follow 的索引與 hashes             | Private Support 內容預設不得匯出                                                  |
+| `AuditEvent`       | 最少必要事件紀錄                                 | 不得以 arbitrary metadata 儲存內容/secrets                                        |
+| `ThreadExport`     | Task 26 raw selected-thread package              | 含 internal/Discord IDs，只限 Git-ignored authorized local area                   |
+| `AttachmentIndex`  | 附件 metadata 索引                               | 不包 CDN URL，不下載 binary                                                       |
+| `SanitizedThread`  | 同意過濾與 case-local pseudonym package          | 不宣稱不可逆匿名，必須人工複核                                                    |
 
 ## 案件的三個正交維度
 

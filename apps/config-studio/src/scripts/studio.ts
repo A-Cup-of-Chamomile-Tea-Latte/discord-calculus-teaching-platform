@@ -184,19 +184,23 @@ byId<HTMLButtonElement>("add-channel").addEventListener("click", () => {
 });
 
 const titleInput = byId<HTMLInputElement>("title-input");
-const titleModule = byId<HTMLSelectElement>("title-module");
+const titleClass = byId<HTMLSelectElement>("title-class");
+const titleModule = byId<HTMLInputElement>("title-module");
 const titleTag = byId<HTMLInputElement>("title-tag");
 const titlePreview = byId<HTMLElement>("title-preview");
 function updateTitlePreview(): void {
+  titleModule.value = titleClass.selectedOptions[0]?.dataset.moduleCode ?? "M1";
   titlePreview.textContent = canonicalTitlePreview(
     titleModule.value,
+    titleClass.value,
     titleTag.value,
     titleInput.value,
   );
 }
-[titleInput, titleModule, titleTag].forEach((element) =>
+[titleInput, titleClass, titleTag].forEach((element) =>
   element.addEventListener("input", updateTitlePreview),
 );
+updateTitlePreview();
 
 byId<HTMLInputElement>("import-file").addEventListener(
   "change",

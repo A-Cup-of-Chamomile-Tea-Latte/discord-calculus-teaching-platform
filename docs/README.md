@@ -4,16 +4,20 @@
 
 ## 先讀哪裡
 
-| 讀者／目的 | 建議入口 |
-| --- | --- |
-| 目前範圍、完成度與 production gate | [實作狀態](IMPLEMENTATION_STATUS.md) → [下一步](NEXT_STEPS.md) |
-| 本機安裝、測試與 fixture demo | [本機開發](architecture/DEVELOPMENT.md) → [Fixture demo](FIXTURE_DEMO.md) |
-| 目前有效的設定與環境變數 | [設定總覽](CONFIGURATION.md) |
-| 架構與資料邊界 | [架構索引](architecture/README.md) → [資料模型](DATA_MODEL_OVERVIEW.md) |
-| 固定與未決決策 | [ADR／決策索引](decisions/README.md) |
-| 操作員的 dump、follow、匿名化與 import | [操作員流程](OPERATOR_WORKFLOW.md) |
-| 學生／助教說明 | [學生快速指南](guides/STUDENT_QUICK_GUIDE.md)／[助教快速指南](guides/TA_QUICK_GUIDE.md) |
-| 任務實作證據 | [任務報告索引](reports/README.md) 與 [`CODEX_TASKS/README.md`](../CODEX_TASKS/README.md) |
+| 讀者／目的                             | 建議入口                                                                                 |
+| -------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 目前範圍、完成度與 production gate     | [實作狀態](IMPLEMENTATION_STATUS.md) → [下一步](NEXT_STEPS.md)                           |
+| 本機安裝、測試與 fixture demo          | [本機開發](architecture/DEVELOPMENT.md) → [Fixture demo](FIXTURE_DEMO.md)                |
+| 目前有效的設定與環境變數               | [設定總覽](CONFIGURATION.md)                                                             |
+| 學期、班別與 TA 配置                   | [長期課程營運規格](specs/ACADEMIC_TERM_CLASS_TA_SPEC.md)                                 |
+| 115-1 正式化前準備                     | [準備度與停止條件](specs/115-1_FORMALIZATION_READINESS.md)                               |
+| 各班 TA 申請班級專屬空間               | [依需求開設與權限模板](specs/CLASS_SPACE_EXTENSION.md)                                   |
+| Portal 公開託管                        | [GitHub Pages 準備度與發布閘門](specs/PORTAL_HOSTING_READINESS.md)                       |
+| 架構與資料邊界                         | [架構索引](architecture/README.md) → [資料模型](DATA_MODEL_OVERVIEW.md)                  |
+| 固定與未決決策                         | [ADR／決策索引](decisions/README.md)                                                     |
+| 操作員的 dump、follow、匿名化與 import | [操作員流程](OPERATOR_WORKFLOW.md)                                                       |
+| 學生／助教說明                         | [學生快速指南](guides/STUDENT_QUICK_GUIDE.md)／[助教快速指南](guides/TA_QUICK_GUIDE.md)  |
+| 任務實作證據                           | [任務報告索引](reports/README.md) 與 [`CODEX_TASKS/README.md`](../CODEX_TASKS/README.md) |
 
 ## 文件分層
 
@@ -27,4 +31,3 @@
 2. 已完成的 task 在 task 檔標題以 `[Done]` 標示；完整證據仍以同編號 report 為準。
 3. 新的現況說明應更新在 Current 文件，並連回相關 report／ADR；不要把新的狀態塞進舊報告。
 4. `.env`、token、secret、deployment ID、真實資料與 raw export 不得寫入此目錄。設定只記錄變數名稱、預設與安全邊界。
-

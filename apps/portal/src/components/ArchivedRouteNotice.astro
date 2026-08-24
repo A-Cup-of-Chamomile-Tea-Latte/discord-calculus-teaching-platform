@@ -1,0 +1,37 @@
+---
+import { withBase } from "../lib/paths";
+
+interface Props {
+  formerTitle: string;
+  replacement: string;
+}
+
+const { formerTitle, replacement } = Astro.props;
+---
+
+<section class="archive-notice">
+  <p class="eyebrow">已移出現行架構</p>
+  <h1>{formerTitle}</h1>
+  <p>{replacement}</p>
+  <p>
+    這個路由只留在 reviewer build
+    供追溯，不會進入公開網站，也不得作為新文案或新功能的依據。
+  </p>
+  <div class="cluster">
+    <a class="button" href={withBase("guide/")}>前往現行使用指南</a>
+    <a class="button button--secondary" href={withBase("access/")}
+      >返回內部工作區</a
+    >
+  </div>
+</section>
+
+<style>
+  .archive-notice {
+    max-width: var(--reading-width);
+    margin: var(--space-7) auto;
+    padding: var(--space-6);
+    border: var(--border-thin) dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-muted);
+  }
+</style>

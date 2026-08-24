@@ -9,7 +9,7 @@
     "authenticationFactor": false
   },
   "canonicalTitle": {
-    "pattern": "[{module}][{mainTag}] {userTitle}",
+    "pattern": "[{module} | C{classCode}][{mainTag}] {userTitle}",
     "modules": [
       "M1",
       "M2",

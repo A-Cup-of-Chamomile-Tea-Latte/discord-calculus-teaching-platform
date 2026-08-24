@@ -13,4 +13,7 @@ export default defineConfig({
   trailingSlash: "always",
   base,
   site,
+  devToolbar: {
+    enabled: false,
+  },
 });

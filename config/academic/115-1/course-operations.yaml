@@ -1,0 +1,1331 @@
+{
+  "schemaVersion": "1.0",
+  "status": "SOURCE_CONFIRMED",
+  "term": {
+    "termCode": "115-1",
+    "calendarSystem": "MINGUO",
+    "academicYearRoc": 115,
+    "semester": 1,
+    "displayName": "115學年度第1學期"
+  },
+  "sourceReceiptPath": "config/academic/115-1/source-receipts.json",
+  "localOperationalDirectoryPath": ".local/course-data/115-1/private-directory.json",
+  "groupingPolicy": {
+    "defaultRule": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+    "selfAllocatedClassRosterDueWeek": 3,
+    "sourceNote": "Classes using self-allocation must return group rosters after the third teaching week; no class is marked self-allocated in the supplied grouping table."
+  },
+  "registrationPolicy": {
+    "classSelectionMode": "USER_SELECTS_DURING_WEB_REGISTRATION",
+    "activeClassCodesSource": "SECTIONS",
+    "moduleDerivation": "CLASS_MODULE_MAPPING",
+    "discordMembershipMode": "BROAD_COURSE_ROLE_PLUS_ALLOWLISTED_CLASS_ROLE",
+    "moduleRepresentation": "BACKEND_ATTRIBUTE_ONLY",
+    "optionalClassCodeStart": "21"
+  },
+  "modules": [
+    {
+      "moduleCode": "M1",
+      "displayName": "理工電資",
+      "classCodes": [
+        "01",
+        "02",
+        "03",
+        "04"
+      ]
+    },
+    {
+      "moduleCode": "M2",
+      "displayName": "土木機電",
+      "classCodes": [
+        "05",
+        "06",
+        "07",
+        "08",
+        "09"
+      ]
+    },
+    {
+      "moduleCode": "M3",
+      "displayName": "經濟商管",
+      "classCodes": [
+        "10",
+        "11",
+        "12",
+        "13"
+      ]
+    },
+    {
+      "moduleCode": "M4",
+      "displayName": "農學院",
+      "classCodes": [
+        "14",
+        "15",
+        "16"
+      ]
+    }
+  ],
+  "classModuleMapping": {
+    "status": "APPROVED",
+    "entries": [
+      {
+        "classCode": "01",
+        "moduleCode": "M1"
+      },
+      {
+        "classCode": "02",
+        "moduleCode": "M1"
+      },
+      {
+        "classCode": "03",
+        "moduleCode": "M1"
+      },
+      {
+        "classCode": "04",
+        "moduleCode": "M1"
+      },
+      {
+        "classCode": "05",
+        "moduleCode": "M2"
+      },
+      {
+        "classCode": "06",
+        "moduleCode": "M2"
+      },
+      {
+        "classCode": "07",
+        "moduleCode": "M2"
+      },
+      {
+        "classCode": "08",
+        "moduleCode": "M2"
+      },
+      {
+        "classCode": "09",
+        "moduleCode": "M2"
+      },
+      {
+        "classCode": "10",
+        "moduleCode": "M3"
+      },
+      {
+        "classCode": "11",
+        "moduleCode": "M3"
+      },
+      {
+        "classCode": "12",
+        "moduleCode": "M3"
+      },
+      {
+        "classCode": "13",
+        "moduleCode": "M3"
+      },
+      {
+        "classCode": "14",
+        "moduleCode": "M4"
+      },
+      {
+        "classCode": "15",
+        "moduleCode": "M4"
+      },
+      {
+        "classCode": "16",
+        "moduleCode": "M4"
+      }
+    ]
+  },
+  "taCategoryCodes": [
+    {
+      "code": "L",
+      "meaning": "TA_LECTURER",
+      "discordRoleKeys": [
+        "ta_lecturer"
+      ]
+    },
+    {
+      "code": "G",
+      "meaning": "TA_GRADER",
+      "discordRoleKeys": [
+        "ta_grader"
+      ]
+    },
+    {
+      "code": "G_L",
+      "meaning": "TA_LECTURER_AND_TA_GRADER",
+      "discordRoleKeys": [
+        "ta_lecturer",
+        "ta_grader"
+      ]
+    },
+    {
+      "code": "UNSPECIFIED",
+      "meaning": "SOURCE_BLANK",
+      "discordRoleKeys": []
+    }
+  ],
+  "peopleDirectory": {
+    "instructors": [
+      {
+        "instructorRef": "instructor-1151-01",
+        "publicDisplayName": "齊震宇"
+      },
+      {
+        "instructorRef": "instructor-1151-02",
+        "publicDisplayName": "傅斯緯"
+      },
+      {
+        "instructorRef": "instructor-1151-03",
+        "publicDisplayName": "蔡國榮"
+      },
+      {
+        "instructorRef": "instructor-1151-04",
+        "publicDisplayName": "陳子安"
+      },
+      {
+        "instructorRef": "instructor-1151-05",
+        "publicDisplayName": "陳彥宇"
+      },
+      {
+        "instructorRef": "instructor-1151-06",
+        "publicDisplayName": "王舜傑"
+      },
+      {
+        "instructorRef": "instructor-1151-07",
+        "publicDisplayName": "高尉庭"
+      },
+      {
+        "instructorRef": "instructor-1151-08",
+        "publicDisplayName": "葛恩誠"
+      },
+      {
+        "instructorRef": "instructor-1151-09",
+        "publicDisplayName": "崔茂培"
+      }
+    ],
+    "teachingAssistants": [
+      {
+        "taRef": "ta-1151-001",
+        "publicDisplayName": "林冠諺"
+      },
+      {
+        "taRef": "ta-1151-002",
+        "publicDisplayName": "莊鎰華"
+      },
+      {
+        "taRef": "ta-1151-003",
+        "publicDisplayName": "李坦儒"
+      },
+      {
+        "taRef": "ta-1151-004",
+        "publicDisplayName": "陳冠文"
+      },
+      {
+        "taRef": "ta-1151-005",
+        "publicDisplayName": "張建銘"
+      },
+      {
+        "taRef": "ta-1151-006",
+        "publicDisplayName": "黃梃家"
+      },
+      {
+        "taRef": "ta-1151-007",
+        "publicDisplayName": "楊宗三"
+      },
+      {
+        "taRef": "ta-1151-008",
+        "publicDisplayName": "趙嫺"
+      },
+      {
+        "taRef": "ta-1151-009",
+        "publicDisplayName": "胡允升"
+      },
+      {
+        "taRef": "ta-1151-010",
+        "publicDisplayName": "鄭博允"
+      },
+      {
+        "taRef": "ta-1151-011",
+        "publicDisplayName": "朱筠濠"
+      },
+      {
+        "taRef": "ta-1151-012",
+        "publicDisplayName": "許芷榕"
+      },
+      {
+        "taRef": "ta-1151-013",
+        "publicDisplayName": "林育祥"
+      },
+      {
+        "taRef": "ta-1151-014",
+        "publicDisplayName": "何朗軒"
+      },
+      {
+        "taRef": "ta-1151-015",
+        "publicDisplayName": "龍建治"
+      },
+      {
+        "taRef": "ta-1151-016",
+        "publicDisplayName": "許承瀚"
+      },
+      {
+        "taRef": "ta-1151-017",
+        "publicDisplayName": "魏志宇"
+      },
+      {
+        "taRef": "ta-1151-018",
+        "publicDisplayName": "林牧謙"
+      },
+      {
+        "taRef": "ta-1151-019",
+        "publicDisplayName": "陳俊廷"
+      },
+      {
+        "taRef": "ta-1151-020",
+        "publicDisplayName": "蔡期昌"
+      },
+      {
+        "taRef": "ta-1151-021",
+        "publicDisplayName": "劉軒廷"
+      },
+      {
+        "taRef": "ta-1151-022",
+        "publicDisplayName": "馮冠豪"
+      },
+      {
+        "taRef": "ta-1151-023",
+        "publicDisplayName": "張凱崴"
+      },
+      {
+        "taRef": "ta-1151-024",
+        "publicDisplayName": "鄭宇辰"
+      },
+      {
+        "taRef": "ta-1151-025",
+        "publicDisplayName": "陳璿吉"
+      },
+      {
+        "taRef": "ta-1151-026",
+        "publicDisplayName": "戴伃岑"
+      },
+      {
+        "taRef": "ta-1151-027",
+        "publicDisplayName": "陳陞"
+      },
+      {
+        "taRef": "ta-1151-028",
+        "publicDisplayName": "吳宇傑"
+      },
+      {
+        "taRef": "ta-1151-029",
+        "publicDisplayName": "王綸緯"
+      },
+      {
+        "taRef": "ta-1151-030",
+        "publicDisplayName": "林昀臻"
+      },
+      {
+        "taRef": "ta-1151-031",
+        "publicDisplayName": "洪德朗"
+      },
+      {
+        "taRef": "ta-1151-032",
+        "publicDisplayName": "易靖杰"
+      },
+      {
+        "taRef": "ta-1151-033",
+        "publicDisplayName": "陳輄"
+      },
+      {
+        "taRef": "ta-1151-034",
+        "publicDisplayName": "王仁牧"
+      },
+      {
+        "taRef": "ta-1151-035",
+        "publicDisplayName": "李祐頡"
+      },
+      {
+        "taRef": "ta-1151-036",
+        "publicDisplayName": "方陳慶"
+      },
+      {
+        "taRef": "ta-1151-037",
+        "publicDisplayName": "莊子期"
+      },
+      {
+        "taRef": "ta-1151-038",
+        "publicDisplayName": "陳品璇"
+      },
+      {
+        "taRef": "ta-1151-039",
+        "publicDisplayName": "陳冠宇"
+      },
+      {
+        "taRef": "ta-1151-040",
+        "publicDisplayName": "許庭瑋"
+      },
+      {
+        "taRef": "ta-1151-041",
+        "publicDisplayName": "周沛宏"
+      },
+      {
+        "taRef": "ta-1151-042",
+        "publicDisplayName": "蔡誼勳"
+      },
+      {
+        "taRef": "ta-1151-043",
+        "publicDisplayName": "劉重言"
+      },
+      {
+        "taRef": "ta-1151-044",
+        "publicDisplayName": "王彥宗"
+      },
+      {
+        "taRef": "ta-1151-045",
+        "publicDisplayName": "秦茂杰"
+      },
+      {
+        "taRef": "ta-1151-046",
+        "publicDisplayName": "李俊毅"
+      },
+      {
+        "taRef": "ta-1151-047",
+        "publicDisplayName": "陳奕叡"
+      },
+      {
+        "taRef": "ta-1151-048",
+        "publicDisplayName": "李絜綾"
+      },
+      {
+        "taRef": "ta-1151-049",
+        "publicDisplayName": "區正鋒"
+      },
+      {
+        "taRef": "ta-1151-050",
+        "publicDisplayName": "黃勤元"
+      },
+      {
+        "taRef": "ta-1151-051",
+        "publicDisplayName": "張琪芊"
+      },
+      {
+        "taRef": "ta-1151-052",
+        "publicDisplayName": "黃冠庭"
+      },
+      {
+        "taRef": "ta-1151-053",
+        "publicDisplayName": "倪哲凱"
+      },
+      {
+        "taRef": "ta-1151-054",
+        "publicDisplayName": "謝沛蓉"
+      },
+      {
+        "taRef": "ta-1151-055",
+        "publicDisplayName": "吳昀祐"
+      },
+      {
+        "taRef": "ta-1151-056",
+        "publicDisplayName": "林平浩"
+      },
+      {
+        "taRef": "ta-1151-057",
+        "publicDisplayName": "陳立悠"
+      },
+      {
+        "taRef": "ta-1151-058",
+        "publicDisplayName": "王思翰"
+      },
+      {
+        "taRef": "ta-1151-059",
+        "publicDisplayName": "趙樂恩"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "classCode": "01",
+      "moduleCode": "M1",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-01",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-001",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-002",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-003",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-004",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "01-remainder-1",
+          "taRef": "ta-1151-001",
+          "room": "普102",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "01-remainder-0",
+          "taRef": "ta-1151-002",
+          "room": "普204",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模01",
+      "canonicalClassLabel": "C01"
+    },
+    {
+      "classCode": "02",
+      "moduleCode": "M1",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-02",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-005",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-006",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-007",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-008",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "02-remainder-1",
+          "taRef": "ta-1151-005",
+          "room": "新102",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "02-remainder-0",
+          "taRef": "ta-1151-006",
+          "room": "新202",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模02",
+      "canonicalClassLabel": "C02"
+    },
+    {
+      "classCode": "03",
+      "moduleCode": "M1",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-03",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-009",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-010",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-011",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-012",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "03-remainder-1",
+          "taRef": "ta-1151-009",
+          "room": "新203",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "03-remainder-0",
+          "taRef": "ta-1151-010",
+          "room": "新204",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模03",
+      "canonicalClassLabel": "C03"
+    },
+    {
+      "classCode": "04",
+      "moduleCode": "M1",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-01",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-013",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-003",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "04-all",
+          "taRef": "ta-1151-013",
+          "room": "新303",
+          "assignmentRule": {
+            "kind": "ALL_STUDENTS"
+          },
+          "sourceOrder": 1
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模04",
+      "canonicalClassLabel": "C04"
+    },
+    {
+      "classCode": "05",
+      "moduleCode": "M2",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-04",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-014",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-015",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-016",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-017",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-018",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "05-remainder-1",
+          "taRef": "ta-1151-014",
+          "room": "共301",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "05-remainder-0",
+          "taRef": "ta-1151-015",
+          "room": "共105",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模05",
+      "canonicalClassLabel": "C05"
+    },
+    {
+      "classCode": "06",
+      "moduleCode": "M2",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-05",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-019",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-020",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-021",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-022",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-023",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "06-remainder-1",
+          "taRef": "ta-1151-019",
+          "room": "普102",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "06-remainder-0",
+          "taRef": "ta-1151-020",
+          "room": "普203",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模06",
+      "canonicalClassLabel": "C06"
+    },
+    {
+      "classCode": "07",
+      "moduleCode": "M2",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-02",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-024",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-025",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-026",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-027",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-028",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "07-remainder-1",
+          "taRef": "ta-1151-024",
+          "room": "新102",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "07-remainder-0",
+          "taRef": "ta-1151-025",
+          "room": "新303",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模07",
+      "canonicalClassLabel": "C07"
+    },
+    {
+      "classCode": "08",
+      "moduleCode": "M2",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-04",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-024",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-013",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-029",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "08-remainder-1",
+          "taRef": "ta-1151-024",
+          "room": "新203",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "08-remainder-0",
+          "taRef": "ta-1151-013",
+          "room": "新302",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模08",
+      "canonicalClassLabel": "C08"
+    },
+    {
+      "classCode": "09",
+      "moduleCode": "M2",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-06",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-030",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-031",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-016",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-014",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-032",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-033",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "09-remainder-1",
+          "taRef": "ta-1151-030",
+          "room": "普101",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "09-remainder-0",
+          "taRef": "ta-1151-031",
+          "room": "普302",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模09",
+      "canonicalClassLabel": "C09"
+    },
+    {
+      "classCode": "10",
+      "moduleCode": "M3",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-04",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-034",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-010",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-035",
+          "categoryCode": "G_L"
+        },
+        {
+          "taRef": "ta-1151-006",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-036",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-037",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "10-remainder-1",
+          "taRef": "ta-1151-034",
+          "room": "共101",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "10-remainder-0",
+          "taRef": "ta-1151-010",
+          "room": "共104",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模10",
+      "canonicalClassLabel": "C10"
+    },
+    {
+      "classCode": "11",
+      "moduleCode": "M3",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-05",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-019",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-031",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-038",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-039",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-040",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "11-remainder-1",
+          "taRef": "ta-1151-019",
+          "room": "共201",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "11-remainder-0",
+          "taRef": "ta-1151-031",
+          "room": "共204",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模11",
+      "canonicalClassLabel": "C11"
+    },
+    {
+      "classCode": "12",
+      "moduleCode": "M3",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-02",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-015",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-025",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-041",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-042",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-043",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "12-remainder-1",
+          "taRef": "ta-1151-015",
+          "room": "普102",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "12-remainder-0",
+          "taRef": "ta-1151-025",
+          "room": "普203",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模12",
+      "canonicalClassLabel": "C12"
+    },
+    {
+      "classCode": "13",
+      "moduleCode": "M3",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-07",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-044",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-045",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-017",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-018",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-046",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "13-remainder-1",
+          "taRef": "ta-1151-044",
+          "room": "普103",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 1
+          },
+          "sourceOrder": 1
+        },
+        {
+          "practiceSectionKey": "13-remainder-0",
+          "taRef": "ta-1151-045",
+          "room": "普201",
+          "assignmentRule": {
+            "kind": "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT",
+            "remainder": 0
+          },
+          "sourceOrder": 2
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模13",
+      "canonicalClassLabel": "C13"
+    },
+    {
+      "classCode": "14",
+      "moduleCode": "M4",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-05",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-047",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-039",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-040",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-048",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-022",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-049",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "14-all",
+          "taRef": "ta-1151-047",
+          "room": "普101",
+          "assignmentRule": {
+            "kind": "ALL_STUDENTS"
+          },
+          "sourceOrder": 1
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模14",
+      "canonicalClassLabel": "C14"
+    },
+    {
+      "classCode": "15",
+      "moduleCode": "M4",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-08",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-045",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-050",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-051",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-052",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-037",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-023",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "15-all",
+          "taRef": "ta-1151-045",
+          "room": "普102",
+          "assignmentRule": {
+            "kind": "ALL_STUDENTS"
+          },
+          "sourceOrder": 1
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模15",
+      "canonicalClassLabel": "C15"
+    },
+    {
+      "classCode": "16",
+      "moduleCode": "M4",
+      "status": "ACTIVE",
+      "instructorRef": "instructor-1151-03",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-041",
+          "categoryCode": "L"
+        },
+        {
+          "taRef": "ta-1151-053",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-054",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-055",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-056",
+          "categoryCode": "G"
+        },
+        {
+          "taRef": "ta-1151-057",
+          "categoryCode": "G"
+        }
+      ],
+      "practiceSections": [
+        {
+          "practiceSectionKey": "16-all",
+          "taRef": "ta-1151-041",
+          "room": "普103",
+          "assignmentRule": {
+            "kind": "ALL_STUDENTS"
+          },
+          "sourceOrder": 1
+        }
+      ],
+      "sourceCoverage": [
+        "TA_ROSTER",
+        "PRACTICE_GROUPING"
+      ],
+      "sourceLabel": "模16",
+      "canonicalClassLabel": "C16"
+    }
+  ],
+  "referenceOnlySections": [
+    {
+      "classCode": "21",
+      "moduleCode": null,
+      "status": "REFERENCE_ONLY_PENDING_CONFIRMATION",
+      "instructorRef": "instructor-1151-09",
+      "taAssignments": [
+        {
+          "taRef": "ta-1151-058",
+          "categoryCode": "UNSPECIFIED"
+        },
+        {
+          "taRef": "ta-1151-002",
+          "categoryCode": "UNSPECIFIED"
+        },
+        {
+          "taRef": "ta-1151-059",
+          "categoryCode": "UNSPECIFIED"
+        }
+      ],
+      "practiceSections": [],
+      "sourceCoverage": [
+        "TA_ROSTER"
+      ],
+      "note": "One optional class in the TA roster source; absent from the practice grouping/classroom source. Reserved as the first C21+ extension and not offered during registration unless activated.",
+      "sourceLabel": "乙(醫)",
+      "canonicalClassLabel": "C21"
+    }
+  ],
+  "privacyBoundary": {
+    "trackedSpecContains": [
+      "OPAQUE_PERSON_REFS",
+      "PUBLIC_DISPLAY_NAMES",
+      "CLASS_STRUCTURE",
+      "ROOMS",
+      "ASSIGNMENT_RULES",
+      "PUBLIC_SOURCE_PDFS"
+    ],
+    "privateOnly": [
+      "ACADEMIC_IDS",
+      "PHONES",
+      "EMAILS",
+      "AFFILIATIONS"
+    ]
+  }
+}

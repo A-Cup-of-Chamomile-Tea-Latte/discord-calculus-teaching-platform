@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "apps/portal/**"
+      - "config/academic/**"
       - "fixtures/**"
       - "package.json"
       - "package-lock.json"
@@ -42,10 +43,10 @@ jobs:
         run: npm run check --workspace @calculus/portal
       - name: Test portal
         run: npm run test --workspace @calculus/portal
-      - name: Build project-site artifact
-        run: npm run build --workspace @calculus/portal
-      - name: Verify required pages and base-safe links
-        run: npm run verify:dist --workspace @calculus/portal -- "/${{ github.event.repository.name }}/"
+      - name: Build public project-site artifact
+        run: npm run build:public --workspace @calculus/portal
+      - name: Verify public allowlist and base-safe links
+        run: npm run verify:public --workspace @calculus/portal -- "/${{ github.event.repository.name }}/"
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:

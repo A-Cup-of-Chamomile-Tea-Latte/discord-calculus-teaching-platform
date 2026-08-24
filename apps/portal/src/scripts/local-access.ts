@@ -17,6 +17,7 @@ import {
 } from "../lib/local-access";
 
 const root = document.querySelector<HTMLElement>("[data-local-access]");
+const LOCAL_ACCESS_ARCHIVE_KEY = "calculus-local-access-archive-v1";
 
 if (root) {
   const required = <T extends Element>(selector: string): T => {
@@ -88,12 +89,12 @@ if (root) {
   root
     .querySelectorAll<HTMLElement>("[data-login-role-label]")
     .forEach((item) => {
-      item.textContent = expectedRole === "staff" ? "助教" : "管理員";
+      item.textContent = expectedRole === "staff" ? "助教／教師" : "系統管理員";
     });
   required<HTMLElement>("[data-login-message]").textContent =
     expectedRole === "admin"
-      ? "管理員本機預設：帳號 123，密碼 123。"
-      : "請使用管理員建立的助教帳號登入。";
+      ? "請使用第一位管理員或由其新增的系統管理員帳號登入。"
+      : "請使用系統管理員建立的助教／教師帳號登入。";
   root
     .querySelectorAll<HTMLAnchorElement>("[data-role-tab]")
     .forEach((item) => {
@@ -113,7 +114,8 @@ if (root) {
     root
       .querySelectorAll<HTMLElement>("[data-current-role]")
       .forEach((item) => {
-        item.textContent = session.role === "admin" ? "管理員" : "助教";
+        item.textContent =
+          session.role === "admin" ? "系統管理員" : "助教／教師";
       });
     const adminOnly = required<HTMLElement>("[data-admin-only]");
     adminOnly.hidden = session.role !== "admin";
@@ -121,7 +123,70 @@ if (root) {
 
   const existingSession = readSession();
   if (existingSession) renderAccountView(existingSession);
+  else if (store.accounts.length === 0) showView("bootstrap");
   else showView("login");
+
+  required<HTMLFormElement>("[data-bootstrap-form]").addEventListener(
+    "submit",
+    async (event) => {
+      event.preventDefault();
+      if (store.accounts.length !== 0) {
+        showView("login");
+        return;
+      }
+      const formElement = event.currentTarget as HTMLFormElement;
+      const form = new FormData(formElement);
+      const accountId = String(form.get("accountId") ?? "");
+      const password = String(form.get("password") ?? "");
+      const confirmation = String(form.get("passwordConfirmation") ?? "");
+      const policyError = passwordPolicyError(password, accountId);
+      if (!normalizeAccountId(accountId)) {
+        setMessage("[data-bootstrap-message]", "請輸入管理員帳號。");
+        return;
+      }
+      if (policyError) {
+        setMessage("[data-bootstrap-message]", policyError);
+        return;
+      }
+      if (password !== confirmation) {
+        setMessage("[data-bootstrap-message]", "兩次輸入的密碼不一致。");
+        return;
+      }
+      setMessage("[data-bootstrap-message]", "正在建立本機管理員…", "working");
+      const account = await createLocalAccount(
+        accountId,
+        "admin",
+        store.accountLookupSalt,
+        { password, mustChangePassword: false },
+      );
+      store.accounts.push(account);
+      saveStore(store);
+      formElement.reset();
+      setMessage(
+        "[data-login-message]",
+        "本機系統管理員已建立，請登入。",
+        "success",
+      );
+      showView("login");
+    },
+  );
+
+  required<HTMLButtonElement>("[data-reinitialize-access]").addEventListener(
+    "click",
+    () => {
+      const existing = localStorage.getItem(LOCAL_ACCESS_STORE_KEY);
+      if (existing) localStorage.setItem(LOCAL_ACCESS_ARCHIVE_KEY, existing);
+      sessionStorage.removeItem(LOCAL_ACCESS_SESSION_KEY);
+      store = createEmptyAccessStore();
+      saveStore(store);
+      setMessage(
+        "[data-bootstrap-message]",
+        "舊測試身份已移到這個瀏覽器的暫存區。現在可建立新的本機管理員。",
+        "success",
+      );
+      showView("bootstrap");
+    },
+  );
 
   required<HTMLFormElement>("[data-login-form]").addEventListener(
     "submit",
@@ -140,21 +205,6 @@ if (root) {
       const password = String(form.get("password") ?? "");
       const expected = String(form.get("expectedRole") ?? "admin");
       setMessage("[data-login-message]", "正在核對…", "working");
-      if (
-        store.accounts.length === 0 &&
-        normalizeAccountId(accountId) === "123" &&
-        password === "123" &&
-        expected === "admin"
-      ) {
-        const defaultAdmin = await createLocalAccount(
-          "123",
-          "admin",
-          store.accountLookupSalt,
-          { password: "123", mustChangePassword: false },
-        );
-        store.accounts.push(defaultAdmin);
-        saveStore(store);
-      }
       const accountHash = await hashAccountId(
         accountId,
         store.accountLookupSalt,

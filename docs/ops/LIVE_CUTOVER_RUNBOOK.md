@@ -13,7 +13,9 @@ DB rehearsal    PASS
 rollback        READY
 ```
 
-在使用者尚未回覆精確 `GO-LIVE-CUTOVER` 前，不停 Mac Bot、不搬 live DB、不啟動 remote production。
+在使用者尚未回覆精確 `GO-LIVE-CUTOVER` 前，不停 Mac Bot、不把 live DB 副本安裝成 remote
+production authority、不啟動 remote production。經另行明示授權，可先把一致性副本傳到隔離的
+owner-only staging 做 rehearsal；staging 副本不得成為 writer。
 
 ## Cutover
 
@@ -26,7 +28,7 @@ rollback        READY
 7. 固定啟動：course_assistant → health → dump_bot → health → data_bridge。
 8. 驗證舊 writer=0、remote process=預期數、systemd enabled、只有 remote 使用 production DB。
 9. 建立一筆 allowlisted Public smoke；不得建立真人 Private 資料。
-10. remote heartbeat 穩定後才啟用 bound GAS status digest；若授權仍是 Testing，先確認重授權責任人與失效處置。
+10. remote heartbeat 穩定後才啟用 bound GAS status digest；先確認 Production OAuth refresh 正常與失效處置。
 
 ## Rollback
 

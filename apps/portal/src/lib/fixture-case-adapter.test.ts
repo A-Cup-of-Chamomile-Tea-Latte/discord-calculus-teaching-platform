@@ -21,6 +21,24 @@ describe("FixtureCaseLookupAdapter", () => {
     expect(JSON.stringify(listed)).not.toContain("case_private_001");
   });
 
+  it("exposes only a reduced private status through the status lookup list", async () => {
+    const statuses = await adapter.listCaseStatuses();
+    const privateStatus = statuses.find(
+      (item) => item.caseType === "PRIVATE_SUPPORT",
+    );
+    expect(privateStatus).toEqual({
+      caseNumber: "C99-B4W9K6-0702-1500-P",
+      caseType: "PRIVATE_SUPPORT",
+      status: "OPEN",
+      updatedAt: "2026-07-02T15:00:00+08:00",
+      teachingTeamReplied: false,
+      discordDeepLink: null,
+    });
+    expect(JSON.stringify(privateStatus)).not.toMatch(
+      /title|message|attachment|author|analysis|discordMapping/i,
+    );
+  });
+
   it("returns a complete reduced projection with safe attachment markers", async () => {
     const result = await adapter.lookup("C01-7K4M2Q-0702-1000");
     expect(result.outcome).toBe("FOUND");

@@ -5,28 +5,86 @@ import { withBase } from "../../lib/paths";
 
 <BaseLayout
   title="內部登入"
-  description="本機助教與管理員工作區登入。"
+  description="本機助教、教師與系統管理員工作區登入。"
   currentPath="access"
 >
   <div class="access-shell shell" data-local-access>
     <header class="access-intro">
       <p class="eyebrow">內部工作區</p>
-      <h1>助教／管理員登入</h1>
-      <p>學生與一般訪客不需登入，可直接使用公開提問與案件查詢。</p>
+      <h1>教學審核者／系統管理員登入</h1>
+      <p>
+        助教與教師使用教學審核者身份；第一位本機管理員就是最高權限的系統管理員。
+        學生與一般訪客不需登入。
+      </p>
     </header>
+
+    <section class="access-roles" aria-labelledby="access-roles-title">
+      <h2 id="access-roles-title" class="visually-hidden">兩種內部權限</h2>
+      <article>
+        <p class="eyebrow">教學審核者</p>
+        <h3>助教／教師</h3>
+        <p>審核學生與訪客申請、查看教學團隊與系統狀態。</p>
+      </article>
+      <article>
+        <p class="eyebrow">最高本機權限</p>
+        <h3>系統管理員</h3>
+        <p>包含教學審核權限，並可新增審核者、處理例外、設定與可逆封存。</p>
+      </article>
+    </section>
+
+    <section class="access-card" data-access-view="bootstrap" hidden>
+      <div>
+        <p class="eyebrow">首次初始化</p>
+        <h2>建立第一位系統管理員</h2>
+        <p>
+          這個步驟只會在本機尚無帳號時出現。瀏覽器不保存明碼，只保存帳號摘要、salt
+          與 PBKDF2 密碼雜湊。
+        </p>
+      </div>
+      <form data-bootstrap-form>
+        <label>
+          <span>系統管理員帳號</span>
+          <input name="accountId" autocomplete="username" required />
+        </label>
+        <label>
+          <span>密碼</span>
+          <input
+            name="password"
+            type="password"
+            autocomplete="new-password"
+            minlength="6"
+            required
+          />
+        </label>
+        <label>
+          <span>再輸入一次</span>
+          <input
+            name="passwordConfirmation"
+            type="password"
+            autocomplete="new-password"
+            minlength="6"
+            required
+          />
+        </label>
+        <button type="submit">建立本機系統管理員</button>
+        <p class="access-message" data-bootstrap-message aria-live="polite">
+          至少 6 個字元，不可與帳號相同；正式上線前仍須改用伺服器端驗證。
+        </p>
+      </form>
+    </section>
 
     <section class="access-card" data-access-view="login">
       <nav class="role-tabs" aria-label="選擇登入身份">
         <a href={withBase("access/?role=staff")} data-role-tab="staff"
-          >助教登入</a
+          >助教／教師</a
         >
         <a href={withBase("access/?role=admin")} data-role-tab="admin"
-          >管理員登入</a
+          >系統管理員</a
         >
       </nav>
       <div>
         <p class="eyebrow">本機身份</p>
-        <h2><span data-login-role-label>管理員</span>登入</h2>
+        <h2><span data-login-role-label>系統管理員</span>登入</h2>
         <p>這是本機展示用身份層，尚不是正式網站的伺服器端授權。</p>
       </div>
       <form data-login-form>
@@ -45,12 +103,25 @@ import { withBase } from "../../lib/paths";
           />
         </label>
         <button type="submit"
-          >登入<span data-login-role-label>管理員</span>工作區</button
+          >登入<span data-login-role-label>系統管理員</span>工作區</button
         >
         <p class="access-message" data-login-message aria-live="polite">
-          管理員本機預設：帳號 123，密碼 123。
+          請使用已建立的本機帳號登入。
         </p>
       </form>
+      <details class="access-maintenance">
+        <summary>這個瀏覽器仍是舊測試帳號？</summary>
+        <p>
+          可先把舊身份資料移到瀏覽器內的暫存區，再重新建立第一位管理員；不會直接刪除舊資料。
+        </p>
+        <button
+          class="button button--secondary"
+          type="button"
+          data-reinitialize-access
+        >
+          暫存舊身份並重新初始化
+        </button>
+      </details>
     </section>
 
     <section class="access-card" data-access-view="force-change" hidden>
@@ -64,7 +135,7 @@ import { withBase } from "../../lib/paths";
             name="password"
             type="password"
             autocomplete="new-password"
-            minlength="10"
+            minlength="6"
             required
           />
         </label>
@@ -74,13 +145,13 @@ import { withBase } from "../../lib/paths";
             name="passwordConfirmation"
             type="password"
             autocomplete="new-password"
-            minlength="10"
+            minlength="6"
             required
           />
         </label>
         <button type="submit">儲存後登入</button>
         <p class="access-message" data-force-change-message aria-live="polite">
-          至少 10 個字元，不可與帳號相同。
+          至少 6 個字元，不可與帳號相同。
         </p>
       </form>
     </section>
@@ -105,6 +176,9 @@ import { withBase } from "../../lib/paths";
       </div>
 
       <div class="tool-links" aria-label="內部工具">
+        <a href={withBase("team/registrations/")}>
+          <strong>加入申請</strong><span>審核學生與訪客資格</span>
+        </a>
         <a href={withBase("team/")}>
           <strong>教學團隊</strong><span>查看身份與責任</span>
         </a>
@@ -120,9 +194,12 @@ import { withBase } from "../../lib/paths";
         <a href={withBase("components/")} data-role-card="admin">
           <strong>介面元件</strong><span>設計系統與狀態檢查</span>
         </a>
+        <a href="#account-management" data-role-card="admin">
+          <strong>身份與權限</strong><span>新增教學審核者或系統管理員</span>
+        </a>
       </div>
 
-      <div class="account-forms">
+      <div class="account-forms" id="account-management">
         <form data-change-password-form>
           <h3>更改我的密碼</h3>
           <label
@@ -145,7 +222,7 @@ import { withBase } from "../../lib/paths";
               name="password"
               type="password"
               autocomplete="new-password"
-              minlength="10"
+              minlength="6"
               required
             /></label
           >
@@ -154,7 +231,7 @@ import { withBase } from "../../lib/paths";
               name="passwordConfirmation"
               type="password"
               autocomplete="new-password"
-              minlength="10"
+              minlength="6"
               required
             /></label
           >
@@ -179,8 +256,8 @@ import { withBase } from "../../lib/paths";
           <label>
             <span>身份</span>
             <select name="role">
-              <option value="staff">助教</option>
-              <option value="admin">管理員</option>
+              <option value="staff">助教／教師</option>
+              <option value="admin">系統管理員</option>
             </select>
           </label>
           <button type="submit">新增身份</button>
@@ -227,6 +304,36 @@ import { withBase } from "../../lib/paths";
     box-shadow: var(--shadow-low);
     gap: var(--space-5);
     justify-self: center;
+  }
+
+  .access-roles {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .access-roles article {
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .access-roles article:last-child {
+    border-top: 0.3rem solid var(--color-accent);
+  }
+
+  .access-roles :is(h3, p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .access-maintenance {
+    padding-top: var(--space-3);
+    border-top: var(--border-thin) solid var(--color-border);
+  }
+
+  .access-maintenance summary {
+    cursor: pointer;
+    font-weight: 750;
   }
 
   .access-card--wide {
@@ -339,6 +446,10 @@ import { withBase } from "../../lib/paths";
   }
 
   @media (min-width: 46rem) {
+    .access-roles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .account-forms {
       grid-template-columns: 1fr 1fr;
     }

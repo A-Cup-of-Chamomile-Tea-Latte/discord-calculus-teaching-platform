@@ -16,4 +16,5 @@
 
 - `fixtureOnly=true`；不連 Discord、Google、Email、OAuth 或 AI API。
 - 沒有 `--apply`、token 欄位或部署入口。
-- Class → Module 正式對照、資料保存政策與部分產品項目仍明確未決。
+- 115-1 Class → Module 對照已經來源與課程 owner 確認；尚未套用至 Discord。
+- 資料保存政策與部分產品項目仍明確未決。

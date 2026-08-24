@@ -6,7 +6,7 @@
 | 項目 | 最新提案 | 狀態 |
 | --- | --- | --- |
 | 身份模型 | Staff／Student／Guest／Bot；Module 是屬性 | 程式落後設定 |
-| 班級與 Module | Class 選擇、後端換算 M1–M4 | 設定仍未決 |
+| 班級與 Module | C01–C04 → M1、C05–C09 → M2、C10–C13 → M3、C14–C16 → M4 | 115-1 spec 已確認；尚未套用 Discord |
 | 學生暱稱 | Discord 身份或 Student_nnmmm | 只有假資料 |
 | 公開 Forum | 三個 Questions Forum | 一致 |
 | Forum 標籤 | 單一 main tag；最終清單未決 | 設定仍未決 |

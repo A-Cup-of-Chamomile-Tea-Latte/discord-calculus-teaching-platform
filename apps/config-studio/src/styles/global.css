@@ -273,6 +273,21 @@ textarea {
   font-size: 2rem;
 }
 
+.academic-module-name {
+  font-family: var(--font);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.academic-table {
+  margin-top: 1rem;
+}
+
+.assignment-line {
+  display: inline;
+  line-height: 1.65;
+}
+
 .card p:last-child {
   margin-bottom: 0;
   color: var(--muted);

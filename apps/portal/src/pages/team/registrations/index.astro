@@ -1,0 +1,150 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { withBase } from "../../../lib/paths";
+
+const applications = [
+  {
+    applicant: "學生申請 A",
+    discordUsername: "calculus.student",
+    detail: "M1－C01－齊震宇老師",
+    status: "等待審核",
+    tone: "pending",
+  },
+  {
+    applicant: "訪客申請 B",
+    discordUsername: "guest.observer",
+    detail: "訪客｜已填來訪原因",
+    status: "等待加入伺服器",
+    tone: "waiting",
+  },
+];
+---
+
+<BaseLayout
+  title="加入申請審核"
+  description="Course Manager 的學生與訪客加入申請審核骨架。"
+  requiredRole="staff"
+>
+  <div class="shell stack section" style="--stack-gap: var(--space-6)">
+    <header class="reading-width">
+      <p><a href={withBase("access/")}>內部工作區</a> / 加入申請</p>
+      <p class="eyebrow">Course Manager</p>
+      <h1>加入申請審核</h1>
+      <p>
+        助教與教師可審核學生或訪客申請；系統管理員另外負責新增審核者、設定、例外處理與封存。
+      </p>
+    </header>
+
+    <section class="role-grid" aria-labelledby="role-title">
+      <h2 id="role-title">審核權限</h2>
+      <article>
+        <h3>一般教學審核者</h3>
+        <p>查看必要申請資料、核准、拒絕，或標記為等待加入 Discord。</p>
+      </article>
+      <article>
+        <h3>系統管理員</h3>
+        <p>包含一般審核能力，並可新增審核者、調整設定、處理例外與封存紀錄。</p>
+      </article>
+    </section>
+
+    <section aria-labelledby="queue-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">待審佇列</p>
+          <h2 id="queue-title">需要處理的申請</h2>
+          <p>以下是虛構資料；按鈕先用來審查操作層級，不會套用 Discord 權限。</p>
+        </div>
+      </div>
+      <div class="application-list">
+        {
+          applications.map((application) => (
+            <article class="application-card" data-tone={application.tone}>
+              <div>
+                <p class="eyebrow">{application.status}</p>
+                <h3>{application.applicant}</h3>
+                <p>
+                  <>
+                    <code>{application.discordUsername}</code>
+                    <br />
+                  </>
+                  {application.detail}
+                </p>
+              </div>
+              <div class="cluster" aria-label={`${application.applicant} 操作`}>
+                <button type="button" disabled>
+                  核准並套用權限
+                </button>
+                <button type="button" class="button button--secondary" disabled>
+                  等待加入伺服器
+                </button>
+                <button type="button" class="button button--quiet" disabled>
+                  拒絕
+                </button>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="archive-stage" aria-labelledby="archive-title">
+      <div>
+        <p class="eyebrow">可逆封存</p>
+        <h2 id="archive-title">已處理與準備清理</h2>
+        <p>
+          已拒絕、重複或失效的申請先移到封存
+          stage；保留時間、操作者與原因，不直接刪除。
+        </p>
+      </div>
+      <a class="button button--secondary" href="#archive-title">查看封存規則</a>
+    </section>
+
+    <p class="review-only">
+      正式 adapter 必須在伺服器端核對 Discord 成員、執行去重、寫入
+      SQLite，並在完成後由 Course Manager 直接私訊結果；瀏覽器不可持有 Bot
+      token。
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .role-grid,
+  .application-list {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .role-grid article,
+  .application-card,
+  .archive-stage {
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .application-card {
+    display: grid;
+    gap: var(--space-4);
+    border-inline-start: 0.35rem solid var(--color-accent);
+  }
+
+  .archive-stage {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-4);
+    align-items: center;
+    background: var(--color-surface-muted);
+  }
+
+  .archive-stage > div {
+    max-width: var(--reading-width);
+  }
+
+  @media (min-width: 50rem) {
+    .role-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>

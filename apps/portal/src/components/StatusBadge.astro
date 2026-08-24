@@ -1,12 +1,5 @@
 ---
-type Status =
-  | "OPEN"
-  | "WAITING_FOR_STUDENT"
-  | "ANSWERED"
-  | "ESCALATED"
-  | "TEMPORARILY_CLOSED"
-  | "CLOSED"
-  | "REOPENED";
+type Status = "OPEN" | "TRACKED" | "IDLE" | "CLOSED" | "AUTO_CLOSED";
 
 interface Props {
   status: Status;
@@ -15,21 +8,15 @@ interface Props {
 const { status } = Astro.props;
 const labels: Record<Status, { symbol: string; label: string; tone: string }> =
   {
-    OPEN: { symbol: "○", label: "待接手", tone: "info" },
-    WAITING_FOR_STUDENT: {
+    OPEN: { symbol: "○", label: "新案件", tone: "info" },
+    TRACKED: { symbol: "✓", label: "進行中", tone: "success" },
+    IDLE: {
       symbol: "↩",
-      label: "等待學生",
-      tone: "warning",
-    },
-    ANSWERED: { symbol: "✓", label: "已接手", tone: "success" },
-    ESCALATED: { symbol: "↑", label: "已升級", tone: "danger" },
-    TEMPORARILY_CLOSED: {
-      symbol: "◐",
-      label: "提醒中",
+      label: "等待回覆",
       tone: "warning",
     },
     CLOSED: { symbol: "■", label: "已結案", tone: "neutral" },
-    REOPENED: { symbol: "↻", label: "已重開", tone: "info" },
+    AUTO_CLOSED: { symbol: "◇", label: "已自動結案", tone: "neutral" },
   };
 const value = labels[status];
 ---

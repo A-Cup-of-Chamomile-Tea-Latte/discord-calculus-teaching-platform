@@ -14,12 +14,20 @@ const readConfig = (name: string): Record<string, unknown> =>
   JSON.parse(
     readFileSync(resolve(projectRoot, "config/proposed", name), "utf-8"),
   ) as Record<string, unknown>;
+const readAcademicConfig = (term: string): Record<string, unknown> =>
+  JSON.parse(
+    readFileSync(
+      resolve(projectRoot, "config/academic", term, "course-operations.yaml"),
+      "utf-8",
+    ),
+  ) as Record<string, unknown>;
 
 const bundle = {
   server: readConfig("server.yaml"),
   portal: readConfig("portal.yaml"),
   workflow: readConfig("case-workflow.yaml"),
   dataPolicy: readConfig("data-policy.yaml"),
+  academic: readAcademicConfig("115-1"),
 } as unknown as StudioBundle;
 
 const serializedBundle = JSON.stringify(bundle).replaceAll("<", "\\u003c");
@@ -44,8 +52,37 @@ const hasPermission = (
   );
 };
 
+const moduleByCode = new Map(
+  bundle.academic.modules.map((module) => [module.moduleCode, module]),
+);
+const instructorByRef = new Map(
+  bundle.academic.peopleDirectory.instructors.map((person) => [
+    person.instructorRef,
+    person.publicDisplayName,
+  ]),
+);
+const taByRef = new Map(
+  bundle.academic.peopleDirectory.teachingAssistants.map((person) => [
+    person.taRef,
+    person.publicDisplayName,
+  ]),
+);
+const taCategoryLabels = new Map(
+  bundle.academic.taCategoryCodes.map((category) => [
+    category.code,
+    category.discordRoleKeys.length
+      ? category.discordRoleKeys
+          .map((role) => (role === "ta_lecturer" ? "TA Lecturer" : "TA Grader"))
+          .join(" + ")
+      : "待啟用時確認",
+  ]),
+);
+const assignmentLabel = (kind: string, remainder?: number): string =>
+  kind === "ALL_STUDENTS" ? "全班" : `餘 ${remainder ?? "?"}`;
+
 const panelItems = [
   ["overview", "設定總覽"],
+  ["academic", "115-1 班別"],
   ["channels", "頻道樹"],
   ["roles", "身份與角色"],
   ["permissions", "有效權限"],
@@ -142,11 +179,122 @@ const panelItems = [
               <p class="card__value">0</p>
               <p>Discord、Google、Email、OAuth 與 AI API 全部關閉。</p>
             </article>
+            <article class="card">
+              <p class="card__label">115-1 課程模型</p>
+              <p class="card__value">{bundle.academic.sections.length}</p>
+              <p>{bundle.academic.modules.length} 個模組，來源已確認。</p>
+            </article>
           </div>
           <div class="notice" role="note">
             <strong>目前不是已核准 production 設定。</strong>
-            Class → Module 正式對照、main tag 最終清單、資料保存與 Private Support
-            重啟介面仍需人工決策。
+            115-1 Class → Module 對照已確認；main tag 最終清單、資料保存與 Private
+            Support 重啟介面仍需人工決策。
+          </div>
+        </section>
+
+        <section
+          id="panel-academic"
+          data-studio-panel="academic"
+          tabindex="-1"
+          hidden
+        >
+          <header class="panel-header">
+            <p class="eyebrow">Academic term operations</p>
+            <h2>{bundle.academic.term.displayName} 班別與教學團隊</h2>
+            <p>
+              原始「模01–模16」是班別標籤，canonical 班別為 C01–C16； 四個
+              Module 是上層分組。本頁只讀顯示 repository spec。
+            </p>
+          </header>
+          <div class="cards">
+            {
+              bundle.academic.modules.map((module) => (
+                <article class="card">
+                  <p class="card__label">{module.moduleCode}</p>
+                  <p class="card__value academic-module-name">
+                    {module.displayName}
+                  </p>
+                  <p>
+                    {module.classCodes.map((code) => `C${code}`).join("、")}
+                  </p>
+                </article>
+              ))
+            }
+          </div>
+          <div class="matrix-wrap academic-table">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">班別</th>
+                  <th scope="col">來源標籤</th>
+                  <th scope="col">Module</th>
+                  <th scope="col">教師</th>
+                  <th scope="col">TA 配置</th>
+                  <th scope="col">實習課</th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  bundle.academic.sections.map((section) => {
+                    const module = section.moduleCode
+                      ? moduleByCode.get(section.moduleCode)
+                      : undefined;
+                    return (
+                      <tr>
+                        <th scope="row">{section.canonicalClassLabel}</th>
+                        <td>{section.sourceLabel}</td>
+                        <td>
+                          <strong>{section.moduleCode}</strong>
+                          <br />
+                          <small>{module?.displayName}</small>
+                        </td>
+                        <td>{instructorByRef.get(section.instructorRef)}</td>
+                        <td>
+                          {section.taAssignments.map((assignment, index) => (
+                            <span class="assignment-line">
+                              {taByRef.get(assignment.taRef)}
+                              {` (${assignment.categoryCode.replace("G_L", "G/L")} · ${taCategoryLabels.get(assignment.categoryCode)})`}
+                              {index < section.taAssignments.length - 1
+                                ? "、"
+                                : ""}
+                            </span>
+                          ))}
+                        </td>
+                        <td>
+                          {section.practiceSections.map((practice, index) => (
+                            <span class="assignment-line">
+                              {taByRef.get(practice.taRef)}·{practice.room}·
+                              {assignmentLabel(
+                                practice.assignmentRule.kind,
+                                "remainder" in practice.assignmentRule
+                                  ? practice.assignmentRule.remainder
+                                  : undefined,
+                              )}
+                              {index < section.practiceSections.length - 1
+                                ? "；"
+                                : ""}
+                            </span>
+                          ))}
+                        </td>
+                      </tr>
+                    );
+                  })
+                }
+              </tbody>
+            </table>
+          </div>
+          {
+            bundle.academic.referenceOnlySections.map((section) => (
+              <div class="notice" role="note">
+                <strong>參考列：{section.sourceLabel}</strong>（
+                {section.canonicalClassLabel}）只出現於 TA
+                名冊，未出現於實習課分組表； 目前不納入 M1–M4 與一般班別流程。
+              </div>
+            ))
+          }
+          <div class="notice">
+            <strong>邊界：</strong>此 spec 已上架到 repository 與本機審查台，
+            尚未建立或修改 Discord role、channel、permission 或 membership。
           </div>
         </section>
 
@@ -222,7 +370,7 @@ const panelItems = [
           </div>
           <div class="notice">
             顯示模式：沿用 Discord 身份、Student_nnmmm、Guest_nnmmm。正式 Class
-            → Module 對照待八月資料，不在此硬編碼。
+            → Module 對照已載於 115-1 課程 spec；尚未套用至 Discord。
           </div>
         </section>
 
@@ -306,13 +454,23 @@ const panelItems = [
               <h3>標題即時預覽</h3>
               <div class="form-grid">
                 <label>
-                  <span>Module</span>
-                  <select id="title-module">
-                    <option>M1</option>
-                    <option>M2</option>
-                    <option>M3</option>
-                    <option>M4</option>
+                  <span>Class</span>
+                  <select id="title-class">
+                    {
+                      bundle.academic.sections.map((section) => (
+                        <option
+                          value={section.classCode}
+                          data-module-code={section.moduleCode}
+                        >
+                          {section.canonicalClassLabel} · {section.sourceLabel}
+                        </option>
+                      ))
+                    }
                   </select>
+                </label>
+                <label>
+                  <span>Module（由 Class 推導）</span>
+                  <input id="title-module" value="M1" readonly />
                 </label>
                 <label>
                   <span>Main tag</span>

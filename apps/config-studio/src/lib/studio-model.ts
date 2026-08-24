@@ -71,6 +71,7 @@ export interface StudioWorkflowConfig {
   status: string;
   canonicalTitle: {
     pattern: string;
+    modules: string[];
     mainTags: string[];
     mainTagsFinalized: boolean;
     manualClosePrefix: string;
@@ -97,11 +98,74 @@ export interface StudioWorkflowConfig {
   };
 }
 
+export interface AcademicModule {
+  moduleCode: "M1" | "M2" | "M3" | "M4";
+  displayName: string;
+  classCodes: string[];
+}
+
+export interface AcademicPerson {
+  publicDisplayName: string;
+}
+
+export interface AcademicTaAssignment {
+  taRef: string;
+  categoryCode: "L" | "G" | "G_L" | "UNSPECIFIED";
+}
+
+export interface AcademicTaCategory {
+  code: AcademicTaAssignment["categoryCode"];
+  meaning:
+    "TA_LECTURER" | "TA_GRADER" | "TA_LECTURER_AND_TA_GRADER" | "SOURCE_BLANK";
+  discordRoleKeys: Array<"ta_lecturer" | "ta_grader">;
+}
+
+export interface AcademicPracticeSection {
+  practiceSectionKey: string;
+  taRef: string;
+  room: string;
+  assignmentRule:
+    | { kind: "ALL_STUDENTS" }
+    | {
+        kind: "STUDENT_ID_LAST_THREE_MODULO_PRACTICE_TA_COUNT";
+        remainder: number;
+      };
+}
+
+export interface AcademicClassSection {
+  classCode: string;
+  sourceLabel: string;
+  canonicalClassLabel: string;
+  moduleCode: AcademicModule["moduleCode"] | null;
+  status: "ACTIVE" | "REFERENCE_ONLY_PENDING_CONFIRMATION";
+  instructorRef: string;
+  taAssignments: AcademicTaAssignment[];
+  practiceSections: AcademicPracticeSection[];
+  note?: string;
+}
+
+export interface StudioAcademicConfig {
+  status: "SOURCE_CONFIRMED";
+  term: {
+    termCode: string;
+    displayName: string;
+  };
+  modules: AcademicModule[];
+  taCategoryCodes: AcademicTaCategory[];
+  peopleDirectory: {
+    instructors: Array<AcademicPerson & { instructorRef: string }>;
+    teachingAssistants: Array<AcademicPerson & { taRef: string }>;
+  };
+  sections: AcademicClassSection[];
+  referenceOnlySections: AcademicClassSection[];
+}
+
 export interface StudioBundle {
   server: StudioServerConfig;
   portal: StudioPortalConfig;
   workflow: StudioWorkflowConfig;
   dataPolicy: Record<string, unknown>;
+  academic: StudioAcademicConfig;
 }
 
 export type DiffKind =
@@ -150,12 +214,14 @@ export function computeChannelDiff(
 
 export function canonicalTitlePreview(
   module: string,
+  classCode: string,
   mainTag: string,
   title: string,
 ): string {
   const normalizedTitle = title.trim() || "我不懂 chain rule";
   const normalizedTag = mainTag.trim() || "觀念";
-  return `[${module}][${normalizedTag}] ${normalizedTitle}`;
+  const normalizedClass = classCode.trim().replace(/^C/i, "").padStart(2, "0");
+  return `[${module} | C${normalizedClass}][${normalizedTag}] ${normalizedTitle}`;
 }
 
 export function classifyImport(
