@@ -1,0 +1,22 @@
+{
+  "status": "FAIL_CLOSED_PRODUCTION_BACKUP_REQUIRED",
+  "candidateSchema": 10,
+  "productionSchema": 6,
+  "productionModified": false,
+  "deployExecuted": false,
+  "productionBackupRehearsal": "BLOCKED_NO_PRODUCTION_BACKUP_IN_WORKSPACE",
+  "localRecoveryTooling": "READY_WITH_STRICT_V6_TO_V10_GATES",
+  "mapping": "PENDING_OWNER_INPUT",
+  "runbook": "READY_FOR_OWNER_DEPLOY_DECISION",
+  "rawRowsReadOrPrinted": false,
+  "secretsReadOrPrinted": false,
+  "discordModified": false,
+  "googleModified": false,
+  "manualGates": [
+    "production consistent backup copy",
+    "production Discord mapping values and ACL verification",
+    "reviewer/system-admin secure runtime grants",
+    "backup retention owner and accepted retention window",
+    "PM/owner explicit v10 deploy authorization"
+  ]
+}

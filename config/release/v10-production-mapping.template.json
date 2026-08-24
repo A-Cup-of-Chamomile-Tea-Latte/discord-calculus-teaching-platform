@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.0",
+  "status": "PENDING_OWNER_INPUT",
+  "termCode": "115-1",
+  "source": {
+    "courseOperations": "config/academic/115-1/course-operations.yaml",
+    "serverProposal": "config/proposed/server.yaml",
+    "workflowProposal": "config/proposed/case-workflow.yaml"
+  },
+  "server": {
+    "guildId": null,
+    "courseRole": {
+      "proposedSourceKeys": ["verified_member", "registered_audit"],
+      "selectedLogicalKey": null,
+      "discordId": null
+    },
+    "visitorRole": {
+      "proposedSourceKey": "guest",
+      "discordId": null
+    }
+  },
+  "classRoles": [
+    {"classCode": "01", "moduleCode": "M1", "logicalKey": "class.C01", "discordId": null},
+    {"classCode": "02", "moduleCode": "M1", "logicalKey": "class.C02", "discordId": null},
+    {"classCode": "03", "moduleCode": "M1", "logicalKey": "class.C03", "discordId": null},
+    {"classCode": "04", "moduleCode": "M1", "logicalKey": "class.C04", "discordId": null},
+    {"classCode": "05", "moduleCode": "M2", "logicalKey": "class.C05", "discordId": null},
+    {"classCode": "06", "moduleCode": "M2", "logicalKey": "class.C06", "discordId": null},
+    {"classCode": "07", "moduleCode": "M2", "logicalKey": "class.C07", "discordId": null},
+    {"classCode": "08", "moduleCode": "M2", "logicalKey": "class.C08", "discordId": null},
+    {"classCode": "09", "moduleCode": "M2", "logicalKey": "class.C09", "discordId": null},
+    {"classCode": "10", "moduleCode": "M3", "logicalKey": "class.C10", "discordId": null},
+    {"classCode": "11", "moduleCode": "M3", "logicalKey": "class.C11", "discordId": null},
+    {"classCode": "12", "moduleCode": "M3", "logicalKey": "class.C12", "discordId": null},
+    {"classCode": "13", "moduleCode": "M3", "logicalKey": "class.C13", "discordId": null},
+    {"classCode": "14", "moduleCode": "M4", "logicalKey": "class.C14", "discordId": null},
+    {"classCode": "15", "moduleCode": "M4", "logicalKey": "class.C15", "discordId": null},
+    {"classCode": "16", "moduleCode": "M4", "logicalKey": "class.C16", "discordId": null}
+  ],
+  "forums": [
+    {"logicalKey": "forum.math_questions", "sourceKey": "math_questions", "discordId": null},
+    {"logicalKey": "forum.coursework_systems", "sourceKey": "coursework_systems", "discordId": null},
+    {"logicalKey": "forum.other_problem_free_talk", "sourceKey": "other_problem_free_talk", "discordId": null}
+  ],
+  "privateSupportCategory": {
+    "logicalKey": "category.private_support",
+    "sourceKey": "private_support",
+    "discordId": null
+  },
+  "reviewerMapping": {
+    "authorizationMode": "EXPLICIT_RUNTIME_USER_GRANT",
+    "reviewerLevel": "REVIEWER",
+    "systemAdminLevel": "SYSTEM_ADMIN",
+    "grantsConfiguredInSecureRuntime": false
+  },
+  "notes": [
+    "此檔只保存 mapping 形狀與缺值，不填入真實 Discord IDs、使用者 IDs、token 或 secrets。",
+    "Module 是 backend attribute，不建立 Module role；C01–C16 role 仍需 owner 提供實際資源。",
+    "reviewer／system admin 目前由 runtime explicit user grant 控制，不以 Discord role 自動推論。"
+  ]
+}
