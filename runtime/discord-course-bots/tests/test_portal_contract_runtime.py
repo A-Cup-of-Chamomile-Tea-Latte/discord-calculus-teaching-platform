@@ -15,6 +15,7 @@ def _case(repo: Repository, *, thread_id: int = 1, private: bool = False) -> str
         ai_content_permission=False,
         canonical_title="[M1] [極限] 問題",
         initial_snapshot={"title": "問題"},
+        class_code="01",
         private_support=private,
     )
 
@@ -23,7 +24,10 @@ def test_five_state_lifecycle_and_48_plus_48_scheduler(tmp_path) -> None:
     repo = Repository(tmp_path / "lifecycle.sqlite3")
     _case(repo)
     assert repo.get_case_by_thread(1)["status"] == "OPEN"
-    assert repo.claim_case(1, 9)["status"] == "TRACKED"
+    claimed = repo.claim_case(1, 9)
+    assert claimed["status"] == "TRACKED"
+    assert claimed["teaching_team_replied"] == 0
+    assert claimed["last_staff_response_at"] is None
 
     base = datetime.now(UTC) + timedelta(seconds=1)
     repo.record_case_activity(1, actor_id=9, is_staff=True, occurred_at=base)
@@ -40,7 +44,7 @@ def test_five_state_lifecycle_and_48_plus_48_scheduler(tmp_path) -> None:
 def test_legacy_statuses_are_read_through_compatibility_mapping() -> None:
     assert canonical_case_status("WAITING_FOR_STUDENT") == "IDLE"
     assert canonical_case_status("ANSWERED") == "TRACKED"
-    assert canonical_case_status("TEMPORARILY_CLOSED") == "CLOSED"
+    assert canonical_case_status("TEMPORARILY_CLOSED") == "IDLE"
 
 
 def test_private_request_is_idempotent_rate_limited_and_content_free(tmp_path) -> None:
@@ -136,7 +140,7 @@ def test_join_dedup_waiting_approval_archive_and_explicit_grants(tmp_path) -> No
         discord_username="student.name",
         identity_email="student@ntu.edu.tw",
         ntu_mail="student@ntu.edu.tw",
-        class_code="C01",
+        class_code="01",
     )
     assert duplicate is False
     repeated, duplicate = repo.submit_join_application(
@@ -148,6 +152,15 @@ def test_join_dedup_waiting_approval_archive_and_explicit_grants(tmp_path) -> No
     )
     assert duplicate is True
     assert repeated["application_id"] == application["application_id"]
+    renamed, duplicate = repo.submit_join_application(
+        applicant_type="STUDENT",
+        discord_username="student.renamed",
+        identity_email="student@ntu.edu.tw",
+        ntu_mail="student@ntu.edu.tw",
+        class_code="01",
+    )
+    assert duplicate is True
+    assert renamed["application_id"] == application["application_id"]
 
     app_id = str(application["application_id"])
     waiting = repo.transition_join_application(
@@ -158,17 +171,22 @@ def test_join_dedup_waiting_approval_archive_and_explicit_grants(tmp_path) -> No
     )
     assert waiting["status"] == "WAITING_FOR_DISCORD_MEMBER"
     repo.bind_join_discord_member(app_id, 20)
+    nickname = repo.reserve_course_alias(app_id, observed_max=6)
+    assert nickname == "Student_01007"
+    assert repo.reserve_course_alias(app_id, observed_max=99) == nickname
     repo.transition_join_application(
         app_id,
         action="APPROVE",
         actor_id=91,
         reason_code="REVIEW_APPROVED",
         desired_role_ids=(100, 101),
-        desired_nickname="C01",
+        desired_nickname=nickname,
     )
     role_claim = repo.claim_course_role_job("worker")
     assert role_claim is not None
-    assert repo.complete_course_role_job(app_id, "C01")
+    assert repo.complete_course_role_job(
+        role_claim.job_id, role_claim.claim_token, nickname
+    )
     assert repo.get_join_application(app_id)["status"] == "APPROVED"
 
     archived = repo.archive_join_application(app_id, actor_id=99, reason="例行整理")
@@ -177,6 +195,53 @@ def test_join_dedup_waiting_approval_archive_and_explicit_grants(tmp_path) -> No
     assert restored["status"] == "APPROVED"
 
     assert repo.reviewer_level(91) is None
+
+
+def test_join_application_matches_portal_validation_contract(tmp_path) -> None:
+    repo = Repository(tmp_path / "join-validation.sqlite3")
+    application, duplicate = repo.submit_join_application(
+        applicant_type="STUDENT",
+        discord_username="student.name",
+        identity_email="student@ntu.edu.tw",
+        ntu_mail="student@ntu.edu.tw",
+        contact_email="student.contact@gmail.com",
+        class_code="01",
+    )
+    assert duplicate is False
+    assert application["class_code"] == "01"
+
+    for email, contact in (
+        ("student@example.com", None),
+        ("student@ntu.edu.tw", "student@example.com"),
+    ):
+        try:
+            repo.submit_join_application(
+                applicant_type="STUDENT",
+                discord_username="another.student",
+                identity_email=email,
+                ntu_mail=email,
+                contact_email=contact,
+                class_code="02",
+            )
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Portal-invalid student email must be rejected by Bot backend")
+
+
+def test_student_message_reopens_closed_case_and_queues_discord_restore(tmp_path) -> None:
+    repo = Repository(tmp_path / "message-reopen.sqlite3")
+    _case(repo)
+    assert repo.claim_case(1, 9) is not None
+    assert repo.close_case(1) is not None
+    reopened = repo.record_case_activity(1, actor_id=3, is_staff=False)
+    assert reopened is not None
+    assert reopened["status"] == "TRACKED"
+    assert reopened["reopen_count"] == 1
+    transitions = repo._connection.execute(
+        "SELECT transition FROM discord_lifecycle_jobs ORDER BY created_at, rowid"
+    ).fetchall()
+    assert [str(row["transition"]) for row in transitions] == ["CLOSE", "REOPEN"]
     repo.set_reviewer_grant(91, level="REVIEWER", actor_id=99, active=True)
     assert repo.reviewer_level(91) == "REVIEWER"
     repo.set_reviewer_grant(91, level="REVIEWER", actor_id=99, active=False)

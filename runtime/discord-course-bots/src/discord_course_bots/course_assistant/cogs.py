@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import uuid
 from datetime import UTC, datetime
 
@@ -141,7 +142,7 @@ class CaseCog(commands.Cog):
             return
         await _reply(interaction, "已收到，正在建立隱密支援。完成後會用 Discord 私訊通知您。")
 
-    @private.command(name="close", description="由 Staff 結束 Private Support，準備匯出")
+    @private.command(name="close", description="由 Staff 結束隱密支援案件")
     async def private_close(self, interaction: discord.Interaction) -> None:
         if not isinstance(interaction.user, discord.Member) or not _staff_allowed(
             interaction.user, self.service
@@ -284,7 +285,23 @@ class CourseManagerCog(commands.Cog):
         if any(value is None for value in role_ids):
             await _reply(interaction, "課程角色設定尚未完成；申請保持待審核。")
             return
-        nickname = None if row["applicant_type"] == "VISITOR" else str(row["class_code"])
+        if interaction.guild is None:
+            await _reply(interaction, "請在課程 Discord 伺服器內執行。")
+            return
+        prefix = (
+            "Guest_Visitor"
+            if row["applicant_type"] == "VISITOR"
+            else f"Student_{row['class_code']}"
+        )
+        pattern = re.compile(rf"^{re.escape(prefix)}(\d{{3}})$")
+        observed_max = 0
+        async for member in interaction.guild.fetch_members(limit=None):
+            match = pattern.fullmatch(member.nick or "")
+            if match is not None:
+                observed_max = max(observed_max, int(match.group(1)))
+        nickname = self.service.repo.reserve_course_alias(
+            application_id, observed_max=observed_max
+        )
         self.service.repo.transition_join_application(
             application_id,
             action="APPROVE",

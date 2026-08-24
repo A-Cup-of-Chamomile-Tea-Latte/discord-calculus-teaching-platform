@@ -678,6 +678,26 @@ def _apply_join_review_v8(connection: sqlite3.Connection) -> None:
         connection.execute(statement)
 
 
+COURSE_ALIAS_V9_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS course_alias_allocations (
+        application_id TEXT PRIMARY KEY,
+        scope_key TEXT NOT NULL,
+        sequence INTEGER NOT NULL CHECK(sequence > 0),
+        nickname TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL,
+        UNIQUE(scope_key, sequence),
+        FOREIGN KEY(application_id) REFERENCES join_applications(application_id)
+    )
+    """,
+)
+
+
+def _apply_course_alias_v9(connection: sqlite3.Connection) -> None:
+    for statement in COURSE_ALIAS_V9_STATEMENTS:
+        connection.execute(statement)
+
+
 MIGRATIONS = (
     Migration(
         1,
@@ -733,6 +753,12 @@ MIGRATIONS = (
         "course-manager-join-review-v8",
         "\n".join(statement.strip() for statement in JOIN_REVIEW_V8_STATEMENTS) + "\nv1",
         _apply_join_review_v8,
+    ),
+    Migration(
+        9,
+        "course-manager-safe-nickname-allocation-v9",
+        "\n".join(statement.strip() for statement in COURSE_ALIAS_V9_STATEMENTS) + "\nv1",
+        _apply_course_alias_v9,
     ),
 )
 

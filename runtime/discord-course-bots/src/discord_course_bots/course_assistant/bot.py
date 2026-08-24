@@ -11,7 +11,7 @@ from discord_course_bots.settings import SettingsError, load_course_assistant_se
 
 from .cogs import CaseCog, CourseManagerCog, DraftLifecycleCog
 from .service import CourseService
-from .views import DraftSetupView, PrivateDumpView, ReopenView
+from .views import DraftSetupView, ReopenView
 
 LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +31,6 @@ class CourseAssistantBot(commands.Bot):
     async def setup_hook(self) -> None:
         self.add_view(DraftSetupView(self.service))
         self.add_view(ReopenView(self.service))
-        self.add_view(PrivateDumpView(self.service))
         await self.add_cog(CaseCog(self, self.service))
         await self.add_cog(CourseManagerCog(self, self.service))
         await self.add_cog(DraftLifecycleCog(self, self.service))

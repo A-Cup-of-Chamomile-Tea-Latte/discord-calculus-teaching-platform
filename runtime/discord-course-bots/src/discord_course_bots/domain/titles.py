@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-_PREFIX_RE = re.compile(r"^\[[^\]]+\]\s+\[[^\]]+\]\s+")
+_PREFIX_RE = re.compile(r"^\[[^\]]+\]\s*\[[^\]]+\]\s+")
 _CLOSE_PREFIX_RE = re.compile(r"^(?:(?:✅|\(„• ֊ •„\))\s*)+")
 
 MANUAL_CLOSE_PREFIX = "✅"
@@ -17,9 +17,9 @@ def strip_system_prefix(title: str) -> str:
     return _PREFIX_RE.sub("", strip_close_prefix(title)).strip()
 
 
-def canonical_title(module_code: str, keyword: str, body: str) -> str:
+def canonical_title(module_code: str, class_code: str, keyword: str, body: str) -> str:
     clean_body = strip_system_prefix(body) or "未命名問題"
-    return f"[{module_code}] [{keyword}] {clean_body}"[:100]
+    return f"[{module_code} | C{class_code}][{keyword}] {clean_body}"[:100]
 
 
 def cycle_title(base_title: str, reopen_count: int) -> str:

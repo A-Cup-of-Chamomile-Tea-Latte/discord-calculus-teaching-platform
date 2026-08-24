@@ -15,6 +15,8 @@ from discord_course_bots.domain.applicants import (
     normalize_class_code,
     normalize_discord_username,
     normalize_email,
+    normalize_ntu_email,
+    normalize_optional_gmail,
 )
 from discord_course_bots.domain.case_numbers import generate_case_number
 from discord_course_bots.domain.titles import closed_title, cycle_title
@@ -95,7 +97,7 @@ LEGACY_STATUS_MAP = {
     "WAITING_FOR_STUDENT": "IDLE",
     "ANSWERED": "TRACKED",
     "ESCALATED": "TRACKED",
-    "TEMPORARILY_CLOSED": "CLOSED",
+    "TEMPORARILY_CLOSED": "IDLE",
     "REOPENED": "TRACKED",
 }
 
@@ -259,13 +261,14 @@ class Repository:
         ai_content_permission: bool,
         canonical_title: str,
         initial_snapshot: dict[str, Any],
+        class_code: str | None = None,
         private_support: bool = False,
     ) -> str:
         for _ in range(CASE_NUMBER_MAX_ATTEMPTS):
             case_number = (
                 generate_case_number(private_support=True)
                 if private_support
-                else generate_case_number()
+                else generate_case_number(class_code=class_code)
             )
             try:
                 with self.transaction() as db:
@@ -365,12 +368,10 @@ class Repository:
                 return None
             result = db.execute(
                 """
-                UPDATE cases SET status = 'TRACKED', assigned_staff_id = ?,
-                    last_staff_response_at = COALESCE(last_staff_response_at, ?),
-                    teaching_team_replied = 1, updated_at = ?
+                UPDATE cases SET status = 'TRACKED', assigned_staff_id = ?, updated_at = ?
                 WHERE thread_id = ? AND status = ?
                 """,
-                (staff_id, now, now, thread_id, str(row["status"])),
+                (staff_id, now, thread_id, str(row["status"])),
             )
             if result.rowcount != 1:
                 return None
@@ -444,7 +445,22 @@ class Repository:
                     occurred_at=at,
                     project_public=str(row["visibility"]) == "PUBLIC",
                 )
-            return db.execute("SELECT * FROM cases WHERE thread_id = ?", (thread_id,)).fetchone()
+            updated = db.execute(
+                "SELECT * FROM cases WHERE thread_id = ?", (thread_id,)
+            ).fetchone()
+            if not is_staff and status in CLOSED_CASE_STATUSES:
+                self._enqueue_discord_lifecycle_job(
+                    db,
+                    case_id=str(updated["case_id"]),
+                    thread_id=thread_id,
+                    transition="REOPEN",
+                    cycle_number=int(updated["reopen_count"]) + 1,
+                    desired_title=cycle_title(
+                        str(updated["base_title"]), int(updated["reopen_count"])
+                    ),
+                    created_at=at,
+                )
+            return updated
 
     def mark_due_cases_idle(
         self, idle_seconds: int, *, now: datetime | None = None
@@ -1302,13 +1318,14 @@ class Repository:
         if kind not in {"STUDENT", "VISITOR"}:
             raise ValueError("身分類型必須是臺大學生或訪客。")
         username = normalize_discord_username(discord_username)
-        email = normalize_email(identity_email)
         if kind == "STUDENT":
-            ntu = normalize_email(ntu_mail or identity_email)
+            email = normalize_ntu_email(identity_email)
+            ntu = normalize_ntu_email(ntu_mail or identity_email)
             klass = normalize_class_code(class_code or "")
-            contact = normalize_email(contact_email) if contact_email else None
+            contact = normalize_optional_gmail(contact_email)
             reason = None
         else:
+            email = normalize_email(identity_email)
             ntu = None
             klass = None
             contact = normalize_email(contact_email or identity_email)
@@ -1321,6 +1338,13 @@ class Repository:
             existing = db.execute(
                 "SELECT * FROM join_applications WHERE identity_key = ?", (key,)
             ).fetchone()
+            if existing is None:
+                existing = db.execute(
+                    """SELECT * FROM join_applications
+                       WHERE applicant_type = ? AND normalized_email = ?
+                       ORDER BY created_at LIMIT 1""",
+                    (kind, email),
+                ).fetchone()
             if existing is not None:
                 if existing["discord_user_id"] is not None:
                     summary = str(existing["role_summary"] or "尚未設定班級／權限")
@@ -1424,6 +1448,8 @@ class Repository:
             if row is None:
                 raise RuntimeError("JOIN_APPLICATION_NOT_FOUND")
             previous = str(row["status"])
+            if previous not in {"PENDING_REVIEW", "WAITING_FOR_DISCORD_MEMBER"}:
+                raise RuntimeError("JOIN_APPLICATION_NOT_REVIEWABLE")
             if normalized_action == "WAITING":
                 target = "WAITING_FOR_DISCORD_MEMBER"
             elif normalized_action == "REJECT":
@@ -1487,22 +1513,80 @@ class Repository:
                 "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
             ).fetchone()
 
-    def complete_course_role_job(self, application_id: str, role_summary: str) -> bool:
+    def reserve_course_alias(self, application_id: str, *, observed_max: int = 0) -> str:
+        if observed_max < 0:
+            raise ValueError("observed_max cannot be negative")
+        now = utc_now_iso()
+        with self.immediate_transaction() as db:
+            existing = db.execute(
+                "SELECT nickname FROM course_alias_allocations WHERE application_id = ?",
+                (application_id,),
+            ).fetchone()
+            if existing is not None:
+                return str(existing["nickname"])
+            application = db.execute(
+                "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+            ).fetchone()
+            if application is None:
+                raise RuntimeError("JOIN_APPLICATION_NOT_FOUND")
+            if str(application["status"]) not in {
+                "PENDING_REVIEW",
+                "WAITING_FOR_DISCORD_MEMBER",
+            }:
+                raise RuntimeError("JOIN_APPLICATION_NOT_REVIEWABLE")
+            if str(application["applicant_type"]) == "STUDENT":
+                class_code = normalize_class_code(str(application["class_code"] or ""))
+                scope_key = f"STUDENT:{class_code}"
+                prefix = f"Student_{class_code}"
+            else:
+                scope_key = "VISITOR:GENERAL"
+                prefix = "Guest_Visitor"
+            row = db.execute(
+                "SELECT COALESCE(MAX(sequence), 0) AS maximum FROM course_alias_allocations "
+                "WHERE scope_key = ?",
+                (scope_key,),
+            ).fetchone()
+            sequence = max(int(row["maximum"]), observed_max) + 1
+            if sequence > 999:
+                raise RuntimeError("COURSE_ALIAS_SEQUENCE_EXHAUSTED")
+            nickname = f"{prefix}{sequence:03d}"
+            db.execute(
+                """INSERT INTO course_alias_allocations(
+                       application_id, scope_key, sequence, nickname, created_at
+                   ) VALUES (?, ?, ?, ?, ?)""",
+                (application_id, scope_key, sequence, nickname, now),
+            )
+            return nickname
+
+    def complete_course_role_job(
+        self, job_id: str, claim_token: str, role_summary: str
+    ) -> bool:
         now = utc_now_iso()
         with self.transaction() as db:
+            job = db.execute(
+                "SELECT * FROM course_role_jobs WHERE job_id = ?", (job_id,)
+            ).fetchone()
+            if job is None:
+                return False
+            application_id = str(job["application_id"])
             row = db.execute(
                 "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
             ).fetchone()
-            if row is None or row["discord_user_id"] is None:
+            if (
+                row is None
+                or row["discord_user_id"] is None
+                or str(row["status"]) == "ARCHIVED"
+            ):
                 return False
-            result = db.execute(
-                """UPDATE course_role_jobs
-                   SET status = 'COMPLETED', completed_at = ?, updated_at = ?
-                   WHERE application_id = ?
-                     AND status IN ('PENDING', 'CLAIMED', 'RETRYABLE_FAILURE')""",
-                (now, now, application_id),
+            completed = complete_claim(
+                db,
+                COURSE_ROLE_QUEUE,
+                key=job_id,
+                claim_token=claim_token,
+                final_status="COMPLETED",
+                values={"completed_at": now, "updated_at": now},
             )
-            if result.rowcount != 1:
+            if not completed:
                 return False
             previous = str(row["status"])
             db.execute(
@@ -1580,6 +1664,14 @@ class Repository:
                 raise RuntimeError("JOIN_APPLICATION_NOT_FOUND")
             if str(row["status"]) == "ARCHIVED":
                 return row
+            active_job = db.execute(
+                """SELECT 1 FROM course_role_jobs
+                   WHERE application_id = ?
+                     AND status IN ('PENDING', 'CLAIMED', 'RETRYABLE_FAILURE')""",
+                (application_id,),
+            ).fetchone()
+            if active_job is not None:
+                raise RuntimeError("JOIN_APPLICATION_HAS_ACTIVE_ROLE_JOB")
             db.execute(
                 """UPDATE join_applications SET previous_status = status, status = 'ARCHIVED',
                    archive_reason = ?, archived_by = ?, archived_at = ?, updated_at = ?
@@ -1664,6 +1756,14 @@ class Repository:
             (discord_user_id,),
         ).fetchone()
         return None if row is None else str(row["reviewer_level"])
+
+    def active_system_admin_ids(self) -> tuple[int, ...]:
+        rows = self._connection.execute(
+            """SELECT discord_user_id FROM reviewer_grants
+               WHERE reviewer_level = 'SYSTEM_ADMIN' AND active = 1
+               ORDER BY discord_user_id"""
+        ).fetchall()
+        return tuple(int(row["discord_user_id"]) for row in rows)
 
     def _record_join_event(
         self,

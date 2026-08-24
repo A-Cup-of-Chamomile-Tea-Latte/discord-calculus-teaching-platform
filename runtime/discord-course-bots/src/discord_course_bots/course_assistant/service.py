@@ -63,6 +63,22 @@ class CourseService:
         value = self.repo.get_config_int("public_forum_channel_id")
         return set() if value is None else {value}
 
+    def class_context_for_member(self, member: discord.Member) -> tuple[str, str]:
+        member_role_ids = {role.id for role in member.roles}
+        matches = [
+            class_code
+            for class_code in (f"{number:02d}" for number in range(1, 17))
+            if (role_id := self.repo.get_config_int(f"class_role_{class_code}")) is not None
+            and role_id in member_role_ids
+        ]
+        if len(matches) != 1:
+            raise RuntimeError("無法確認唯一班別；請先請 Course Manager 檢查班級角色。")
+        class_code = matches[0]
+        module_code = self.repo.get_config(f"class_module_{class_code}")
+        if module_code not in {"M1", "M2", "M3", "M4"}:
+            raise RuntimeError("班別與 Module 對照尚未同步；請先請系統管理員更新設定。")
+        return class_code, module_code
+
     async def register_new_thread(self, thread: discord.Thread) -> None:
         if thread.guild.id != self.settings.test_guild_id:
             return
@@ -121,6 +137,9 @@ class CourseService:
         if existing is not None:
             return str(existing["case_number"]), str(existing["canonical_title"])
 
+        if not isinstance(interaction.user, discord.Member):
+            raise RuntimeError("無法讀取伺服器成員資料；請稍後再試。")
+        class_code, module_code = self.class_context_for_member(interaction.user)
         keyword = normalize_keyword(keyword_raw)
         channel = interaction.channel
         if not isinstance(channel, discord.Thread):
@@ -128,7 +147,8 @@ class CourseService:
         starter_id = int(draft["starter_message_id"])
         starter = await channel.fetch_message(starter_id)
         title = canonical_title(
-            self.settings.module_code,
+            module_code,
+            class_code,
             keyword,
             str(draft["original_title"]),
         )
@@ -156,11 +176,12 @@ class CourseService:
             case_id=str(uuid.uuid4()),
             thread_id=channel.id,
             author_id=interaction.user.id,
-            module_code=self.settings.module_code,
+            module_code=module_code,
             keyword=keyword,
             ai_content_permission=ai_permission,
             canonical_title=title,
             initial_snapshot=snapshot,
+            class_code=class_code,
         )
 
         setup_message_id = draft["setup_message_id"]
@@ -289,6 +310,25 @@ class CourseService:
                         read_message_history=True,
                         attach_files=True,
                     )
+            direct_admin_ids = set(self.settings.owner_ids)
+            direct_admin_ids.update(self.repo.active_system_admin_ids())
+            direct_admin_ids.discard(requester.id)
+            direct_admin_ids.discard(me.id)
+            if len(direct_admin_ids) > 80:
+                raise RuntimeError("PRIVATE_ADMIN_ACL_TOO_LARGE")
+            for admin_id in sorted(direct_admin_ids):
+                admin = guild.get_member(admin_id)
+                if admin is None:
+                    try:
+                        admin = await guild.fetch_member(admin_id)
+                    except discord.NotFound:
+                        continue
+                overwrites[admin] = discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True,
+                    read_message_history=True,
+                    attach_files=True,
+                )
             channel = await guild.create_text_channel(
                 name=f"private-{claim.interaction_id[-6:]}",
                 category=category,
@@ -339,7 +379,7 @@ class CourseService:
         if nickname:
             await member.edit(nick=str(nickname), reason="Course Manager approval")
         summary = str(nickname or "訪客")
-        if not self.repo.complete_course_role_job(str(job["application_id"]), summary):
+        if not self.repo.complete_course_role_job(claim.job_id, claim.claim_token, summary):
             raise RuntimeError("COURSE_ROLE_CLAIM_LOST")
 
     async def apply_discord_lifecycle_job(self, claim: DiscordLifecycleClaim) -> None:

@@ -20,6 +20,7 @@ def _case(repo: Repository, *, status: str = "TRACKED") -> None:
         ai_content_permission=False,
         canonical_title="[M1] [test] Question",
         initial_snapshot={"body": "hello"},
+        class_code="01",
     )
     assert repo.claim_case(1, 9) is not None
     if status == "CLOSED":

@@ -43,8 +43,9 @@ def test_fresh_database_has_versioned_migration_ledger(tmp_path: Path) -> None:
         "join_applications",
         "join_application_events",
         "reviewer_grants",
-        "course_role_jobs",
-    }
+            "course_role_jobs",
+            "course_alias_allocations",
+        }
 
 
 def test_repository_sets_explicit_busy_timeout(tmp_path: Path) -> None:
@@ -122,6 +123,7 @@ def test_draft_to_case(tmp_path: Path) -> None:
         ai_content_permission=False,
         canonical_title="[M1] [test] Question",
         initial_snapshot={"body": "hello"},
+        class_code="01",
     )
     case = repo.get_case_by_thread(1)
     assert case is not None
@@ -160,6 +162,7 @@ def test_lifecycle_queue_claim_completion_and_status_are_safe(tmp_path: Path) ->
         ai_content_permission=False,
         canonical_title="[M1] [test] Question",
         initial_snapshot={"body": "hello"},
+        class_code="01",
     )
     assert repo.claim_case(1, 9) is not None
     assert repo.close_case(1) is not None
@@ -196,6 +199,7 @@ def test_reopen_requires_closed_and_never_mutates_a_tracked_case(tmp_path: Path)
         ai_content_permission=False,
         canonical_title="[M1] [test] Question 7",
         initial_snapshot={"title": "[M1] [test] Question 7", "body": "hello"},
+        class_code="01",
     )
 
     assert repo.reopen_case(1) is None
