@@ -114,7 +114,7 @@ current_schema=$(sqlite3 "$database" 'PRAGMA user_version;')
 if [[ $migration_class == NONE ]]; then
   [[ $target_schema -eq $current_schema ]] || fail NONE_MIGRATION_SCHEMA_MISMATCH
 else
-  [[ $target_schema -eq $((current_schema + 1)) ]] || fail ADDITIVE_MIGRATION_STEP_INVALID
+  [[ $target_schema -gt $current_schema ]] || fail ADDITIVE_MIGRATION_TARGET_INVALID
 fi
 
 release_destination=/opt/calculus-discord/releases/$release_id

@@ -10,7 +10,7 @@ unset BASH_ENV ENV PYTHONHOME PYTHONPATH PIP_CONFIG_FILE
 
 source_release=${1:-}
 installed_deployer=/usr/local/sbin/calculus-discord-deploy
-expected_old_sha256=f388f862e7951babf4f5dd4d94280142b00c36f7607dc6ece321b130abb6d91e
+expected_old_sha256=05f6375160579374c5341395b53148506c616bcd43743e3ff4d2977ea521d2b6
 
 fail() {
   printf 'repair_error=%s\n' "$1" >&2
@@ -50,4 +50,4 @@ install -o root -g root -m 0755 "$deployer_source" "$incoming"
 mv -f "$incoming" "$installed_deployer"
 trap - EXIT
 printf 'deployer_repair=PASS\nnew_port=NO\nsecrets_changed=NO\nsystemd_units_changed=NO\n'
-"$installed_deployer"
+printf 'deploy_executed=NO\n'
