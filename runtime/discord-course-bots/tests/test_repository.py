@@ -37,6 +37,14 @@ def test_fresh_database_has_versioned_migration_ledger(tmp_path: Path) -> None:
         "projection_outbox",
         "sync_state",
         "service_health",
+        "discord_lifecycle_jobs",
+        "private_open_requests",
+        "discord_dm_outbox",
+        "join_applications",
+        "join_application_events",
+        "reviewer_grants",
+        "course_role_jobs",
+        "course_alias_allocations",
     }
 
 
@@ -115,21 +123,69 @@ def test_draft_to_case(tmp_path: Path) -> None:
         ai_content_permission=False,
         canonical_title="[M1] [test] Question",
         initial_snapshot={"body": "hello"},
+        class_code="01",
     )
     case = repo.get_case_by_thread(1)
     assert case is not None
-    assert case["status"] == "TRACKED"
+    assert case["status"] == "OPEN"
+    assert repo.claim_case(1, 9) is not None
     closed = repo.close_case(1)
     assert closed is not None
     assert closed["status"] == "CLOSED"
+    close_job = repo._connection.execute(
+        "SELECT transition, cycle_number, status FROM discord_lifecycle_jobs"
+    ).fetchone()
+    assert tuple(close_job) == ("CLOSE", 1, "PENDING")
     reopened = repo.reopen_case(1)
     assert reopened is not None
     assert reopened["status"] == "TRACKED"
     assert reopened["reopen_count"] == 1
     assert reopened["base_title"] == "[M1] [test] Question"
+    reopen_job = repo._connection.execute(
+        "SELECT transition, cycle_number, status FROM discord_lifecycle_jobs "
+        "WHERE transition = 'REOPEN'"
+    ).fetchone()
+    assert tuple(reopen_job) == ("REOPEN", 2, "PENDING")
     assert cycle_title(str(reopened["base_title"]), int(reopened["reopen_count"])) == (
         "[M1] [test] Question 2"
     )
+
+
+def test_lifecycle_queue_claim_completion_and_status_are_safe(tmp_path: Path) -> None:
+    repo = Repository(tmp_path / "lifecycle.sqlite3")
+    repo.create_case(
+        case_id="case-1",
+        thread_id=1,
+        author_id=3,
+        module_code="M1",
+        keyword="test",
+        ai_content_permission=False,
+        canonical_title="[M1] [test] Question",
+        initial_snapshot={"body": "hello"},
+        class_code="01",
+    )
+    assert repo.claim_case(1, 9) is not None
+    assert repo.close_case(1) is not None
+    assert repo.close_case(1) is None
+
+    before_status = repo._connection.total_changes
+    snapshot = repo.safe_runtime_status()
+    assert repo._connection.total_changes == before_status
+    assert snapshot["schema_version"] == MIGRATIONS[-1].version
+    assert snapshot["queues"]["discord"] == 1
+    assert snapshot["failures"]["discord"] == 0
+
+    claim = repo.claim_discord_lifecycle_job("test-worker")
+    assert claim is not None
+    assert repo.mark_discord_lifecycle_stage(
+        claim.job_id, claim.claim_token, "NOTICE_SENT", control_message_id=99
+    )
+    assert repo.complete_discord_lifecycle_job(claim.job_id, claim.claim_token)
+    completed = repo.get_discord_lifecycle_job(claim.job_id)
+    assert completed is not None
+    assert completed["status"] == "COMPLETED"
+    assert completed["control_message_id"] == 99
+    assert repo.safe_runtime_status()["queues"]["discord"] == 0
 
 
 def test_reopen_requires_closed_and_never_mutates_a_tracked_case(tmp_path: Path) -> None:
@@ -143,14 +199,16 @@ def test_reopen_requires_closed_and_never_mutates_a_tracked_case(tmp_path: Path)
         ai_content_permission=False,
         canonical_title="[M1] [test] Question 7",
         initial_snapshot={"title": "[M1] [test] Question 7", "body": "hello"},
+        class_code="01",
     )
 
     assert repo.reopen_case(1) is None
     tracked = repo.get_case_by_thread(1)
     assert tracked is not None
-    assert tracked["status"] == "TRACKED"
+    assert tracked["status"] == "OPEN"
     assert tracked["reopen_count"] == 0
     assert tracked["canonical_title"] == "[M1] [test] Question 7"
+    assert repo.claim_case(1, 9) is not None
 
     for expected_count, expected_title in (
         (1, "[M1] [test] Question 7 2"),

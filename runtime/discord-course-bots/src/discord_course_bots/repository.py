@@ -6,12 +6,27 @@ import sqlite3
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from discord_course_bots.domain.applicants import (
+    applicant_identity_key,
+    normalize_class_code,
+    normalize_discord_username,
+    normalize_email,
+    normalize_ntu_email,
+    normalize_optional_gmail,
+)
 from discord_course_bots.domain.case_numbers import generate_case_number
-from discord_course_bots.jobs import PrivateDumpClaim, PrivateDumpFailureResult
+from discord_course_bots.domain.titles import closed_title, cycle_title
+from discord_course_bots.jobs import (
+    CourseRoleClaim,
+    DiscordLifecycleClaim,
+    PrivateDumpClaim,
+    PrivateDumpFailureResult,
+    PrivateOpenClaim,
+)
 from discord_course_bots.migrations import apply_migrations
 from discord_course_bots.queue_engine import (
     ReliableQueueSpec,
@@ -36,6 +51,59 @@ PRIVATE_DUMP_QUEUE = ReliableQueueSpec(
     terminal_failure_status="FAILED",
     reset_columns_on_claim=("failure_kind", "error"),
 )
+DISCORD_LIFECYCLE_QUEUE = ReliableQueueSpec(
+    table="discord_lifecycle_jobs",
+    key_column="job_id",
+    retry_column="next_attempt_at",
+    error_column="last_error_code",
+    order_column="created_at",
+    retry_status="RETRYABLE_FAILURE",
+    terminal_failure_status="PERMANENT_FAILURE",
+    reset_columns_on_claim=("last_error_code",),
+)
+PRIVATE_OPEN_QUEUE = ReliableQueueSpec(
+    table="private_open_requests",
+    key_column="interaction_id",
+    retry_column="next_attempt_at",
+    error_column="last_error_code",
+    order_column="created_at",
+    retry_status="RETRYABLE_FAILURE",
+    terminal_failure_status="PERMANENT_FAILURE",
+    reset_columns_on_claim=("last_error_code",),
+)
+DM_OUTBOX_QUEUE = ReliableQueueSpec(
+    table="discord_dm_outbox",
+    key_column="message_key",
+    retry_column="next_attempt_at",
+    error_column="last_error_code",
+    order_column="created_at",
+    retry_status="RETRYABLE_FAILURE",
+    terminal_failure_status="PERMANENT_FAILURE",
+    reset_columns_on_claim=("last_error_code",),
+)
+COURSE_ROLE_QUEUE = ReliableQueueSpec(
+    table="course_role_jobs",
+    key_column="job_id",
+    retry_column="next_attempt_at",
+    error_column="last_error_code",
+    order_column="created_at",
+    retry_status="RETRYABLE_FAILURE",
+    terminal_failure_status="PERMANENT_FAILURE",
+    reset_columns_on_claim=("last_error_code",),
+)
+ACTIVE_CASE_STATUSES = frozenset({"OPEN", "TRACKED", "IDLE"})
+CLOSED_CASE_STATUSES = frozenset({"CLOSED", "AUTO_CLOSED"})
+LEGACY_STATUS_MAP = {
+    "WAITING_FOR_STUDENT": "IDLE",
+    "ANSWERED": "TRACKED",
+    "ESCALATED": "TRACKED",
+    "TEMPORARILY_CLOSED": "IDLE",
+    "REOPENED": "TRACKED",
+}
+
+
+def canonical_case_status(value: str) -> str:
+    return LEGACY_STATUS_MAP.get(value, value)
 
 
 class Repository:
@@ -193,9 +261,15 @@ class Repository:
         ai_content_permission: bool,
         canonical_title: str,
         initial_snapshot: dict[str, Any],
+        class_code: str | None = None,
+        private_support: bool = False,
     ) -> str:
         for _ in range(CASE_NUMBER_MAX_ATTEMPTS):
-            case_number = generate_case_number()
+            case_number = (
+                generate_case_number(private_support=True)
+                if private_support
+                else generate_case_number(class_code=class_code)
+            )
             try:
                 with self.transaction() as db:
                     now = utc_now_iso()
@@ -204,8 +278,9 @@ class Repository:
                         INSERT INTO cases(
                             case_id, case_number, thread_id, author_id, module_code, keyword,
                             ai_content_permission, canonical_title, base_title, status, created_at,
-                            initial_snapshot_json
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'TRACKED', ?, ?)
+                            initial_snapshot_json, visibility, last_student_activity_at,
+                            updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?)
                         """,
                         (
                             case_id,
@@ -219,6 +294,9 @@ class Repository:
                             canonical_title,
                             now,
                             json.dumps(initial_snapshot, ensure_ascii=False, sort_keys=True),
+                            "PRIVATE" if private_support else "PUBLIC",
+                            now,
+                            now,
                         ),
                     )
                     self._record_public_case_transition(
@@ -227,42 +305,279 @@ class Repository:
                         case_number=case_number,
                         event_type="OPEN",
                         previous_status=None,
-                        new_status="TRACKED",
+                        new_status="OPEN",
                         occurred_at=now,
+                        project_public=not private_support,
                     )
             except sqlite3.IntegrityError as exc:
                 if "cases.case_number" not in str(exc):
                     raise
             else:
                 return case_number
-        raise RuntimeError("無法產生不重複的公開案件編號，請稍後再試。")
+        case_kind = "隱密" if private_support else "公開"
+        raise RuntimeError(f"無法產生不重複的{case_kind}案件編號，請稍後再試。")
 
     def get_case_by_thread(self, thread_id: int) -> sqlite3.Row | None:
         return self._connection.execute(
             "SELECT * FROM cases WHERE thread_id = ?", (thread_id,)
         ).fetchone()
 
+    def safe_case_projection(
+        self, case_number: str, *, allow_private: bool
+    ) -> dict[str, Any] | None:
+        normalized = case_number.strip().upper()
+        row = self._connection.execute(
+            "SELECT * FROM cases WHERE case_number = ?", (normalized,)
+        ).fetchone()
+        if row is None or (str(row["visibility"]) == "PRIVATE" and not allow_private):
+            return None
+        return {
+            "caseNumber": str(row["case_number"]),
+            "caseType": "PRIVATE_SUPPORT" if str(row["visibility"]) == "PRIVATE" else "GENERAL",
+            "status": canonical_case_status(str(row["status"])),
+            "updatedAt": str(row["updated_at"] or row["created_at"]),
+            "teachingTeamReplied": bool(row["teaching_team_replied"]),
+            "discordUrl": str(row["jump_url"] or ""),
+        }
+
+    def set_case_jump_url(self, thread_id: int, jump_url: str) -> None:
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE cases SET jump_url = ?, updated_at = ? WHERE thread_id = ?",
+                (jump_url, utc_now_iso(), thread_id),
+            )
+
     def tracked_cases(self) -> list[sqlite3.Row]:
         return list(
             self._connection.execute(
-                "SELECT * FROM cases WHERE status = 'TRACKED' ORDER BY created_at"
+                "SELECT * FROM cases WHERE status IN ('OPEN', 'TRACKED', 'IDLE') "
+                "ORDER BY created_at"
             ).fetchall()
         )
 
-    def close_case(self, thread_id: int) -> sqlite3.Row | None:
+    def claim_case(self, thread_id: int, staff_id: int) -> sqlite3.Row | None:
         with self.transaction() as db:
             now = utc_now_iso()
+            row = db.execute("SELECT * FROM cases WHERE thread_id = ?", (thread_id,)).fetchone()
+            if row is None:
+                return None
+            current = canonical_case_status(str(row["status"]))
+            if current == "TRACKED" and int(row["assigned_staff_id"] or 0) == staff_id:
+                return row
+            if current != "OPEN":
+                return None
+            result = db.execute(
+                """
+                UPDATE cases SET status = 'TRACKED', assigned_staff_id = ?, updated_at = ?
+                WHERE thread_id = ? AND status = ?
+                """,
+                (staff_id, now, thread_id, str(row["status"])),
+            )
+            if result.rowcount != 1:
+                return None
+            self._record_public_case_transition(
+                db,
+                case_id=str(row["case_id"]),
+                case_number=str(row["case_number"]),
+                event_type="TRACK",
+                previous_status=current,
+                new_status="TRACKED",
+                occurred_at=now,
+                project_public=str(row["visibility"]) == "PUBLIC",
+            )
+            return db.execute("SELECT * FROM cases WHERE thread_id = ?", (thread_id,)).fetchone()
+
+    def record_case_activity(
+        self,
+        thread_id: int,
+        *,
+        actor_id: int,
+        is_staff: bool,
+        occurred_at: datetime | None = None,
+    ) -> sqlite3.Row | None:
+        at = (occurred_at or datetime.now(UTC)).astimezone(UTC).isoformat()
+        with self.transaction() as db:
+            row = db.execute("SELECT * FROM cases WHERE thread_id = ?", (thread_id,)).fetchone()
+            if row is None:
+                return None
+            raw_status = str(row["status"])
+            status = canonical_case_status(raw_status)
+            new_status = status
+            event_type = "ACTIVITY"
+            assigned_staff_id = row["assigned_staff_id"]
+            if is_staff:
+                if status == "OPEN":
+                    new_status = "TRACKED"
+                    event_type = "TRACK"
+                    assigned_staff_id = actor_id
+                db.execute(
+                    """
+                    UPDATE cases SET status = ?, assigned_staff_id = ?,
+                        last_staff_response_at = ?, teaching_team_replied = 1,
+                        idle_at = NULL, idle_reminded_at = NULL, updated_at = ?
+                    WHERE thread_id = ?
+                    """,
+                    (new_status, assigned_staff_id, at, at, thread_id),
+                )
+            else:
+                if status in CLOSED_CASE_STATUSES | {"IDLE"}:
+                    new_status = "TRACKED"
+                    event_type = "REOPEN"
+                db.execute(
+                    """
+                    UPDATE cases SET status = ?, last_student_activity_at = ?,
+                        idle_at = NULL, idle_reminded_at = NULL,
+                        closed_at = CASE WHEN ? = 'TRACKED' THEN NULL ELSE closed_at END,
+                        reopen_count = reopen_count + CASE
+                            WHEN ? IN ('CLOSED', 'AUTO_CLOSED') THEN 1 ELSE 0 END,
+                        updated_at = ? WHERE thread_id = ?
+                    """,
+                    (new_status, at, new_status, status, at, thread_id),
+                )
+            if new_status != status:
+                self._record_public_case_transition(
+                    db,
+                    case_id=str(row["case_id"]),
+                    case_number=str(row["case_number"]),
+                    event_type=event_type,
+                    previous_status=status,
+                    new_status=new_status,
+                    occurred_at=at,
+                    project_public=str(row["visibility"]) == "PUBLIC",
+                )
+            updated = db.execute("SELECT * FROM cases WHERE thread_id = ?", (thread_id,)).fetchone()
+            if not is_staff and status in CLOSED_CASE_STATUSES:
+                self._enqueue_discord_lifecycle_job(
+                    db,
+                    case_id=str(updated["case_id"]),
+                    thread_id=thread_id,
+                    transition="REOPEN",
+                    cycle_number=int(updated["reopen_count"]) + 1,
+                    desired_title=cycle_title(
+                        str(updated["base_title"]), int(updated["reopen_count"])
+                    ),
+                    created_at=at,
+                )
+            return updated
+
+    def mark_due_cases_idle(
+        self, idle_seconds: int, *, now: datetime | None = None
+    ) -> list[sqlite3.Row]:
+        moment = (now or datetime.now(UTC)).astimezone(UTC)
+        cutoff = (moment - timedelta(seconds=idle_seconds)).isoformat()
+        at = moment.isoformat()
+        changed: list[sqlite3.Row] = []
+        with self.transaction() as db:
+            rows = db.execute(
+                """
+                SELECT * FROM cases WHERE status = 'TRACKED'
+                  AND last_staff_response_at IS NOT NULL
+                  AND last_staff_response_at <= ?
+                  AND COALESCE(last_student_activity_at, created_at) <= last_staff_response_at
+                """,
+                (cutoff,),
+            ).fetchall()
+            for row in rows:
+                result = db.execute(
+                    """UPDATE cases SET status = 'IDLE', idle_at = ?,
+                       idle_reminded_at = ?, updated_at = ?
+                       WHERE case_id = ? AND status = 'TRACKED'""",
+                    (at, at, at, str(row["case_id"])),
+                )
+                if result.rowcount != 1:
+                    continue
+                self._record_public_case_transition(
+                    db,
+                    case_id=str(row["case_id"]),
+                    case_number=str(row["case_number"]),
+                    event_type="IDLE",
+                    previous_status="TRACKED",
+                    new_status="IDLE",
+                    occurred_at=at,
+                    source_kind="SCHEDULER",
+                    project_public=str(row["visibility"]) == "PUBLIC",
+                )
+                self._enqueue_discord_lifecycle_job(
+                    db,
+                    case_id=str(row["case_id"]),
+                    thread_id=int(row["thread_id"]),
+                    transition="IDLE",
+                    cycle_number=int(row["reopen_count"]) + 1,
+                    desired_title=cycle_title(str(row["base_title"]), int(row["reopen_count"])),
+                    created_at=at,
+                )
+                changed.append(row)
+        return changed
+
+    def auto_close_due_cases(
+        self, auto_close_seconds: int, *, now: datetime | None = None
+    ) -> list[sqlite3.Row]:
+        moment = (now or datetime.now(UTC)).astimezone(UTC)
+        cutoff = (moment - timedelta(seconds=auto_close_seconds)).isoformat()
+        at = moment.isoformat()
+        changed: list[sqlite3.Row] = []
+        with self.transaction() as db:
+            rows = db.execute(
+                "SELECT * FROM cases WHERE status = 'IDLE' AND idle_at <= ?", (cutoff,)
+            ).fetchall()
+            for row in rows:
+                result = db.execute(
+                    """UPDATE cases SET status = 'AUTO_CLOSED', closed_at = ?, updated_at = ?
+                       WHERE case_id = ? AND status = 'IDLE'""",
+                    (at, at, str(row["case_id"])),
+                )
+                if result.rowcount != 1:
+                    continue
+                self._record_public_case_transition(
+                    db,
+                    case_id=str(row["case_id"]),
+                    case_number=str(row["case_number"]),
+                    event_type="AUTO_CLOSE",
+                    previous_status="IDLE",
+                    new_status="AUTO_CLOSED",
+                    occurred_at=at,
+                    source_kind="SCHEDULER",
+                    project_public=str(row["visibility"]) == "PUBLIC",
+                )
+                self._enqueue_discord_lifecycle_job(
+                    db,
+                    case_id=str(row["case_id"]),
+                    thread_id=int(row["thread_id"]),
+                    transition="AUTO_CLOSE",
+                    cycle_number=int(row["reopen_count"]) + 1,
+                    desired_title=closed_title(
+                        cycle_title(str(row["base_title"]), int(row["reopen_count"])),
+                        automatic=True,
+                    ),
+                    created_at=at,
+                )
+                changed.append(row)
+        return changed
+
+    def close_case(self, thread_id: int) -> sqlite3.Row | None:
+        changed = False
+        with self.transaction() as db:
+            now = utc_now_iso()
+            before = db.execute("SELECT * FROM cases WHERE thread_id = ?", (thread_id,)).fetchone()
+            if before is None or canonical_case_status(str(before["status"])) not in {
+                "TRACKED",
+                "IDLE",
+            }:
+                return None
+            previous_status = canonical_case_status(str(before["status"]))
             result = db.execute(
                 """
                 UPDATE cases
-                SET status = 'CLOSED', closed_at = ?
-                WHERE thread_id = ? AND status = 'TRACKED'
+                SET status = 'CLOSED', closed_at = ?, updated_at = ?
+                WHERE thread_id = ? AND status IN ('TRACKED', 'IDLE')
                 """,
-                (now, thread_id),
+                (now, now, thread_id),
             )
             if result.rowcount == 1:
+                changed = True
                 row = db.execute(
-                    "SELECT case_id, case_number FROM cases WHERE thread_id = ?",
+                    "SELECT case_id, case_number, base_title, reopen_count "
+                    "FROM cases WHERE thread_id = ?",
                     (thread_id,),
                 ).fetchone()
                 self._record_public_case_transition(
@@ -270,21 +585,42 @@ class Repository:
                     case_id=str(row["case_id"]),
                     case_number=str(row["case_number"]),
                     event_type="CLOSE",
-                    previous_status="TRACKED",
+                    previous_status=previous_status,
                     new_status="CLOSED",
                     occurred_at=now,
+                    project_public=str(before["visibility"]) == "PUBLIC",
                 )
-        return self.get_case_by_thread(thread_id)
+                self._enqueue_discord_lifecycle_job(
+                    db,
+                    case_id=str(row["case_id"]),
+                    thread_id=thread_id,
+                    transition="CLOSE",
+                    cycle_number=int(row["reopen_count"]) + 1,
+                    desired_title=closed_title(
+                        cycle_title(str(row["base_title"]), int(row["reopen_count"])),
+                        automatic=False,
+                    ),
+                    created_at=now,
+                )
+        return self.get_case_by_thread(thread_id) if changed else None
 
     def reopen_case(self, thread_id: int) -> sqlite3.Row | None:
         with self.transaction() as db:
+            now = utc_now_iso()
+            before = db.execute("SELECT * FROM cases WHERE thread_id = ?", (thread_id,)).fetchone()
+            if before is None or canonical_case_status(str(before["status"])) not in {
+                "CLOSED",
+                "AUTO_CLOSED",
+            }:
+                return None
+            previous_status = canonical_case_status(str(before["status"]))
             result = db.execute(
                 """
-                UPDATE cases
-                SET status = 'TRACKED', closed_at = NULL, reopen_count = reopen_count + 1
-                WHERE thread_id = ? AND status = 'CLOSED'
+                UPDATE cases SET status = 'TRACKED', closed_at = NULL,
+                    reopen_count = reopen_count + 1, updated_at = ?
+                WHERE thread_id = ? AND status IN ('CLOSED', 'AUTO_CLOSED')
                 """,
-                (thread_id,),
+                (now, thread_id),
             )
             if result.rowcount != 1:
                 return None
@@ -294,11 +630,208 @@ class Repository:
                 case_id=str(row["case_id"]),
                 case_number=str(row["case_number"]),
                 event_type="REOPEN",
-                previous_status="CLOSED",
+                previous_status=previous_status,
                 new_status="TRACKED",
-                occurred_at=utc_now_iso(),
+                occurred_at=now,
+                project_public=str(row["visibility"]) == "PUBLIC",
+            )
+            self._enqueue_discord_lifecycle_job(
+                db,
+                case_id=str(row["case_id"]),
+                thread_id=thread_id,
+                transition="REOPEN",
+                cycle_number=int(row["reopen_count"]) + 1,
+                desired_title=cycle_title(str(row["base_title"]), int(row["reopen_count"])),
+                created_at=now,
             )
             return row
+
+    def has_unfinished_discord_lifecycle_job(self, case_id: str) -> bool:
+        row = self._connection.execute(
+            """
+            SELECT 1 FROM discord_lifecycle_jobs
+            WHERE case_id = ? AND status != 'COMPLETED'
+            LIMIT 1
+            """,
+            (case_id,),
+        ).fetchone()
+        return row is not None
+
+    def _enqueue_discord_lifecycle_job(
+        self,
+        db: sqlite3.Connection,
+        *,
+        case_id: str,
+        thread_id: int,
+        transition: str,
+        cycle_number: int,
+        desired_title: str,
+        created_at: str,
+    ) -> None:
+        db.execute(
+            """
+            INSERT INTO discord_lifecycle_jobs(
+                job_id, case_id, thread_id, transition, cycle_number,
+                desired_title, status, stage, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', 'PENDING', ?, ?)
+            ON CONFLICT(case_id, transition, cycle_number) DO NOTHING
+            """,
+            (
+                f"discord-{uuid.uuid4().hex}",
+                case_id,
+                thread_id,
+                transition,
+                cycle_number,
+                desired_title,
+                created_at,
+                created_at,
+            ),
+        )
+
+    def get_discord_lifecycle_job(self, job_id: str) -> sqlite3.Row | None:
+        return self._connection.execute(
+            "SELECT * FROM discord_lifecycle_jobs WHERE job_id = ?", (job_id,)
+        ).fetchone()
+
+    def claim_discord_lifecycle_job(
+        self, worker_id: str, *, lease_seconds: int = 1_200
+    ) -> DiscordLifecycleClaim | None:
+        with self.immediate_transaction() as db:
+            claim = claim_next(
+                db,
+                DISCORD_LIFECYCLE_QUEUE,
+                worker_id=worker_id,
+                lease_seconds=lease_seconds,
+            )
+        if claim is None:
+            return None
+        return DiscordLifecycleClaim(
+            job_id=str(claim.key),
+            claim_token=claim.claim_token,
+            claimed_by=claim.claimed_by,
+            attempt_count=claim.attempt_count,
+            lease_expires_at=claim.lease_expires_at,
+        )
+
+    def mark_discord_lifecycle_stage(
+        self,
+        job_id: str,
+        claim_token: str,
+        stage: str,
+        *,
+        control_message_id: int | None = None,
+    ) -> bool:
+        if stage not in {"NOTICE_SENT", "DISCORD_APPLIED"}:
+            raise ValueError("Unsupported Discord lifecycle stage")
+        now = utc_now_iso()
+        with self.transaction() as db:
+            result = db.execute(
+                """
+                UPDATE discord_lifecycle_jobs
+                SET stage = ?, control_message_id = COALESCE(?, control_message_id),
+                    updated_at = ?
+                WHERE job_id = ? AND status = 'CLAIMED' AND claim_token = ?
+                """,
+                (stage, control_message_id, now, job_id, claim_token),
+            )
+            return result.rowcount == 1
+
+    def complete_discord_lifecycle_job(self, job_id: str, claim_token: str) -> bool:
+        now = utc_now_iso()
+        with self.transaction() as db:
+            return complete_claim(
+                db,
+                DISCORD_LIFECYCLE_QUEUE,
+                key=job_id,
+                claim_token=claim_token,
+                final_status="COMPLETED",
+                values={"stage": "DISCORD_APPLIED", "completed_at": now, "updated_at": now},
+            )
+
+    def fail_discord_lifecycle_job(
+        self,
+        job_id: str,
+        claim_token: str,
+        *,
+        error_code: str,
+        retryable: bool,
+    ):
+        if not SAFE_JOB_ERROR_CODE.fullmatch(error_code):
+            raise ValueError("Unsafe lifecycle error code")
+        with self.transaction() as db:
+            return fail_claim(
+                db,
+                DISCORD_LIFECYCLE_QUEUE,
+                key=job_id,
+                claim_token=claim_token,
+                error_code=error_code,
+                retryable=retryable,
+                max_attempts=8,
+                base_retry_seconds=15,
+                max_retry_seconds=300,
+            )
+
+    def safe_runtime_status(self) -> dict[str, Any]:
+        health_rows = self._connection.execute(
+            "SELECT service_key, status, checked_at FROM service_health ORDER BY service_key"
+        ).fetchall()
+        queue_depths = {
+            "discord": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM discord_lifecycle_jobs "
+                    "WHERE status NOT IN ('COMPLETED', 'PERMANENT_FAILURE')"
+                ).fetchone()[0]
+            ),
+            "projection": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM projection_outbox "
+                    "WHERE status NOT IN ('COMPLETED', 'PERMANENT_FAILURE')"
+                ).fetchone()[0]
+            ),
+            "private_dump": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM private_dump_jobs "
+                    "WHERE status NOT IN ('DELETED', 'FAILED')"
+                ).fetchone()[0]
+            ),
+        }
+        failures = {
+            "discord": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM discord_lifecycle_jobs WHERE status = 'PERMANENT_FAILURE'"
+                ).fetchone()[0]
+            ),
+            "projection": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM projection_outbox WHERE status = 'PERMANENT_FAILURE'"
+                ).fetchone()[0]
+            ),
+            "private_dump": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM private_dump_jobs WHERE status = 'FAILED'"
+                ).fetchone()[0]
+            ),
+        }
+        now = datetime.now(UTC)
+        health: list[dict[str, str]] = []
+        for row in health_rows:
+            checked = datetime.fromisoformat(str(row["checked_at"]))
+            if checked.tzinfo is None:
+                checked = checked.replace(tzinfo=UTC)
+            age_seconds = (now - checked.astimezone(UTC)).total_seconds()
+            reported = str(row["status"])
+            state = (
+                reported
+                if reported != "HEALTHY"
+                else ("HEALTHY" if age_seconds <= 300 else "STALE")
+            )
+            health.append({"service": str(row["service_key"]), "state": state})
+        return {
+            "schema_version": self.schema_version,
+            "health": health,
+            "queues": queue_depths,
+            "failures": failures,
+        }
 
     def _record_public_case_transition(
         self,
@@ -310,6 +843,8 @@ class Repository:
         previous_status: str | None,
         new_status: str,
         occurred_at: str,
+        source_kind: str = "DISCORD",
+        project_public: bool = True,
     ) -> None:
         stream = db.execute(
             "SELECT last_local_projection_version FROM sync_state "
@@ -329,7 +864,7 @@ class Repository:
             INSERT INTO case_lifecycle_events(
                 event_id, case_id, case_ref, event_type, previous_status, new_status,
                 source_kind, correlation_id, occurred_at, synthetic
-            ) VALUES (?, ?, ?, ?, ?, ?, 'DISCORD', ?, ?, 0)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
             """,
             (
                 event_id,
@@ -338,10 +873,13 @@ class Repository:
                 event_type,
                 previous_status,
                 new_status,
+                source_kind,
                 f"discord:{event_id}",
                 occurred_at,
             ),
         )
+        if not project_public:
+            return
         work = (
             (f"prj-{event_id}-case", "UPSERT_CURRENT_STATE", "CASEBOARD"),
             (f"prj-{event_id}-history", "APPEND_HISTORY", "HISTORY"),
@@ -457,6 +995,794 @@ class Repository:
                 """,
                 (f"prj-health-{service_key}-{version}", service_key, version, now, now),
             )
+
+    def begin_private_open_request(
+        self,
+        *,
+        interaction_id: str,
+        guild_id: int,
+        requester_id: int,
+        ai_content_permission: bool,
+        now: datetime | None = None,
+        capacity: int = 50,
+    ) -> sqlite3.Row:
+        moment = (now or datetime.now(UTC)).astimezone(UTC)
+        at = moment.isoformat()
+        with self.immediate_transaction() as db:
+            existing = db.execute(
+                "SELECT * FROM private_open_requests WHERE interaction_id = ?",
+                (interaction_id,),
+            ).fetchone()
+            if existing is not None:
+                return existing
+            windows = (
+                (120, 1, "RATE_2_MINUTES"),
+                (3600, 5, "RATE_1_HOUR"),
+                (86400, 20, "RATE_24_HOURS"),
+            )
+            rejection: str | None = None
+            for seconds, limit, code in windows:
+                cutoff = (moment - timedelta(seconds=seconds)).isoformat()
+                count = int(
+                    db.execute(
+                        """
+                        SELECT COUNT(*) FROM private_open_requests
+                        WHERE requester_id = ? AND created_at > ?
+                          AND status != 'REJECTED'
+                        """,
+                        (requester_id, cutoff),
+                    ).fetchone()[0]
+                )
+                if count >= limit:
+                    rejection = code
+                    break
+            pending = int(
+                db.execute(
+                    """SELECT COUNT(*) FROM private_open_requests
+                       WHERE status IN ('PENDING', 'CLAIMED', 'RETRYABLE_FAILURE')"""
+                ).fetchone()[0]
+            )
+            status = "REJECTED" if rejection else "PENDING"
+            if rejection is None and pending >= capacity:
+                rejection = "CAPACITY_WAIT"
+            db.execute(
+                """
+                INSERT INTO private_open_requests(
+                    interaction_id, idempotency_key, guild_id, requester_id,
+                    ai_content_permission, status, rejection_code, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    interaction_id,
+                    f"private-open:{guild_id}:{requester_id}:{interaction_id}",
+                    guild_id,
+                    requester_id,
+                    int(ai_content_permission),
+                    status,
+                    rejection,
+                    at,
+                    at,
+                ),
+            )
+            return db.execute(
+                "SELECT * FROM private_open_requests WHERE interaction_id = ?",
+                (interaction_id,),
+            ).fetchone()
+
+    def get_private_open_request(self, interaction_id: str) -> sqlite3.Row | None:
+        return self._connection.execute(
+            "SELECT * FROM private_open_requests WHERE interaction_id = ?", (interaction_id,)
+        ).fetchone()
+
+    def claim_private_open_request(self, worker_id: str) -> PrivateOpenClaim | None:
+        with self.immediate_transaction() as db:
+            claim = claim_next(db, PRIVATE_OPEN_QUEUE, worker_id=worker_id, lease_seconds=300)
+        if claim is None:
+            return None
+        return PrivateOpenClaim(
+            interaction_id=str(claim.key),
+            claim_token=claim.claim_token,
+            claimed_by=claim.claimed_by,
+            attempt_count=claim.attempt_count,
+            lease_expires_at=claim.lease_expires_at,
+        )
+
+    def release_private_open_claim(self, interaction_id: str, claim_token: str) -> bool:
+        now = utc_now_iso()
+        with self.transaction() as db:
+            result = db.execute(
+                """UPDATE private_open_requests SET status = 'PENDING', claim_token = NULL,
+                   claimed_by = NULL, lease_expires_at = NULL, next_attempt_at = NULL,
+                   updated_at = ? WHERE interaction_id = ? AND status = 'CLAIMED'
+                   AND claim_token = ?""",
+                (now, interaction_id, claim_token),
+            )
+            return result.rowcount == 1
+
+    def mark_private_channel_created(
+        self, interaction_id: str, claim_token: str, *, channel_id: int, jump_url: str
+    ) -> bool:
+        now = utc_now_iso()
+        with self.transaction() as db:
+            result = db.execute(
+                """UPDATE private_open_requests SET channel_id = ?, jump_url = ?, updated_at = ?
+                   WHERE interaction_id = ? AND status = 'CLAIMED' AND claim_token = ?""",
+                (channel_id, jump_url, now, interaction_id, claim_token),
+            )
+            return result.rowcount == 1
+
+    def fail_private_open_request(
+        self, interaction_id: str, claim_token: str, *, error_code: str, retryable: bool
+    ) -> bool:
+        if not SAFE_JOB_ERROR_CODE.fullmatch(error_code):
+            raise ValueError("Unsafe private request error code")
+        with self.transaction() as db:
+            result = fail_claim(
+                db,
+                PRIVATE_OPEN_QUEUE,
+                key=interaction_id,
+                claim_token=claim_token,
+                error_code=error_code,
+                retryable=retryable,
+                max_attempts=8,
+                base_retry_seconds=15,
+                max_retry_seconds=300,
+            )
+            return result is not None
+
+    def complete_private_open_request(
+        self,
+        *,
+        interaction_id: str,
+        channel_id: int,
+        jump_url: str,
+        module_code: str,
+        requester_id: int,
+        ai_content_permission: bool,
+    ) -> sqlite3.Row:
+        request = self._connection.execute(
+            "SELECT * FROM private_open_requests WHERE interaction_id = ?", (interaction_id,)
+        ).fetchone()
+        if request is None:
+            raise RuntimeError("PRIVATE_REQUEST_MISSING")
+        if str(request["status"]) == "COMPLETED":
+            return request
+        existing_case = self.get_case_by_thread(channel_id)
+        if existing_case is None:
+            case_id = str(uuid.uuid4())
+            title = f"[{module_code}] 隱密支援"
+            case_number = self.create_case(
+                case_id=case_id,
+                thread_id=channel_id,
+                author_id=requester_id,
+                module_code=module_code,
+                keyword="隱密支援",
+                ai_content_permission=ai_content_permission,
+                canonical_title=title,
+                initial_snapshot={"title": title, "visibility": "PRIVATE"},
+                private_support=True,
+            )
+            existing_case = self.get_case_by_thread(channel_id)
+        else:
+            case_number = str(existing_case["case_number"])
+            case_id = str(existing_case["case_id"])
+        now = utc_now_iso()
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE cases SET jump_url = ?, updated_at = ? WHERE thread_id = ?",
+                (jump_url, now, channel_id),
+            )
+            db.execute(
+                """
+                INSERT INTO private_support(
+                    channel_id, case_number, requester_id, ai_content_permission,
+                    status, created_at, case_id, interaction_id, updated_at
+                ) VALUES (?, ?, ?, ?, 'OPEN', ?, ?, ?, ?)
+                ON CONFLICT(channel_id) DO UPDATE SET
+                    case_number=excluded.case_number, case_id=excluded.case_id,
+                    interaction_id=excluded.interaction_id, updated_at=excluded.updated_at
+                """,
+                (
+                    channel_id,
+                    case_number,
+                    requester_id,
+                    int(ai_content_permission),
+                    now,
+                    case_id,
+                    interaction_id,
+                    now,
+                ),
+            )
+            db.execute(
+                """
+                UPDATE private_open_requests
+                SET status = 'COMPLETED', channel_id = ?, case_id = ?, case_number = ?,
+                    jump_url = ?, completed_at = ?, updated_at = ?
+                WHERE interaction_id = ? AND status IN (
+                    'PENDING', 'CLAIMED', 'RETRYABLE_FAILURE'
+                )
+                """,
+                (channel_id, case_id, case_number, jump_url, now, now, interaction_id),
+            )
+            self._enqueue_dm(
+                db,
+                message_key=f"case-open:{case_id}",
+                recipient_id=requester_id,
+                message_kind="CASE_OPENED",
+                aggregate_ref=case_number,
+                body=f"您的隱密支援案件已成立。\n案號：`{case_number}`\n前往案件：{jump_url}",
+                created_at=now,
+            )
+            return db.execute(
+                "SELECT * FROM private_open_requests WHERE interaction_id = ?",
+                (interaction_id,),
+            ).fetchone()
+
+    def _enqueue_dm(
+        self,
+        db: sqlite3.Connection,
+        *,
+        message_key: str,
+        recipient_id: int,
+        message_kind: str,
+        aggregate_ref: str,
+        body: str,
+        created_at: str,
+    ) -> None:
+        db.execute(
+            """
+            INSERT INTO discord_dm_outbox(
+                message_key, recipient_id, message_kind, aggregate_ref, body,
+                status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
+            ON CONFLICT(message_key) DO NOTHING
+            """,
+            (
+                message_key,
+                recipient_id,
+                message_kind,
+                aggregate_ref,
+                body,
+                created_at,
+                created_at,
+            ),
+        )
+
+    def enqueue_case_dm(
+        self, *, case_id: str, recipient_id: int, case_number: str, jump_url: str
+    ) -> None:
+        now = utc_now_iso()
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE cases SET jump_url = ?, updated_at = ? WHERE case_id = ?",
+                (jump_url, now, case_id),
+            )
+            self._enqueue_dm(
+                db,
+                message_key=f"case-open:{case_id}",
+                recipient_id=recipient_id,
+                message_kind="CASE_OPENED",
+                aggregate_ref=case_number,
+                body=f"您的案件已成立。\n案號：`{case_number}`\n前往案件：{jump_url}",
+                created_at=now,
+            )
+
+    def pending_dm_messages(self, limit: int = 20) -> list[sqlite3.Row]:
+        return list(
+            self._connection.execute(
+                """SELECT * FROM discord_dm_outbox
+                   WHERE status IN ('PENDING', 'RETRYABLE_FAILURE')
+                   ORDER BY created_at LIMIT ?""",
+                (limit,),
+            ).fetchall()
+        )
+
+    def complete_dm_message(self, message_key: str) -> bool:
+        now = utc_now_iso()
+        with self.transaction() as db:
+            result = db.execute(
+                """UPDATE discord_dm_outbox SET status = 'COMPLETED', completed_at = ?,
+                   updated_at = ? WHERE message_key = ?
+                   AND status IN ('PENDING', 'RETRYABLE_FAILURE')""",
+                (now, now, message_key),
+            )
+            return result.rowcount == 1
+
+    def fail_dm_message(self, message_key: str, error_code: str) -> bool:
+        if not SAFE_JOB_ERROR_CODE.fullmatch(error_code):
+            raise ValueError("Unsafe DM error code")
+        now = utc_now_iso()
+        with self.transaction() as db:
+            result = db.execute(
+                """UPDATE discord_dm_outbox SET status = 'PERMANENT_FAILURE',
+                   last_error_code = ?, updated_at = ? WHERE message_key = ?
+                   AND status IN ('PENDING', 'RETRYABLE_FAILURE')""",
+                (error_code, now, message_key),
+            )
+            return result.rowcount == 1
+
+    def submit_join_application(
+        self,
+        *,
+        applicant_type: str,
+        discord_username: str,
+        identity_email: str,
+        ntu_mail: str | None = None,
+        contact_email: str | None = None,
+        class_code: str | None = None,
+        visit_reason: str | None = None,
+    ) -> tuple[sqlite3.Row, bool]:
+        kind = applicant_type.strip().upper()
+        if kind not in {"STUDENT", "VISITOR"}:
+            raise ValueError("身分類型必須是臺大學生或訪客。")
+        username = normalize_discord_username(discord_username)
+        if kind == "STUDENT":
+            email = normalize_ntu_email(identity_email)
+            ntu = normalize_ntu_email(ntu_mail or identity_email)
+            klass = normalize_class_code(class_code or "")
+            contact = normalize_optional_gmail(contact_email)
+            reason = None
+        else:
+            email = normalize_email(identity_email)
+            ntu = None
+            klass = None
+            contact = normalize_email(contact_email or identity_email)
+            reason = (visit_reason or "").strip()
+            if not reason:
+                raise ValueError("訪客請填寫來訪原因。")
+        key = applicant_identity_key(kind, email, username)
+        now = utc_now_iso()
+        with self.transaction() as db:
+            existing = db.execute(
+                "SELECT * FROM join_applications WHERE identity_key = ?", (key,)
+            ).fetchone()
+            if existing is None:
+                existing = db.execute(
+                    """SELECT * FROM join_applications
+                       WHERE applicant_type = ? AND normalized_email = ?
+                       ORDER BY created_at LIMIT 1""",
+                    (kind, email),
+                ).fetchone()
+            if existing is not None:
+                if existing["discord_user_id"] is not None:
+                    summary = str(existing["role_summary"] or "尚未設定班級／權限")
+                    self._enqueue_dm(
+                        db,
+                        message_key=f"join-duplicate:{existing['application_id']}",
+                        recipient_id=int(existing["discord_user_id"]),
+                        message_kind="JOIN_DUPLICATE",
+                        aggregate_ref=str(existing["application_id"]),
+                        body=f"你已經註冊過了呦！\n目前班級／權限：{summary}",
+                        created_at=now,
+                    )
+                return existing, True
+            application_id = f"join-{uuid.uuid4().hex}"
+            db.execute(
+                """
+                INSERT INTO join_applications(
+                    application_id, identity_key, applicant_type, discord_username,
+                    normalized_username, identity_email, normalized_email, ntu_mail,
+                    contact_email, class_code, visit_reason, status, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_REVIEW', ?, ?)
+                """,
+                (
+                    application_id,
+                    key,
+                    kind,
+                    discord_username.strip(),
+                    username,
+                    identity_email.strip(),
+                    email,
+                    ntu,
+                    contact,
+                    klass,
+                    reason,
+                    now,
+                    now,
+                ),
+            )
+            self._record_join_event(
+                db,
+                application_id=application_id,
+                previous_status=None,
+                new_status="PENDING_REVIEW",
+                actor_id=None,
+                reason_code="SUBMITTED",
+                occurred_at=now,
+            )
+            row = db.execute(
+                "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+            ).fetchone()
+            return row, False
+
+    def bind_join_discord_member(self, application_id: str, discord_user_id: int) -> sqlite3.Row:
+        now = utc_now_iso()
+        with self.transaction() as db:
+            try:
+                result = db.execute(
+                    """UPDATE join_applications SET discord_user_id = ?, updated_at = ?
+                       WHERE application_id = ? AND status != 'ARCHIVED'""",
+                    (discord_user_id, now, application_id),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise RuntimeError("DISCORD_MEMBER_ALREADY_BOUND") from exc
+            if result.rowcount != 1:
+                raise RuntimeError("JOIN_APPLICATION_NOT_FOUND")
+            return db.execute(
+                "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+            ).fetchone()
+
+    def get_join_application(self, application_id: str) -> sqlite3.Row | None:
+        return self._connection.execute(
+            "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+        ).fetchone()
+
+    def pending_join_applications(self, limit: int = 25) -> list[sqlite3.Row]:
+        return list(
+            self._connection.execute(
+                """SELECT * FROM join_applications
+                   WHERE status IN ('PENDING_REVIEW', 'WAITING_FOR_DISCORD_MEMBER')
+                   ORDER BY created_at LIMIT ?""",
+                (limit,),
+            ).fetchall()
+        )
+
+    def transition_join_application(
+        self,
+        application_id: str,
+        *,
+        action: str,
+        actor_id: int,
+        reason_code: str,
+        desired_role_ids: tuple[int, ...] = (),
+        desired_nickname: str | None = None,
+    ) -> sqlite3.Row:
+        normalized_action = action.strip().upper()
+        now = utc_now_iso()
+        with self.transaction() as db:
+            row = db.execute(
+                "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("JOIN_APPLICATION_NOT_FOUND")
+            previous = str(row["status"])
+            if previous not in {"PENDING_REVIEW", "WAITING_FOR_DISCORD_MEMBER"}:
+                raise RuntimeError("JOIN_APPLICATION_NOT_REVIEWABLE")
+            if normalized_action == "WAITING":
+                target = "WAITING_FOR_DISCORD_MEMBER"
+            elif normalized_action == "REJECT":
+                target = "REJECTED"
+            elif normalized_action == "APPROVE":
+                if row["discord_user_id"] is None:
+                    target = "WAITING_FOR_DISCORD_MEMBER"
+                else:
+                    target = previous
+                    db.execute(
+                        """
+                        INSERT INTO course_role_jobs(
+                            job_id, application_id, discord_user_id, desired_roles_json,
+                            desired_nickname, status, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
+                        ON CONFLICT(application_id) DO NOTHING
+                        """,
+                        (
+                            f"roles-{uuid.uuid4().hex}",
+                            application_id,
+                            int(row["discord_user_id"]),
+                            json.dumps(sorted(set(desired_role_ids))),
+                            desired_nickname,
+                            now,
+                            now,
+                        ),
+                    )
+            else:
+                raise ValueError("不支援的審核動作。")
+            if target != previous:
+                db.execute(
+                    """UPDATE join_applications SET status = ?, updated_at = ?
+                       WHERE application_id = ?""",
+                    (target, now, application_id),
+                )
+            self._record_join_event(
+                db,
+                application_id=application_id,
+                previous_status=previous,
+                new_status=target,
+                actor_id=actor_id,
+                reason_code=reason_code,
+                occurred_at=now,
+            )
+            if target in {"WAITING_FOR_DISCORD_MEMBER", "REJECTED"} and row["discord_user_id"]:
+                copy = (
+                    "我們還找不到你的 Discord 成員資料。請先加入伺服器等候區；申請會保留。"
+                    if target == "WAITING_FOR_DISCORD_MEMBER"
+                    else "你的加入申請目前未通過。若資料需要更正，請聯絡教學團隊。"
+                )
+                self._enqueue_dm(
+                    db,
+                    message_key=f"join-{target.lower()}:{application_id}",
+                    recipient_id=int(row["discord_user_id"]),
+                    message_kind=f"JOIN_{target}",
+                    aggregate_ref=application_id,
+                    body=copy,
+                    created_at=now,
+                )
+            return db.execute(
+                "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+            ).fetchone()
+
+    def reserve_course_alias(self, application_id: str, *, observed_max: int = 0) -> str:
+        if observed_max < 0:
+            raise ValueError("observed_max cannot be negative")
+        now = utc_now_iso()
+        with self.immediate_transaction() as db:
+            existing = db.execute(
+                "SELECT nickname FROM course_alias_allocations WHERE application_id = ?",
+                (application_id,),
+            ).fetchone()
+            if existing is not None:
+                return str(existing["nickname"])
+            application = db.execute(
+                "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+            ).fetchone()
+            if application is None:
+                raise RuntimeError("JOIN_APPLICATION_NOT_FOUND")
+            if str(application["status"]) not in {
+                "PENDING_REVIEW",
+                "WAITING_FOR_DISCORD_MEMBER",
+            }:
+                raise RuntimeError("JOIN_APPLICATION_NOT_REVIEWABLE")
+            if str(application["applicant_type"]) == "STUDENT":
+                class_code = normalize_class_code(str(application["class_code"] or ""))
+                scope_key = f"STUDENT:{class_code}"
+                prefix = f"Student_{class_code}"
+            else:
+                scope_key = "VISITOR:GENERAL"
+                prefix = "Guest_Visitor"
+            row = db.execute(
+                "SELECT COALESCE(MAX(sequence), 0) AS maximum FROM course_alias_allocations "
+                "WHERE scope_key = ?",
+                (scope_key,),
+            ).fetchone()
+            sequence = max(int(row["maximum"]), observed_max) + 1
+            if sequence > 999:
+                raise RuntimeError("COURSE_ALIAS_SEQUENCE_EXHAUSTED")
+            nickname = f"{prefix}{sequence:03d}"
+            db.execute(
+                """INSERT INTO course_alias_allocations(
+                       application_id, scope_key, sequence, nickname, created_at
+                   ) VALUES (?, ?, ?, ?, ?)""",
+                (application_id, scope_key, sequence, nickname, now),
+            )
+            return nickname
+
+    def complete_course_role_job(self, job_id: str, claim_token: str, role_summary: str) -> bool:
+        now = utc_now_iso()
+        with self.transaction() as db:
+            job = db.execute(
+                "SELECT * FROM course_role_jobs WHERE job_id = ?", (job_id,)
+            ).fetchone()
+            if job is None:
+                return False
+            application_id = str(job["application_id"])
+            row = db.execute(
+                "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+            ).fetchone()
+            if row is None or row["discord_user_id"] is None or str(row["status"]) == "ARCHIVED":
+                return False
+            completed = complete_claim(
+                db,
+                COURSE_ROLE_QUEUE,
+                key=job_id,
+                claim_token=claim_token,
+                final_status="COMPLETED",
+                values={"completed_at": now, "updated_at": now},
+            )
+            if not completed:
+                return False
+            previous = str(row["status"])
+            db.execute(
+                """UPDATE join_applications
+                   SET status = 'APPROVED', role_summary = ?, updated_at = ?
+                   WHERE application_id = ?""",
+                (role_summary, now, application_id),
+            )
+            self._record_join_event(
+                db,
+                application_id=application_id,
+                previous_status=previous,
+                new_status="APPROVED",
+                actor_id=None,
+                reason_code="ROLES_APPLIED",
+                occurred_at=now,
+            )
+            self._enqueue_dm(
+                db,
+                message_key=f"join-approved:{application_id}",
+                recipient_id=int(row["discord_user_id"]),
+                message_kind="JOIN_APPROVED",
+                aggregate_ref=application_id,
+                body=f"你的加入申請已核准。\n目前班級／權限：{role_summary}",
+                created_at=now,
+            )
+            return True
+
+    def get_course_role_job(self, job_id: str) -> sqlite3.Row | None:
+        return self._connection.execute(
+            "SELECT * FROM course_role_jobs WHERE job_id = ?", (job_id,)
+        ).fetchone()
+
+    def claim_course_role_job(self, worker_id: str) -> CourseRoleClaim | None:
+        with self.immediate_transaction() as db:
+            claim = claim_next(db, COURSE_ROLE_QUEUE, worker_id=worker_id, lease_seconds=300)
+        if claim is None:
+            return None
+        return CourseRoleClaim(
+            job_id=str(claim.key),
+            claim_token=claim.claim_token,
+            claimed_by=claim.claimed_by,
+            attempt_count=claim.attempt_count,
+            lease_expires_at=claim.lease_expires_at,
+        )
+
+    def fail_course_role_job(
+        self, job_id: str, claim_token: str, *, error_code: str, retryable: bool
+    ) -> bool:
+        if not SAFE_JOB_ERROR_CODE.fullmatch(error_code):
+            raise ValueError("Unsafe role job error code")
+        with self.transaction() as db:
+            result = fail_claim(
+                db,
+                COURSE_ROLE_QUEUE,
+                key=job_id,
+                claim_token=claim_token,
+                error_code=error_code,
+                retryable=retryable,
+                max_attempts=8,
+                base_retry_seconds=15,
+                max_retry_seconds=300,
+            )
+            return result is not None
+
+    def archive_join_application(
+        self, application_id: str, *, actor_id: int, reason: str
+    ) -> sqlite3.Row:
+        now = utc_now_iso()
+        with self.transaction() as db:
+            row = db.execute(
+                "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("JOIN_APPLICATION_NOT_FOUND")
+            if str(row["status"]) == "ARCHIVED":
+                return row
+            active_job = db.execute(
+                """SELECT 1 FROM course_role_jobs
+                   WHERE application_id = ?
+                     AND status IN ('PENDING', 'CLAIMED', 'RETRYABLE_FAILURE')""",
+                (application_id,),
+            ).fetchone()
+            if active_job is not None:
+                raise RuntimeError("JOIN_APPLICATION_HAS_ACTIVE_ROLE_JOB")
+            db.execute(
+                """UPDATE join_applications SET previous_status = status, status = 'ARCHIVED',
+                   archive_reason = ?, archived_by = ?, archived_at = ?, updated_at = ?
+                   WHERE application_id = ?""",
+                (reason.strip(), actor_id, now, now, application_id),
+            )
+            self._record_join_event(
+                db,
+                application_id=application_id,
+                previous_status=str(row["status"]),
+                new_status="ARCHIVED",
+                actor_id=actor_id,
+                reason_code="ARCHIVED",
+                occurred_at=now,
+            )
+            return db.execute(
+                "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+            ).fetchone()
+
+    def restore_join_application(self, application_id: str, *, actor_id: int) -> sqlite3.Row:
+        now = utc_now_iso()
+        with self.transaction() as db:
+            row = db.execute(
+                "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+            ).fetchone()
+            if row is None or str(row["status"]) != "ARCHIVED" or not row["previous_status"]:
+                raise RuntimeError("JOIN_APPLICATION_NOT_ARCHIVED")
+            target = str(row["previous_status"])
+            db.execute(
+                """UPDATE join_applications SET status = ?, previous_status = NULL,
+                   archive_reason = NULL, archived_by = NULL, archived_at = NULL, updated_at = ?
+                   WHERE application_id = ?""",
+                (target, now, application_id),
+            )
+            self._record_join_event(
+                db,
+                application_id=application_id,
+                previous_status="ARCHIVED",
+                new_status=target,
+                actor_id=actor_id,
+                reason_code="RESTORED",
+                occurred_at=now,
+            )
+            return db.execute(
+                "SELECT * FROM join_applications WHERE application_id = ?", (application_id,)
+            ).fetchone()
+
+    def set_reviewer_grant(
+        self, discord_user_id: int, *, level: str, actor_id: int, active: bool
+    ) -> None:
+        reviewer_level = level.strip().upper()
+        if reviewer_level not in {"REVIEWER", "SYSTEM_ADMIN"}:
+            raise ValueError("Unsupported reviewer level")
+        now = utc_now_iso()
+        with self.transaction() as db:
+            db.execute(
+                """
+                INSERT INTO reviewer_grants(
+                    discord_user_id, reviewer_level, active, granted_by, granted_at,
+                    revoked_by, revoked_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(discord_user_id) DO UPDATE SET
+                    reviewer_level=excluded.reviewer_level, active=excluded.active,
+                    granted_by=excluded.granted_by, granted_at=excluded.granted_at,
+                    revoked_by=excluded.revoked_by, revoked_at=excluded.revoked_at
+                """,
+                (
+                    discord_user_id,
+                    reviewer_level,
+                    int(active),
+                    actor_id,
+                    now,
+                    None if active else actor_id,
+                    None if active else now,
+                ),
+            )
+
+    def reviewer_level(self, discord_user_id: int) -> str | None:
+        row = self._connection.execute(
+            """SELECT reviewer_level FROM reviewer_grants
+               WHERE discord_user_id = ? AND active = 1""",
+            (discord_user_id,),
+        ).fetchone()
+        return None if row is None else str(row["reviewer_level"])
+
+    def active_system_admin_ids(self) -> tuple[int, ...]:
+        rows = self._connection.execute(
+            """SELECT discord_user_id FROM reviewer_grants
+               WHERE reviewer_level = 'SYSTEM_ADMIN' AND active = 1
+               ORDER BY discord_user_id"""
+        ).fetchall()
+        return tuple(int(row["discord_user_id"]) for row in rows)
+
+    def _record_join_event(
+        self,
+        db: sqlite3.Connection,
+        *,
+        application_id: str,
+        previous_status: str | None,
+        new_status: str,
+        actor_id: int | None,
+        reason_code: str,
+        occurred_at: str,
+    ) -> None:
+        db.execute(
+            """INSERT INTO join_application_events(
+                   event_id, application_id, previous_status, new_status,
+                   actor_id, reason_code, occurred_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                f"join-evt-{uuid.uuid4().hex}",
+                application_id,
+                previous_status,
+                new_status,
+                actor_id,
+                reason_code,
+                occurred_at,
+            ),
+        )
 
     def create_private_support(
         self, channel_id: int, requester_id: int, ai_content_permission: bool

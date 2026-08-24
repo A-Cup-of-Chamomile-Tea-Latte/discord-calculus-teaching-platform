@@ -1,0 +1,343 @@
+#!/usr/bin/env bash
+set -euo pipefail
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+LC_ALL=C
+export LC_ALL
+IFS=$' \t\n'
+umask 077
+unset BASH_ENV ENV PYTHONHOME PYTHONPATH PIP_CONFIG_FILE
+
+fail() {
+  printf 'deploy_error=%s\n' "$1" >&2
+  exit 2
+}
+
+[[ ${EUID} -eq 0 ]] || fail ROOT_REQUIRED
+[[ $# -eq 0 ]] || fail ARGUMENTS_REFUSED
+[[ $(hostname) == jerrymk-workstation ]] || fail WRONG_HOST
+[[ $(realpath -e "$0") == /usr/local/sbin/calculus-discord-deploy ]] ||
+  fail DEPLOYER_PATH_INVALID
+[[ $(stat -c %U:%G /usr/local/sbin/calculus-discord-deploy) == root:root ]] ||
+  fail DEPLOYER_OWNER_INVALID
+[[ $(stat -c %a /usr/local/sbin/calculus-discord-deploy) == 755 ]] ||
+  fail DEPLOYER_MODE_INVALID
+
+inbox=/home/ding/calculus-discord-staging/deploy-inbox
+request_source=$inbox/request.txt
+archive_source=$inbox/release.tar
+database=/var/lib/calculus-discord/runtime.sqlite3
+units=(
+  calculus-course-assistant.service
+  calculus-dump-bot.service
+  calculus-data-bridge.service
+)
+
+[[ -e $request_source ]] || fail REQUEST_MISSING
+[[ -e $archive_source ]] || fail ARCHIVE_MISSING
+[[ -L /opt/calculus-discord/current ]] || fail CURRENT_RELEASE_MISSING
+[[ -f $database ]] || fail PRODUCTION_DATABASE_MISSING
+id calculus-builder >/dev/null 2>&1 || fail BUILD_USER_MISSING
+
+private_stage=$(mktemp -d /var/lib/calculus-discord-deploy/deploy.XXXXXXXX)
+chown root:calculus-builder "$private_stage"
+chmod 0710 "$private_stage"
+deployment_started=0
+request=$private_stage/request.txt
+archive=$private_stage/release.tar
+cleanup_private_stage() {
+  local result=$?
+  if [[ -d $private_stage ]]; then
+    rm -rf -- "$private_stage"
+  fi
+  if [[ $result -ne 0 && ${deployment_started:-0} -eq 0 ]]; then
+    if [[ -n ${incoming:-} && -d $incoming ]]; then
+      rm -rf -- "$incoming"
+    fi
+    if [[ -n ${release_destination:-} && -d $release_destination ]]; then
+      rm -rf -- "$release_destination"
+    fi
+  fi
+  return "$result"
+}
+trap cleanup_private_stage EXIT
+
+/usr/bin/python3 - "$request_source" "$archive_source" "$request" "$archive" <<'PY'
+import os
+from pathlib import Path
+import pwd
+import shutil
+import stat
+import sys
+
+owner_uid = pwd.getpwnam("ding").pw_uid
+items = (
+    (Path(sys.argv[1]), Path(sys.argv[3]), 4_096),
+    (Path(sys.argv[2]), Path(sys.argv[4]), 104_857_600),
+)
+for source, destination, maximum_size in items:
+    descriptor = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise SystemExit("deploy inbox item is not a regular file")
+        if metadata.st_uid != owner_uid or stat.S_IMODE(metadata.st_mode) != 0o600:
+            raise SystemExit("deploy inbox ownership or mode is invalid")
+        if metadata.st_size > maximum_size:
+            raise SystemExit("deploy inbox item exceeds size limit")
+        with os.fdopen(descriptor, "rb", closefd=False) as reader:
+            with destination.open("xb") as writer:
+                shutil.copyfileobj(reader, writer)
+        destination.chmod(0o600)
+    finally:
+        os.close(descriptor)
+PY
+
+mapfile -t request_lines <"$request"
+[[ ${#request_lines[@]} -eq 4 ]] || fail REQUEST_FORMAT_INVALID
+[[ ${request_lines[0]} =~ ^release_id=([a-f0-9]{7,40})$ ]] || fail RELEASE_ID_INVALID
+release_id=${BASH_REMATCH[1]}
+[[ ${request_lines[1]} =~ ^archive_sha256=([a-f0-9]{64})$ ]] ||
+  fail ARCHIVE_SHA256_INVALID
+archive_sha256=${BASH_REMATCH[1]}
+[[ ${request_lines[2]} =~ ^target_schema=([1-9][0-9]{0,2})$ ]] ||
+  fail TARGET_SCHEMA_INVALID
+target_schema=${BASH_REMATCH[1]}
+[[ ${request_lines[3]} =~ ^migration_class=(NONE|ADDITIVE)$ ]] ||
+  fail MIGRATION_CLASS_INVALID
+migration_class=${BASH_REMATCH[1]}
+
+[[ $(sha256sum "$archive" | cut -d' ' -f1) == "$archive_sha256" ]] ||
+  fail ARCHIVE_CHECKSUM_MISMATCH
+current_schema=$(sqlite3 "$database" 'PRAGMA user_version;')
+[[ $current_schema =~ ^[0-9]+$ ]] || fail CURRENT_SCHEMA_INVALID
+if [[ $migration_class == NONE ]]; then
+  [[ $target_schema -eq $current_schema ]] || fail NONE_MIGRATION_SCHEMA_MISMATCH
+else
+  [[ $target_schema -eq $((current_schema + 1)) ]] || fail ADDITIVE_MIGRATION_STEP_INVALID
+fi
+
+release_destination=/opt/calculus-discord/releases/$release_id
+incoming=$release_destination.incoming
+runtime=$release_destination/runtime/discord-course-bots
+dependency_lock=$release_destination/ops/requirements/discord-runtime.txt
+old_release=$(readlink -f /opt/calculus-discord/current)
+rollback_database=/var/lib/calculus-discord/backups/deploy-$release_id.before.sqlite3
+receipt=/var/lib/calculus-discord/receipts/deploy-$release_id.txt
+migration_workspace=$private_stage/migration
+staging_database=$migration_workspace/runtime.sqlite3
+
+[[ $old_release == /opt/calculus-discord/releases/* ]] || fail CURRENT_RELEASE_PATH_INVALID
+[[ $old_release != "$release_destination" ]] || fail RELEASE_ALREADY_CURRENT
+[[ ! -e $release_destination && ! -e $incoming ]] || fail RELEASE_ALREADY_PRESENT
+[[ ! -e /opt/calculus-discord/current.incoming ]] || fail CURRENT_INCOMING_PRESENT
+[[ ! -e /opt/calculus-discord/current.rollback ]] || fail CURRENT_ROLLBACK_PRESENT
+[[ ! -e $rollback_database && ! -e $receipt ]] || fail DEPLOY_ARTIFACT_ALREADY_PRESENT
+[[ $(sqlite3 "$database" 'PRAGMA integrity_check;') == ok ]] ||
+  fail PRODUCTION_DATABASE_INTEGRITY_FAILED
+[[ $(sqlite3 "$database" 'SELECT COUNT(*) FROM schema_migrations;') == "$current_schema" ]] ||
+  fail PRODUCTION_DATABASE_LEDGER_INVALID
+for unit in "${units[@]}"; do
+  [[ $(systemctl is-active "$unit" 2>/dev/null || true) == active ]] ||
+    fail REMOTE_SERVICE_NOT_ACTIVE
+done
+
+install -d -o calculus-builder -g calculus-builder -m 0755 "$incoming"
+/usr/bin/python3 - "$archive" "$incoming" <<'PY'
+from pathlib import Path
+import sys
+import tarfile
+
+archive = Path(sys.argv[1])
+destination = Path(sys.argv[2])
+with tarfile.open(archive, "r:") as bundle:
+    members = bundle.getmembers()
+    if len(members) > 20_000:
+        raise SystemExit("archive member limit exceeded")
+    if sum(member.size for member in members if member.isfile()) > 268_435_456:
+        raise SystemExit("archive expanded size limit exceeded")
+    if any(not (member.isfile() or member.isdir()) for member in members):
+        raise SystemExit("archive contains unsupported member type")
+    bundle.extractall(destination, filter="data")
+PY
+[[ -f $incoming/runtime/discord-course-bots/pyproject.toml ]] || fail RUNTIME_SOURCE_MISSING
+[[ -f $incoming/ops/requirements/discord-runtime.txt ]] || fail DEPENDENCY_LOCK_MISSING
+chown -R calculus-builder:calculus-builder "$incoming"
+mv "$incoming" "$release_destination"
+
+/usr/bin/python3 - "$dependency_lock" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+lock = Path(sys.argv[1])
+lines = [
+    line.strip()
+    for line in lock.read_text(encoding="utf-8").splitlines()
+    if line.strip() and not line.lstrip().startswith("#")
+]
+if not 1 <= len(lines) <= 100:
+    raise SystemExit("dependency lock line count is invalid")
+exact_pin = re.compile(r"^[A-Za-z0-9_.-]+==[A-Za-z0-9_.+!-]+$")
+if any(exact_pin.fullmatch(line) is None for line in lines):
+    raise SystemExit("dependency lock contains a non-exact requirement")
+PY
+
+incoming_runtime=$runtime
+runuser -u calculus-builder -- env -i HOME=/var/lib/calculus-discord-build \
+  PATH=/usr/bin:/bin python3 -m venv "$incoming_runtime/.venv"
+runuser -u calculus-builder -- env -i HOME=/var/lib/calculus-discord-build \
+  PATH=/usr/bin:/bin "$incoming_runtime/.venv/bin/pip" install \
+  -r "$dependency_lock" >/dev/null
+runuser -u calculus-builder -- env -i HOME=/var/lib/calculus-discord-build \
+  PATH=/usr/bin:/bin "$incoming_runtime/.venv/bin/pip" install \
+  --no-deps "$incoming_runtime" >/dev/null
+for executable in course-assistant dump-bot discord-production-bridge; do
+  [[ -x $incoming_runtime/.venv/bin/$executable ]] || fail RELEASE_EXECUTABLE_MISSING
+  shebang=$(head -n 1 "$incoming_runtime/.venv/bin/$executable")
+  [[ $shebang == "#!$incoming_runtime/.venv/bin/python" ||
+    $shebang == "#!$incoming_runtime/.venv/bin/python3" ]] ||
+    fail RELEASE_SHEBANG_INVALID
+done
+chown -R root:root "$release_destination"
+chmod -R u=rwX,go=rX "$release_destination"
+runuser -u calculus-builder -- test -x "$runtime/.venv/bin/python" ||
+  fail BUILDER_RUNTIME_ACCESS_DENIED
+runuser -u calculus-bot -- test -x "$runtime/.venv/bin/python" ||
+  fail SERVICE_RUNTIME_ACCESS_DENIED
+
+install -d -o calculus-builder -g calculus-builder -m 0700 "$migration_workspace"
+runuser -u calculus-builder -- test -w "$migration_workspace" ||
+  fail MIGRATION_WORKSPACE_NOT_WRITABLE
+sqlite3 "$database" ".backup '$staging_database'"
+chown calculus-builder:calculus-builder "$staging_database"
+chmod 0600 "$staging_database"
+runuser -u calculus-builder -- test -w "$staging_database" ||
+  fail STAGING_DATABASE_NOT_WRITABLE
+runuser -u calculus-builder -- env -i HOME=/var/lib/calculus-discord-build \
+  PATH=/usr/bin:/bin "$runtime/.venv/bin/python" - "$staging_database" \
+  "$target_schema" <<'PY'
+from pathlib import Path
+import sys
+
+from discord_course_bots.repository import Repository
+
+database = Path(sys.argv[1])
+expected = int(sys.argv[2])
+repository = Repository(database)
+try:
+    if repository.schema_version != expected:
+        raise SystemExit("candidate schema mismatch")
+    if len(repository.migration_history()) != expected:
+        raise SystemExit("candidate migration ledger mismatch")
+finally:
+    repository.close()
+PY
+[[ $(sqlite3 "$staging_database" 'PRAGMA integrity_check;') == ok ]] ||
+  fail STAGING_DATABASE_INTEGRITY_FAILED
+
+backup_ready=0
+release_switched=0
+deployment_started=1
+rollback_deploy() {
+  local result=$?
+  if [[ $result -eq 0 ]]; then
+    return
+  fi
+  trap - EXIT
+  set +e
+  systemctl stop "${units[@]}" >/dev/null 2>&1
+  if [[ $release_switched -eq 1 ]]; then
+    ln -s "$old_release" /opt/calculus-discord/current.rollback
+    mv -Tf /opt/calculus-discord/current.rollback /opt/calculus-discord/current
+  fi
+  if [[ $backup_ready -eq 1 ]]; then
+    install -o calculus-bot -g calculus-bot -m 0600 \
+      "$rollback_database" "$database.rollback"
+    rm -f -- "$database-wal" "$database-shm"
+    mv -f "$database.rollback" "$database"
+  fi
+  systemctl start "${units[@]}" >/dev/null 2>&1
+  printf 'rollback=APPLIED\nremote_services=RESTORE_ATTEMPTED\n' >&2
+  cleanup_private_stage
+  exit "$result"
+}
+trap rollback_deploy EXIT
+
+systemctl stop "${units[@]}"
+sqlite3 "$database" ".backup '$rollback_database'"
+chown calculus-bot:calculus-bot "$rollback_database"
+chmod 0600 "$rollback_database"
+[[ $(sqlite3 "$rollback_database" 'PRAGMA integrity_check;') == ok ]] ||
+  fail ROLLBACK_DATABASE_INTEGRITY_FAILED
+backup_ready=1
+rollback_sha=$(sha256sum "$rollback_database" | cut -d' ' -f1)
+printf 'release=%s\nrollback_sha256=%s\n' "$release_id" "$rollback_sha" >"$receipt"
+chown calculus-bot:calculus-bot "$receipt"
+chmod 0600 "$receipt"
+
+runuser -u calculus-bot -- env -i HOME=/var/lib/calculus-discord \
+  PATH=/usr/bin:/bin "$runtime/.venv/bin/python" - "$database" \
+  "$target_schema" <<'PY'
+from pathlib import Path
+import sys
+
+from discord_course_bots.repository import Repository
+
+database = Path(sys.argv[1])
+expected = int(sys.argv[2])
+repository = Repository(database)
+try:
+    if repository.schema_version != expected:
+        raise SystemExit("production schema mismatch")
+    if len(repository.migration_history()) != expected:
+        raise SystemExit("production migration ledger mismatch")
+finally:
+    repository.close()
+PY
+[[ $(sqlite3 "$database" 'PRAGMA integrity_check;') == ok ]] ||
+  fail PRODUCTION_DATABASE_INTEGRITY_FAILED_AFTER_MIGRATION
+
+ln -s "releases/$release_id" /opt/calculus-discord/current.incoming
+mv -Tf /opt/calculus-discord/current.incoming /opt/calculus-discord/current
+release_switched=1
+
+started_at=$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')
+wait_for_health() {
+  local unit=$1
+  local service_key=$2
+  local attempts=0
+  while ((attempts < 45)); do
+    if [[ $(systemctl is-active "$unit" 2>/dev/null || true) == active ]] &&
+      [[ $(sqlite3 "$database" \
+        "SELECT COUNT(*) FROM service_health WHERE service_key='$service_key' AND status='HEALTHY' AND safe_error_code IS NULL AND last_heartbeat_at >= '$started_at';") == 1 ]]; then
+      printf '%s=HEALTHY\n' "$service_key"
+      return 0
+    fi
+    sleep 2
+    attempts=$((attempts + 1))
+  done
+  fail SERVICE_HEALTH_TIMEOUT
+}
+
+systemctl start calculus-course-assistant.service
+wait_for_health calculus-course-assistant.service course-assistant
+systemctl start calculus-dump-bot.service
+wait_for_health calculus-dump-bot.service dump-bot
+systemctl start calculus-data-bridge.service
+wait_for_health calculus-data-bridge.service data-bridge
+
+[[ $(sqlite3 "$database" 'PRAGMA integrity_check;') == ok ]] ||
+  fail PRODUCTION_DATABASE_INTEGRITY_FAILED_AFTER_DEPLOY
+[[ $(sqlite3 "$database" 'PRAGMA user_version;') == "$target_schema" ]] ||
+  fail PRODUCTION_DATABASE_SCHEMA_INVALID_AFTER_DEPLOY
+[[ $(sqlite3 "$database" 'SELECT COUNT(*) FROM schema_migrations;') == "$target_schema" ]] ||
+  fail PRODUCTION_DATABASE_LEDGER_INVALID_AFTER_DEPLOY
+[[ $(sqlite3 "$database" \
+  "SELECT COUNT(*) FROM discord_lifecycle_jobs WHERE status='PERMANENT_FAILURE';") == 0 ]] ||
+  fail LIFECYCLE_QUEUE_DEGRADED
+
+trap cleanup_private_stage EXIT
+rm -f -- "$request_source" "$archive_source" || true
+printf 'deploy=PASS\nschema=%s\nremote_services=HEALTHY\nproduction_writer=REMOTE\n' \
+  "$target_schema"

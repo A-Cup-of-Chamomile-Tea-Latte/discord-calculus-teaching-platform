@@ -25,6 +25,11 @@ const definitions = {
         arguments: "",
       },
       {
+        name: "bridgePromoteTargetToProduction",
+        parameters: "expectedFingerprint",
+        arguments: "expectedFingerprint",
+      },
+      {
         name: "bridgeConfigureTarget",
         parameters: "spreadsheetId, fingerprint, environment, syntheticOnly",
         arguments: "spreadsheetId, fingerprint, environment, syntheticOnly",

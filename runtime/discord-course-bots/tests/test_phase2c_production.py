@@ -35,7 +35,9 @@ def test_discord_case_transition_and_projection_share_atomic_ledger(tmp_path: Pa
             ai_content_permission=False,
             canonical_title="極限題目",
             initial_snapshot={"title": "極限題目"},
+            class_code="01",
         )
+        repository.claim_case(123, 789)
         repository.close_case(123)
         repository.reopen_case(123)
         events = repository._connection.execute(  # noqa: SLF001
@@ -45,6 +47,7 @@ def test_discord_case_transition_and_projection_share_atomic_ledger(tmp_path: Pa
         ).fetchall()
         assert [(row[0], row[1], row[2]) for row in events] == [
             ("OPEN", 0, "DISCORD"),
+            ("TRACK", 0, "DISCORD"),
             ("CLOSE", 0, "DISCORD"),
             ("REOPEN", 0, "DISCORD"),
         ]
@@ -53,7 +56,7 @@ def test_discord_case_transition_and_projection_share_atomic_ledger(tmp_path: Pa
                 "SELECT COUNT(*) FROM projection_outbox WHERE aggregate_ref = ?",
                 (case_number,),
             ).fetchone()[0]
-            == 12
+            == 16
         )
     finally:
         repository.close()
@@ -72,6 +75,7 @@ def test_production_projection_is_idempotent_and_contains_no_actor_ids(tmp_path:
             ai_content_permission=True,
             canonical_title="極限題目",
             initial_snapshot={"title": "極限題目"},
+            class_code="01",
         )
     finally:
         repository.close()

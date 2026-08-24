@@ -349,6 +349,355 @@ def _apply_phase2c_production_bridge(connection: sqlite3.Connection) -> None:
     )
 
 
+LIFECYCLE_JOB_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS discord_lifecycle_jobs (
+        job_id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        thread_id INTEGER NOT NULL,
+        transition TEXT NOT NULL CHECK(transition IN ('CLOSE', 'REOPEN')),
+        cycle_number INTEGER NOT NULL CHECK(cycle_number > 0),
+        desired_title TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN (
+            'PENDING', 'CLAIMED', 'COMPLETED',
+            'RETRYABLE_FAILURE', 'PERMANENT_FAILURE'
+        )),
+        stage TEXT NOT NULL CHECK(stage IN (
+            'PENDING', 'NOTICE_SENT', 'DISCORD_APPLIED'
+        )),
+        control_message_id INTEGER,
+        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+        next_attempt_at TEXT,
+        claimed_by TEXT,
+        claim_token TEXT,
+        lease_expires_at TEXT,
+        last_error_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT,
+        UNIQUE(case_id, transition, cycle_number)
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS discord_lifecycle_jobs_claimable
+    ON discord_lifecycle_jobs(status, next_attempt_at, lease_expires_at, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS discord_lifecycle_jobs_case_cycle
+    ON discord_lifecycle_jobs(case_id, cycle_number, created_at)
+    """,
+)
+
+
+def _apply_discord_lifecycle_jobs(connection: sqlite3.Connection) -> None:
+    for statement in LIFECYCLE_JOB_STATEMENTS:
+        connection.execute(statement)
+
+
+CASE_RUNTIME_V7_STATEMENTS = (
+    """
+    CREATE TABLE case_lifecycle_events_v7 (
+        event_id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        case_ref TEXT NOT NULL,
+        event_type TEXT NOT NULL CHECK(event_type IN (
+            'OPEN', 'TRACK', 'ACTIVITY', 'IDLE', 'CLOSE', 'AUTO_CLOSE', 'REOPEN'
+        )),
+        previous_status TEXT,
+        new_status TEXT NOT NULL,
+        source_kind TEXT NOT NULL CHECK(source_kind IN (
+            'LOCAL_FIXTURE', 'CLOUD_COMMAND', 'DISCORD', 'SCHEDULER'
+        )),
+        correlation_id TEXT NOT NULL,
+        occurred_at TEXT NOT NULL,
+        synthetic INTEGER NOT NULL CHECK(synthetic IN (0, 1))
+    )
+    """,
+    """
+    INSERT INTO case_lifecycle_events_v7(
+        event_id, case_id, case_ref, event_type, previous_status, new_status,
+        source_kind, correlation_id, occurred_at, synthetic
+    )
+    SELECT event_id, case_id, case_ref, event_type, previous_status, new_status,
+           source_kind, correlation_id, occurred_at, synthetic
+    FROM case_lifecycle_events
+    """,
+    "DROP TABLE case_lifecycle_events",
+    "ALTER TABLE case_lifecycle_events_v7 RENAME TO case_lifecycle_events",
+    """
+    CREATE INDEX case_lifecycle_events_case_time
+    ON case_lifecycle_events(case_ref, occurred_at)
+    """,
+    """
+    CREATE TABLE discord_lifecycle_jobs_v7 (
+        job_id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        thread_id INTEGER NOT NULL,
+        transition TEXT NOT NULL CHECK(transition IN (
+            'IDLE', 'CLOSE', 'AUTO_CLOSE', 'REOPEN'
+        )),
+        cycle_number INTEGER NOT NULL CHECK(cycle_number > 0),
+        desired_title TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN (
+            'PENDING', 'CLAIMED', 'COMPLETED',
+            'RETRYABLE_FAILURE', 'PERMANENT_FAILURE'
+        )),
+        stage TEXT NOT NULL CHECK(stage IN (
+            'PENDING', 'NOTICE_SENT', 'DISCORD_APPLIED'
+        )),
+        control_message_id INTEGER,
+        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+        next_attempt_at TEXT,
+        claimed_by TEXT,
+        claim_token TEXT,
+        lease_expires_at TEXT,
+        last_error_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT,
+        UNIQUE(case_id, transition, cycle_number)
+    )
+    """,
+    """
+    INSERT INTO discord_lifecycle_jobs_v7(
+        job_id, case_id, thread_id, transition, cycle_number, desired_title,
+        status, stage, control_message_id, attempt_count, next_attempt_at,
+        claimed_by, claim_token, lease_expires_at, last_error_code,
+        created_at, updated_at, completed_at
+    )
+    SELECT job_id, case_id, thread_id, transition, cycle_number, desired_title,
+           status, stage, control_message_id, attempt_count, next_attempt_at,
+           claimed_by, claim_token, lease_expires_at, last_error_code,
+           created_at, updated_at, completed_at
+    FROM discord_lifecycle_jobs
+    """,
+    "DROP TABLE discord_lifecycle_jobs",
+    "ALTER TABLE discord_lifecycle_jobs_v7 RENAME TO discord_lifecycle_jobs",
+    """
+    CREATE INDEX discord_lifecycle_jobs_claimable
+    ON discord_lifecycle_jobs(status, next_attempt_at, lease_expires_at, created_at)
+    """,
+    """
+    CREATE INDEX discord_lifecycle_jobs_case_cycle
+    ON discord_lifecycle_jobs(case_id, cycle_number, created_at)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS private_open_requests (
+        interaction_id TEXT PRIMARY KEY,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        guild_id INTEGER NOT NULL,
+        requester_id INTEGER NOT NULL,
+        ai_content_permission INTEGER NOT NULL CHECK(ai_content_permission IN (0, 1)),
+        status TEXT NOT NULL CHECK(status IN (
+            'PENDING', 'CLAIMED', 'COMPLETED', 'REJECTED',
+            'RETRYABLE_FAILURE', 'PERMANENT_FAILURE'
+        )),
+        channel_id INTEGER,
+        case_id TEXT,
+        case_number TEXT,
+        jump_url TEXT,
+        rejection_code TEXT,
+        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+        next_attempt_at TEXT,
+        claimed_by TEXT,
+        claim_token TEXT,
+        lease_expires_at TEXT,
+        last_error_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS private_open_requests_claimable
+    ON private_open_requests(status, next_attempt_at, lease_expires_at, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS private_open_requests_requester_time
+    ON private_open_requests(requester_id, created_at)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS discord_dm_outbox (
+        message_key TEXT PRIMARY KEY,
+        recipient_id INTEGER NOT NULL,
+        message_kind TEXT NOT NULL,
+        aggregate_ref TEXT NOT NULL,
+        body TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN (
+            'PENDING', 'CLAIMED', 'COMPLETED',
+            'RETRYABLE_FAILURE', 'PERMANENT_FAILURE'
+        )),
+        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+        next_attempt_at TEXT,
+        claimed_by TEXT,
+        claim_token TEXT,
+        lease_expires_at TEXT,
+        last_error_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT,
+        UNIQUE(message_kind, aggregate_ref, recipient_id)
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS discord_dm_outbox_claimable
+    ON discord_dm_outbox(status, next_attempt_at, lease_expires_at, created_at)
+    """,
+)
+
+
+def _apply_case_runtime_v7(connection: sqlite3.Connection) -> None:
+    case_columns = _column_names(connection, "cases")
+    additions = (
+        ("visibility", "TEXT NOT NULL DEFAULT 'PUBLIC'"),
+        ("assigned_staff_id", "INTEGER"),
+        ("last_student_activity_at", "TEXT"),
+        ("idle_at", "TEXT"),
+        ("idle_reminded_at", "TEXT"),
+        ("updated_at", "TEXT"),
+        ("teaching_team_replied", "INTEGER NOT NULL DEFAULT 0"),
+        ("jump_url", "TEXT"),
+    )
+    for name, declaration in additions:
+        if name not in case_columns:
+            connection.execute(f"ALTER TABLE cases ADD COLUMN {name} {declaration}")
+    connection.execute(
+        """
+        UPDATE cases
+        SET last_student_activity_at = COALESCE(last_student_activity_at, created_at),
+            updated_at = COALESCE(updated_at, closed_at, created_at)
+        """
+    )
+    private_columns = _column_names(connection, "private_support")
+    for name, declaration in (
+        ("case_id", "TEXT"),
+        ("interaction_id", "TEXT"),
+        ("updated_at", "TEXT"),
+    ):
+        if name not in private_columns:
+            connection.execute(f"ALTER TABLE private_support ADD COLUMN {name} {declaration}")
+    for statement in CASE_RUNTIME_V7_STATEMENTS:
+        connection.execute(statement)
+
+
+JOIN_REVIEW_V8_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS join_applications (
+        application_id TEXT PRIMARY KEY,
+        identity_key TEXT NOT NULL UNIQUE,
+        applicant_type TEXT NOT NULL CHECK(applicant_type IN ('STUDENT', 'VISITOR')),
+        discord_username TEXT NOT NULL,
+        normalized_username TEXT NOT NULL,
+        identity_email TEXT NOT NULL,
+        normalized_email TEXT NOT NULL,
+        ntu_mail TEXT,
+        contact_email TEXT,
+        class_code TEXT,
+        visit_reason TEXT,
+        discord_user_id INTEGER,
+        status TEXT NOT NULL CHECK(status IN (
+            'PENDING_REVIEW', 'WAITING_FOR_DISCORD_MEMBER', 'APPROVED',
+            'REJECTED', 'ARCHIVED'
+        )),
+        role_summary TEXT,
+        previous_status TEXT,
+        archive_reason TEXT,
+        archived_by INTEGER,
+        archived_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS join_applications_discord_user_unique
+    ON join_applications(discord_user_id) WHERE discord_user_id IS NOT NULL
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS join_applications_review_queue
+    ON join_applications(status, created_at)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS join_application_events (
+        event_id TEXT PRIMARY KEY,
+        application_id TEXT NOT NULL,
+        previous_status TEXT,
+        new_status TEXT NOT NULL,
+        actor_id INTEGER,
+        reason_code TEXT,
+        occurred_at TEXT NOT NULL,
+        FOREIGN KEY(application_id) REFERENCES join_applications(application_id)
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS join_application_events_time
+    ON join_application_events(application_id, occurred_at)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS reviewer_grants (
+        discord_user_id INTEGER PRIMARY KEY,
+        reviewer_level TEXT NOT NULL CHECK(reviewer_level IN ('REVIEWER', 'SYSTEM_ADMIN')),
+        active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
+        granted_by INTEGER NOT NULL,
+        granted_at TEXT NOT NULL,
+        revoked_by INTEGER,
+        revoked_at TEXT
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS course_role_jobs (
+        job_id TEXT PRIMARY KEY,
+        application_id TEXT NOT NULL UNIQUE,
+        discord_user_id INTEGER NOT NULL,
+        desired_roles_json TEXT NOT NULL,
+        desired_nickname TEXT,
+        status TEXT NOT NULL CHECK(status IN (
+            'PENDING', 'CLAIMED', 'COMPLETED',
+            'RETRYABLE_FAILURE', 'PERMANENT_FAILURE'
+        )),
+        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+        next_attempt_at TEXT,
+        claimed_by TEXT,
+        claim_token TEXT,
+        lease_expires_at TEXT,
+        last_error_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT,
+        FOREIGN KEY(application_id) REFERENCES join_applications(application_id)
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS course_role_jobs_claimable
+    ON course_role_jobs(status, next_attempt_at, lease_expires_at, created_at)
+    """,
+)
+
+
+def _apply_join_review_v8(connection: sqlite3.Connection) -> None:
+    for statement in JOIN_REVIEW_V8_STATEMENTS:
+        connection.execute(statement)
+
+
+COURSE_ALIAS_V9_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS course_alias_allocations (
+        application_id TEXT PRIMARY KEY,
+        scope_key TEXT NOT NULL,
+        sequence INTEGER NOT NULL CHECK(sequence > 0),
+        nickname TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL,
+        UNIQUE(scope_key, sequence),
+        FOREIGN KEY(application_id) REFERENCES join_applications(application_id)
+    )
+    """,
+)
+
+
+def _apply_course_alias_v9(connection: sqlite3.Connection) -> None:
+    for statement in COURSE_ALIAS_V9_STATEMENTS:
+        connection.execute(statement)
+
+
 MIGRATIONS = (
     Migration(
         1,
@@ -384,6 +733,32 @@ MIGRATIONS = (
         "\n".join(statement.strip() for statement in PHASE2C_PRODUCTION_STATEMENTS)
         + "\nproduction-local-sheet-projection stream; v1",
         _apply_phase2c_production_bridge,
+    ),
+    Migration(
+        6,
+        "durable-discord-case-lifecycle-jobs",
+        "\n".join(statement.strip() for statement in LIFECYCLE_JOB_STATEMENTS) + "\nv1",
+        _apply_discord_lifecycle_jobs,
+    ),
+    Migration(
+        7,
+        "portal-contract-case-runtime-v7",
+        "\n".join(statement.strip() for statement in CASE_RUNTIME_V7_STATEMENTS)
+        + "\ncases visibility assignment activity idle projection fields; "
+        "private_support case linkage; v1",
+        _apply_case_runtime_v7,
+    ),
+    Migration(
+        8,
+        "course-manager-join-review-v8",
+        "\n".join(statement.strip() for statement in JOIN_REVIEW_V8_STATEMENTS) + "\nv1",
+        _apply_join_review_v8,
+    ),
+    Migration(
+        9,
+        "course-manager-safe-nickname-allocation-v9",
+        "\n".join(statement.strip() for statement in COURSE_ALIAS_V9_STATEMENTS) + "\nv1",
+        _apply_course_alias_v9,
     ),
 )
 

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 import discord
 
 from discord_course_bots.domain.keyword import KeywordValidationError
+
+LOGGER = logging.getLogger(__name__)
 
 
 async def _ephemeral_error(interaction: discord.Interaction, message: str) -> None:
@@ -73,17 +76,17 @@ class AIPermissionView(discord.ui.View):
         self.deny_ai.style = (
             discord.ButtonStyle.danger if not allow_analysis else discord.ButtonStyle.secondary
         )
-        choice = "Yes" if allow_analysis else "No"
+        choice = "允許" if allow_analysis else "不允許"
         await interaction.response.edit_message(
             content=f"AI 文字內容分析：**{choice}**",
             view=self,
         )
 
-    @discord.ui.button(label="Yes", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(label="允許", style=discord.ButtonStyle.secondary, row=0)
     async def allow_ai(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await self._choose_permission(interaction, allow_analysis=True)
 
-    @discord.ui.button(label="No", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(label="不允許", style=discord.ButtonStyle.secondary, row=0)
     async def deny_ai(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await self._choose_permission(interaction, allow_analysis=False)
 
@@ -93,7 +96,7 @@ class AIPermissionView(discord.ui.View):
             await _ephemeral_error(interaction, "只有原發文者可以完成設定。")
             return
         if self.ai_permission is None:
-            await _ephemeral_error(interaction, "請先選擇 AI 文字內容分析 Yes／No。")
+            await _ephemeral_error(interaction, "請先選擇是否允許 AI 分析文字內容。")
             return
         await interaction.response.defer(ephemeral=True, thinking=True)
         try:
@@ -107,7 +110,7 @@ class AIPermissionView(discord.ui.View):
             await interaction.followup.send(str(exc), ephemeral=True)
             return
         await interaction.followup.send(
-            f"設定完成。\n標題：`{title}`\n測試案號：`{case_number}`",
+            f"設定完成。\n標題：`{title}`\n案號：`{case_number}`",
             ephemeral=True,
         )
         self.stop()
@@ -174,13 +177,51 @@ class DraftSetupView(discord.ui.View):
     )
     async def privacy(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await interaction.response.send_message(
-            "**測試版資料說明**\n"
+            "**資料與隱私說明**\n"
             "- 可見範圍：目前 Forum 頻道成員。\n"
             "- AI 選項只控制文字正文是否可交由 AI 分析。\n"
-            "- 成案時會保存首則文字與附件 metadata。\n"
-            "- 測試版不會呼叫 AI，也不會寄 Email。",
+            "- 成案時只保存案件所需資料與 Discord 附件參照。\n"
+            "- 是否允許 AI 分析會逐案記錄，不會沿用到其他案件。",
             ephemeral=True,
         )
+
+
+class CloseConfirmView(discord.ui.View):
+    def __init__(self, service: CourseService, *, actor_id: int, thread_id: int) -> None:
+        super().__init__(timeout=120)
+        self.service = service
+        self.actor_id = actor_id
+        self.thread_id = thread_id
+
+    @discord.ui.button(label="確認結案", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.actor_id:
+            await _ephemeral_error(interaction, "只有發起結案的人可以確認。")
+            return
+        if not isinstance(interaction.user, discord.Member) or not isinstance(
+            interaction.channel, (discord.Thread, discord.TextChannel)
+        ):
+            await _ephemeral_error(interaction, "請在案件討論串內操作。")
+            return
+        try:
+            await self.service.close_case(interaction.channel, interaction.user)
+        except (RuntimeError, PermissionError) as exc:
+            await _ephemeral_error(interaction, str(exc))
+            return
+        button.disabled = True
+        await interaction.response.edit_message(
+            content="已收到；案件正在結案。完成後會更新標題並封存討論串。",
+            view=self,
+        )
+        self.stop()
+
+    @discord.ui.button(label="取消", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+        if interaction.user.id != self.actor_id:
+            await _ephemeral_error(interaction, "只有發起結案的人可以取消。")
+            return
+        await interaction.response.edit_message(content="已取消結案。", view=None)
+        self.stop()
 
 
 class ReopenView(discord.ui.View):
@@ -195,24 +236,32 @@ class ReopenView(discord.ui.View):
     )
     async def reopen(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         channel = interaction.channel
-        if not isinstance(channel, discord.Thread):
+        if not isinstance(channel, (discord.Thread, discord.TextChannel)):
             await _ephemeral_error(interaction, "這個按鈕只能在案件討論串內使用。")
             return
+        retry_after = self.service.interaction_retry_after(
+            "case-reopen", interaction.user.id, channel.id
+        )
+        if retry_after is not None:
+            await interaction.response.send_message(
+                f"操作太頻繁，請約 {retry_after} 秒後再試。", ephemeral=True
+            )
+            return
         try:
-            updated = self.service.claim_reopen(interaction.user.id, channel.id)
+            self.service.claim_reopen(interaction.user.id, channel.id)
         except (RuntimeError, PermissionError) as exc:
             await interaction.response.send_message(str(exc), ephemeral=True)
             return
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        try:
-            title = await self.service.finish_reopen(channel, updated)
-            _.disabled = True
-            if interaction.message is not None:
+        _.disabled = True
+        await interaction.response.send_message(
+            "已收到；案件正在重新開啟。完成後會在討論串通知您。",
+            ephemeral=True,
+        )
+        if interaction.message is not None:
+            try:
                 await interaction.message.edit(view=self)
-        except discord.HTTPException as exc:
-            await interaction.followup.send(str(exc), ephemeral=True)
-            return
-        await interaction.followup.send(f"案件已重新開啟：`{title}`", ephemeral=True)
+            except discord.HTTPException:
+                LOGGER.warning("Could not disable a claimed reopen button")
 
     @discord.ui.button(
         label="隱私與資料說明",
@@ -221,7 +270,7 @@ class ReopenView(discord.ui.View):
     )
     async def privacy(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await interaction.response.send_message(
-            "重新詢問沿用同一 thread 與同一案號；以 reopen_count 與 dump 版本區分週期。",
+            "繼續詢問會沿用同一個討論串與案號，不會再寄送新的案號。",
             ephemeral=True,
         )
 
@@ -232,7 +281,7 @@ class PrivateDumpView(discord.ui.View):
         self.service = service
 
     @discord.ui.button(
-        label="確認匯出並刪除",
+        label="確認匯出並保留封存",
         style=discord.ButtonStyle.danger,
         custom_id="course:private:dump:v1",
     )
@@ -253,7 +302,7 @@ class PrivateDumpView(discord.ui.View):
             return
         button.disabled = True
         await interaction.response.edit_message(
-            content="⏳ **Private dump 已排入工作。**\n\n驗證成功後，此頻道將被自動刪除。",
+            content="⏳ **匯出已排入工作。**\n\n驗證後頻道會保留，等待可逆封存。",
             view=self,
         )
 
