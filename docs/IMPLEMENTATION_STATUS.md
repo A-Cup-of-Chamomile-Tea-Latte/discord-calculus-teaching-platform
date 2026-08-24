@@ -11,7 +11,7 @@ Last repository／AI handoff reconciliation: 2026-08-24（Asia/Taipei）
 | Production writer | Remote Linux 是唯一 production writer；Mac writers 已停止 |
 | Production runtime | 三個 systemd services；2026-08-23 17:12 的最新安全交接快照為 `HEALTHY` |
 | Production DB | Remote SQLite schema v6；lifecycle 使用 durable queue／stage resume／retry／idempotency |
-| Observation | 2026-08-23 17:12 重新起算；最早 2026-08-24 17:12 才可做最終 checkpoint，本輪尚未重新探測 |
+| Observation | 現行 v6 baseline 於 2026-08-23 17:12 重新起算；最早 2026-08-24 17:12 可做最終 checkpoint，本輪尚未重新探測。此 24h 窗不是 v10 換版後必須重複的冷卻期 |
 | Repository candidate | Portal、115-1 academic data、production v6 基礎與 Bot UX 已整合；Bot candidate schema v10，尚未部署 |
 | Google | SQLite 是 operational authority；Sheets 是 compact projection，不是第二套主資料庫 |
 | Portal | 公開／reviewer artifact 分離；學生面收斂為靜態資訊入口與最小動態服務 |

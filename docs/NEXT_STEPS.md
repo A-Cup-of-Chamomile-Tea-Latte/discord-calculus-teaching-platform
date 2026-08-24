@@ -15,7 +15,7 @@
 1. 2026-08-24 17:12 後取得新的 owner-only `/ops status` 安全摘要。
 2. 確認三服務健康、heartbeat 新鮮、remote 是唯一 writer、schema v6、queue 排空、manual attention 為 0。
 3. 核對 compact Sheet projection、OAuth refresh、daily backup 與 SQLite integrity。
-4. 若 production code、schema 或 service config 換版，24 小時 observation 必須從新 smoke PASS 時間重新起算。
+4. 這個 24 小時窗只完成現行 v6 baseline 的收尾。v10 換版後不強制再等 24 小時；以部署前備份演練、部署後 smoke、白帳號 E2E 與 rollback readiness 作主 gate。若需要穩定性觀察，以有明確檢查點的過夜窗為原則，最長約 8 小時。
 
 ## 2. Candidate migration 與 Discord 設定
 

@@ -68,3 +68,5 @@ Mac writer。
 
 只有實際滿 24 小時且上述項目均 PASS，才可更新 Phase 2C report 並討論小規模試用。Bound GAS
 status digest、Portal、CNAME 與其他新功能不屬於本觀察窗口。
+
+這個 24 小時窗只是現行 Production v6 baseline 的最後收據，不是以後每次換版的固定冷卻期。Candidate v10 若獲授權部署，以 production consistent backup rehearsal、部署後 smoke、白帳號 E2E 與 rollback readiness 作主 gate；需額外觀察時，以最長約 8 小時的過夜窗口為原則。v6 窗口不為 v10 功能背書，但也不因此強制 v10 重等 24 小時。
