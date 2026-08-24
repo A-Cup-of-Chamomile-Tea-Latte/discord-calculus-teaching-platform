@@ -44,6 +44,10 @@
       "instance": "valid/private-case-status-lookup-response.json"
     },
     {
+      "schema": "portal-join-response.schema.json",
+      "instance": "valid/portal-join-response.json"
+    },
+    {
       "schema": "thread-export.schema.json",
       "instance": "valid/thread-export.json"
     },

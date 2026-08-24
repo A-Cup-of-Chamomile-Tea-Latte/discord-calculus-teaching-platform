@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.calculus.local/v1/portal-join-response.schema.json",
+  "title": "PortalJoinResponse",
+  "description": "Generic same-origin join acknowledgement; duplicate state and applicant data are never returned.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "outcome", "message"],
+  "properties": {
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "outcome": { "const": "ACCEPTED" },
+    "message": { "type": "string", "minLength": 1, "maxLength": 200 }
+  }
+}

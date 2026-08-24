@@ -23,17 +23,21 @@
 3. 填入 course role、visitor role、C01–C16 class role、class→Module、Private category 與 reviewer/admin 映射。
 4. 形成固定 smoke／rollback runbook；沒有新的明示部署授權，不寫入 production。
 
-## 2. Portal 動態能力
+## 2. Portal 動態能力（本機候選已完成，正式接線仍是 gate）
+
+- `POST /api/join` 與 `POST /api/cases/lookup` 已完成同源 middleware、session authorization、CSRF、rate limit、generic failure response、SQLite adapter、Course Manager queue、content-free projection 與 metadata-only audit。
+- Portal backend tests 17/17 PASS；Portal check 0 diagnostics；Portal Vitest 61/61 PASS；以 `/api/join`、`/api/cases/lookup`、`/api/join`（CSRF seed）設定的 public artifact build PASS。
+- 這些是 repository／local receipts，不是 production deploy、真實 OAuth、Discord ACL 或 public URL evidence。
 
 ### 加入申請
 
-- 建立 same-origin backend、CSRF／rate limit 與 SQLite adapter。
+- 注入受保護 same-origin session provider、durable audit sink、CSRF／rate limit 設定與 SQLite adapter；在 deployment 前完成白帳號驗證。
 - 接 Course Manager durable queue、Discord member resolution、角色／暱稱與 Discord DM。
 - duplicate／waiting／approved／rejected／archived 必須冪等且可稽核。
 
 ### 案件查詢
 
-- 接受一般與 `-P` 完整案號。
+- 接受一般與 `-P` 完整案號（`POST /api/cases/lookup`，一次一案）。
 - 只回傳案號、類型、狀態、更新時間、是否有教學團隊回覆與 Discord 連結。
 - 不回傳題目、對話、作者、附件、AI、內部 ID；不提供 list-all 或背景 polling。
 

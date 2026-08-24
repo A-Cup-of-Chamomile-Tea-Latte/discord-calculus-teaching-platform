@@ -45,7 +45,10 @@ const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
 const applicationEndpoint = sameOriginEndpointPath(
   import.meta.env.PUBLIC_JOIN_APPLICATION_ENDPOINT,
 );
-const applicationConnected = Boolean(applicationEndpoint);
+const sessionEndpoint = sameOriginEndpointPath(
+  import.meta.env.PUBLIC_PORTAL_SESSION_ENDPOINT,
+);
+const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
 ---
 
 <BaseLayout
@@ -89,6 +92,7 @@ const applicationConnected = Boolean(applicationEndpoint);
       class="application-panel"
       data-join-application
       data-review-mode={String(!isPublicBuild)}
+      data-session-endpoint={sessionEndpoint ?? ""}
       aria-labelledby="join-form-title"
     >
       <div>
@@ -316,6 +320,14 @@ const applicationConnected = Boolean(applicationEndpoint);
           </button>
         </div>
       </form>
+
+      {
+        isPublicBuild && (
+          <p data-join-backend-state role="status" hidden>
+            申請已收到，請留意 Discord 私訊。
+          </p>
+        )
+      }
 
       {
         !isPublicBuild && (
