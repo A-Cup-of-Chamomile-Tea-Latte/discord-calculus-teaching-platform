@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sqlite3
@@ -24,6 +25,7 @@ from discord_course_bots.jobs import (
     CourseRoleClaim,
     DiscordLifecycleClaim,
     DmClaim,
+    EmailDeliveryClaim,
     PrivateDumpClaim,
     PrivateDumpFailureResult,
     PrivateOpenClaim,
@@ -85,6 +87,16 @@ DM_OUTBOX_QUEUE = ReliableQueueSpec(
 COURSE_ROLE_QUEUE = ReliableQueueSpec(
     table="course_role_jobs",
     key_column="job_id",
+    retry_column="next_attempt_at",
+    error_column="last_error_code",
+    order_column="created_at",
+    retry_status="RETRYABLE_FAILURE",
+    terminal_failure_status="PERMANENT_FAILURE",
+    reset_columns_on_claim=("last_error_code",),
+)
+EMAIL_DELIVERY_QUEUE = ReliableQueueSpec(
+    table="email_delivery_outbox",
+    key_column="delivery_id",
     retry_column="next_attempt_at",
     error_column="last_error_code",
     order_column="created_at",
@@ -1360,6 +1372,186 @@ class Repository:
                 max_retry_seconds=900,
             )
             return result is not None
+
+    def enqueue_verification_email(
+        self,
+        *,
+        challenge_id: str,
+        destination: str,
+        verification_code: str,
+        email_kind: str,
+        expires_at: str,
+        delivery_id: str | None = None,
+    ) -> str:
+        if not re.fullmatch(r"email_verification_[a-z0-9]{8,64}", challenge_id):
+            raise ValueError("Invalid email verification challenge ID")
+        normalized_destination = normalize_email(destination)
+        if not re.fullmatch(r"[0-9]{6}", verification_code):
+            raise ValueError("Verification code must contain six digits")
+        normalized_kind = email_kind.strip().upper()
+        if normalized_kind not in {"INSTITUTIONAL", "CONTACT"}:
+            raise ValueError("Invalid verification email kind")
+        try:
+            expiry = datetime.fromisoformat(expires_at)
+        except ValueError as error:
+            raise ValueError("Invalid verification email expiry") from error
+        if expiry.tzinfo is None:
+            raise ValueError("Verification email expiry must be timezone-aware")
+        identifier = delivery_id or f"email_delivery_{uuid.uuid4().hex}"
+        if not re.fullmatch(r"email_delivery_[a-z0-9]{8,64}", identifier):
+            raise ValueError("Invalid email delivery ID")
+        now = utc_now_iso()
+        if expiry.astimezone(UTC) <= datetime.fromisoformat(now).astimezone(UTC):
+            raise ValueError("Verification email expiry must be in the future")
+        destination_hash = hashlib.sha256(normalized_destination.encode("utf-8")).hexdigest()
+        with self.transaction() as db:
+            db.execute(
+                """
+                INSERT INTO email_delivery_outbox(
+                    delivery_id, challenge_id, destination, destination_hash,
+                    verification_code, email_kind, expires_at, status,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
+                ON CONFLICT(delivery_id) DO NOTHING
+                """,
+                (
+                    identifier,
+                    challenge_id,
+                    normalized_destination,
+                    destination_hash,
+                    verification_code,
+                    normalized_kind,
+                    expiry.astimezone(UTC).isoformat(),
+                    now,
+                    now,
+                ),
+            )
+            row = db.execute(
+                "SELECT challenge_id, destination_hash, email_kind, expires_at "
+                "FROM email_delivery_outbox WHERE delivery_id = ?",
+                (identifier,),
+            ).fetchone()
+            if row is None or (
+                str(row["challenge_id"]) != challenge_id
+                or str(row["destination_hash"]) != destination_hash
+                or str(row["email_kind"]) != normalized_kind
+                or str(row["expires_at"]) != expiry.astimezone(UTC).isoformat()
+            ):
+                raise ValueError("Email delivery idempotency conflict")
+        return identifier
+
+    def claim_verification_email(self, worker_id: str) -> EmailDeliveryClaim | None:
+        now = datetime.now(UTC)
+        now_iso = now.isoformat()
+        with self.immediate_transaction() as db:
+            db.execute(
+                """
+                UPDATE email_delivery_outbox
+                SET status = 'PERMANENT_FAILURE', destination = NULL,
+                    verification_code = NULL, claim_token = NULL, claimed_by = NULL,
+                    lease_expires_at = NULL, next_attempt_at = NULL,
+                    last_error_code = 'EMAIL_CODE_EXPIRED', updated_at = ?
+                WHERE status IN ('PENDING', 'CLAIMED', 'RETRYABLE_FAILURE')
+                  AND expires_at <= ?
+                """,
+                (now_iso, now_iso),
+            )
+            claim = claim_next(
+                db,
+                EMAIL_DELIVERY_QUEUE,
+                worker_id=worker_id,
+                now=now,
+                lease_seconds=120,
+            )
+            if claim is None:
+                return None
+            row = db.execute(
+                "SELECT challenge_id, destination, verification_code, email_kind, expires_at "
+                "FROM email_delivery_outbox WHERE delivery_id = ?",
+                (claim.key,),
+            ).fetchone()
+            if row is None or row["destination"] is None or row["verification_code"] is None:
+                raise RuntimeError("Claimed verification email has no delivery payload")
+        return EmailDeliveryClaim(
+            delivery_id=str(claim.key),
+            challenge_id=str(row["challenge_id"]),
+            destination=str(row["destination"]),
+            verification_code=str(row["verification_code"]),
+            email_kind=str(row["email_kind"]),
+            expires_at=str(row["expires_at"]),
+            claim_token=claim.claim_token,
+            attempt_count=claim.attempt_count,
+            lease_expires_at=claim.lease_expires_at,
+        )
+
+    def complete_verification_email(
+        self, delivery_id: str, claim_token: str, provider_receipt: str
+    ) -> bool:
+        if provider_receipt not in {
+            "EMAIL_PROVIDER_ACCEPTED",
+            "EMAIL_DELIVERY_ALREADY_ACCEPTED",
+        }:
+            raise ValueError("Unsafe email provider receipt")
+        now = utc_now_iso()
+        with self.transaction() as db:
+            return complete_claim(
+                db,
+                EMAIL_DELIVERY_QUEUE,
+                key=delivery_id,
+                claim_token=claim_token,
+                final_status="COMPLETED",
+                values={
+                    "destination": None,
+                    "verification_code": None,
+                    "provider_receipt": provider_receipt,
+                    "updated_at": now,
+                },
+            )
+
+    def fail_verification_email(
+        self,
+        delivery_id: str,
+        claim_token: str,
+        *,
+        error_code: str,
+        retryable: bool,
+    ) -> bool:
+        if not SAFE_JOB_ERROR_CODE.fullmatch(error_code):
+            raise ValueError("Unsafe email delivery error code")
+        with self.transaction() as db:
+            result = fail_claim(
+                db,
+                EMAIL_DELIVERY_QUEUE,
+                key=delivery_id,
+                claim_token=claim_token,
+                error_code=error_code,
+                retryable=retryable,
+                max_attempts=8,
+                base_retry_seconds=900,
+                max_retry_seconds=21_600,
+            )
+            if result is not None and result.exhausted:
+                db.execute(
+                    """
+                    UPDATE email_delivery_outbox
+                    SET destination = NULL, verification_code = NULL, updated_at = ?
+                    WHERE delivery_id = ? AND status = 'PERMANENT_FAILURE'
+                    """,
+                    (utc_now_iso(), delivery_id),
+                )
+            return result is not None
+
+    def safe_verification_email_status(self, delivery_id: str) -> dict[str, object] | None:
+        row = self._connection.execute(
+            """
+            SELECT delivery_id, challenge_id, email_kind, expires_at, status,
+                   attempt_count, next_attempt_at, last_error_code, provider_receipt,
+                   created_at, updated_at
+            FROM email_delivery_outbox WHERE delivery_id = ?
+            """,
+            (delivery_id,),
+        ).fetchone()
+        return None if row is None else dict(row)
 
     def submit_join_application(
         self,

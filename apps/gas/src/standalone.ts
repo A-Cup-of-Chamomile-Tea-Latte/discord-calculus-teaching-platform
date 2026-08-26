@@ -19,6 +19,10 @@ import {
   applySyntheticCleanup,
   previewSyntheticCleanup,
 } from "./sheets/synthetic-cleanup";
+import {
+  MailAppVerificationEmailProvider,
+  type DurableVerificationEmailDelivery,
+} from "./email-verification/mail-app-provider";
 
 interface BridgeTarget {
   workbook: GasWorkbookAdapter;
@@ -289,4 +293,26 @@ export function bridgeAckCommand(
   } finally {
     lock.releaseLock();
   }
+}
+
+export function bridgeSendVerificationEmail(
+  delivery: DurableVerificationEmailDelivery,
+) {
+  const properties = PropertiesService.getScriptProperties();
+  const rawReserve = properties.getProperty("EMAIL_QUOTA_RESERVE") ?? "10";
+  if (!/^[0-9]{1,4}$/.test(rawReserve))
+    throw new Error("EMAIL_QUOTA_RESERVE_INVALID");
+  const provider = new MailAppVerificationEmailProvider(
+    MailApp,
+    {
+      get(deliveryId: string): string | null {
+        return properties.getProperty(`EMAIL_DELIVERY_${deliveryId}`);
+      },
+      set(deliveryId: string, value: string): void {
+        properties.setProperty(`EMAIL_DELIVERY_${deliveryId}`, value);
+      },
+    },
+    Number(rawReserve),
+  );
+  return provider.sendDurable(delivery);
 }

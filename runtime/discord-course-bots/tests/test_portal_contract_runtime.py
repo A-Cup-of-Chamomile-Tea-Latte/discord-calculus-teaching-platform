@@ -53,6 +53,78 @@ def test_legacy_statuses_are_read_through_compatibility_mapping() -> None:
     assert canonical_case_status("TEMPORARILY_CLOSED") == "IDLE"
 
 
+def test_verification_email_outbox_is_durable_idempotent_and_scrubs_secrets(tmp_path) -> None:
+    repo = Repository(tmp_path / "email.sqlite3")
+    expires = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()
+    delivery_id = repo.enqueue_verification_email(
+        challenge_id="email_verification_12345678",
+        destination="Student@Example.com",
+        verification_code="987654",
+        email_kind="INSTITUTIONAL",
+        expires_at=expires,
+        delivery_id="email_delivery_12345678",
+    )
+    assert (
+        repo.enqueue_verification_email(
+            challenge_id="email_verification_12345678",
+            destination="student@example.com",
+            verification_code="987654",
+            email_kind="INSTITUTIONAL",
+            expires_at=expires,
+            delivery_id=delivery_id,
+        )
+        == delivery_id
+    )
+    claim = repo.claim_verification_email("email-worker")
+    assert claim is not None
+    assert claim.destination == "student@example.com"
+    assert claim.verification_code == "987654"
+    assert "student@example.com" not in repr(claim)
+    assert "987654" not in repr(claim)
+    assert repo.complete_verification_email(
+        claim.delivery_id, claim.claim_token, "EMAIL_PROVIDER_ACCEPTED"
+    )
+    row = repo._connection.execute(
+        "SELECT destination, verification_code, destination_hash, status "
+        "FROM email_delivery_outbox WHERE delivery_id = ?",
+        (delivery_id,),
+    ).fetchone()
+    assert row["destination"] is None
+    assert row["verification_code"] is None
+    assert len(row["destination_hash"]) == 64
+    assert row["status"] == "COMPLETED"
+
+
+def test_expired_verification_email_is_never_claimed_and_payload_is_scrubbed(tmp_path) -> None:
+    repo = Repository(tmp_path / "expired-email.sqlite3")
+    now = datetime.now(UTC)
+    with repo.transaction() as db:
+        db.execute(
+            """
+            INSERT INTO email_delivery_outbox(
+                delivery_id, challenge_id, destination, destination_hash,
+                verification_code, email_kind, expires_at, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
+            """,
+            (
+                "email_delivery_expired1",
+                "email_verification_expired1",
+                "student@example.com",
+                "a" * 64,
+                "123456",
+                "CONTACT",
+                (now - timedelta(minutes=1)).isoformat(),
+                (now - timedelta(minutes=2)).isoformat(),
+                (now - timedelta(minutes=2)).isoformat(),
+            ),
+        )
+    assert repo.claim_verification_email("email-worker") is None
+    row = repo._connection.execute(
+        "SELECT status, destination, verification_code, last_error_code FROM email_delivery_outbox"
+    ).fetchone()
+    assert tuple(row) == ("PERMANENT_FAILURE", None, None, "EMAIL_CODE_EXPIRED")
+
+
 def test_private_request_is_idempotent_rate_limited_and_content_free(tmp_path) -> None:
     repo = Repository(tmp_path / "private.sqlite3")
     now = datetime(2026, 8, 24, 0, 0, tzinfo=UTC)

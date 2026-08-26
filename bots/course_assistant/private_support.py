@@ -440,7 +440,7 @@ class PrivateSupportService:
             )
             updated = replace(
                 record,
-                status=CaseStatus.ESCALATED,
+                status=CaseStatus.TRACKED,
                 assigned_staff_user_id=command.assigned_staff_user_id,
                 updated_at=updated_at,
             )

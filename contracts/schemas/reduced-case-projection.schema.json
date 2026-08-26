@@ -34,12 +34,10 @@
       "type": "string",
       "enum": [
         "OPEN",
-        "WAITING_FOR_STUDENT",
-        "ANSWERED",
-        "ESCALATED",
-        "TEMPORARILY_CLOSED",
+        "TRACKED",
+        "IDLE",
         "CLOSED",
-        "REOPENED"
+        "AUTO_CLOSED"
       ]
     },
     "lastUpdateAt": { "$ref": "common.schema.json#/$defs/timestamp" },
@@ -83,11 +81,11 @@
               "SUBMITTED",
               "TEACHING_RESPONSE",
               "STUDENT_FOLLOW_UP",
-              "ANSWERED",
-              "ESCALATED",
+              "TRACKED",
+              "IDLE",
               "VERIFIED_VIEW",
-              "TEMPORARILY_CLOSED",
               "CLOSED",
+              "AUTO_CLOSED",
               "REOPENED"
             ]
           },
@@ -132,7 +130,7 @@
     {
       "if": {
         "properties": {
-          "status": { "enum": ["TEMPORARILY_CLOSED", "CLOSED"] }
+          "status": { "enum": ["CLOSED", "AUTO_CLOSED"] }
         }
       },
       "then": {

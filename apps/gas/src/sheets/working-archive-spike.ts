@@ -3,14 +3,7 @@
 export interface ChangedCaseFixture {
   caseId: string;
   changeVersion: number;
-  status:
-    | "OPEN"
-    | "WAITING_FOR_STUDENT"
-    | "ANSWERED"
-    | "ESCALATED"
-    | "TEMPORARILY_CLOSED"
-    | "CLOSED"
-    | "REOPENED";
+  status: "OPEN" | "TRACKED" | "IDLE" | "CLOSED" | "AUTO_CLOSED";
   projection: Record<string, unknown>;
   updatedAt: string;
 }

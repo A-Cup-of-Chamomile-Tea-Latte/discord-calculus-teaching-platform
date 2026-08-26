@@ -13,7 +13,7 @@ overwrites 決定，不由 module metadata 決定。48＋48 代表自動結案�
 
 - Production 仍是 remote Linux、schema v6；SQLite 是唯一 operational authority。
 - 唯一 production writer 必須是 remote 的三個 systemd services：`calculus-course-assistant.service`、`calculus-dump-bot.service`、`calculus-data-bridge.service`。Mac writer 必須維持停止。
-- Candidate 目標為 schema v10；migration 必須在 consistent backup 的可拋棄副本完成後，才可進入 owner 的 deploy decision。
+- v10 product candidate 目標為 schema v11；migration 必須在 consistent backup 的可拋棄副本完成後，才可進入 owner 的 deploy decision。
 - 不把 raw SQLite rows、案件內容、學生／TA／教師 IDs、secrets 或附件放入 receipt、Git 或聊天。
 
 ## 1. Preflight：只讀核對
@@ -49,7 +49,7 @@ chmod 0600 "$BACKUP"
 python3 ops/scripts/sqlite-recovery-rehearsal.py \
   "$BACKUP" "$WORK" \
   --expected-source-schema 6 \
-  --expected-target-schema 10 \
+  --expected-target-schema 11 \
   >"$RECEIPT"
 ```
 

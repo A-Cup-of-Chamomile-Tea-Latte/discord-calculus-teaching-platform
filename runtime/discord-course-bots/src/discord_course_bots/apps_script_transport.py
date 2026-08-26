@@ -178,3 +178,19 @@ class AppsScriptApiTransport:
 
     def ack_command(self, command_id: str, claim_token: str, result_code: str) -> bool:
         return bool(self.run("bridgeAckCommand", [command_id, claim_token, result_code]))
+
+    def send_verification_email(self, delivery: dict[str, Any]) -> dict[str, Any]:
+        result = self.run("bridgeSendVerificationEmail", [delivery])
+        if not isinstance(result, dict):
+            raise AppsScriptApiError("EMAIL_DELIVERY_RECEIPT_INVALID")
+        allowed = {
+            "deliveryId",
+            "status",
+            "safeResultCode",
+            "quotaRemainingBefore",
+        }
+        if set(result) != allowed:
+            raise AppsScriptApiError("EMAIL_DELIVERY_RECEIPT_INVALID")
+        if result.get("status") not in {"PROVIDER_ACCEPTED", "NO_OP"}:
+            raise AppsScriptApiError("EMAIL_DELIVERY_RECEIPT_INVALID")
+        return dict(result)

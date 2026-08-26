@@ -163,7 +163,7 @@ def test_owner_can_escalate_to_allowlisted_teaching_team_member() -> None:
         return result, record, provider, audit
 
     result, record, provider, audit = asyncio.run(scenario())
-    assert result.status is CaseStatus.ESCALATED
+    assert result.status is CaseStatus.TRACKED
     assert record.assigned_staff_user_id == TA_USER_ID
     assert [item.operation for item in provider.calls] == ["create", "grant_participant"]
     assert audit.records[-1].reason is EscalationReason.WELLBEING

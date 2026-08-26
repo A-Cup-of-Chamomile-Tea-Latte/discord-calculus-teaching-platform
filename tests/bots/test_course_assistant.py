@@ -174,7 +174,7 @@ def test_non_staff_cannot_apply_membership_or_update_status() -> None:
                     "operation-status-1",
                     "case_fixture",
                     CaseStatus.OPEN,
-                    CaseStatus.ANSWERED,
+                    CaseStatus.TRACKED,
                     "answered",
                 ),
             )
@@ -201,7 +201,7 @@ def test_staff_status_update_uses_compare_and_set_and_status_writer_interface() 
             "operation-status-2",
             "case_status_fixture",
             CaseStatus.OPEN,
-            CaseStatus.ANSWERED,
+            CaseStatus.TRACKED,
             "answered",
         )
         updated = await service.update_case_status(staff, command)
@@ -224,7 +224,7 @@ def test_staff_status_update_uses_compare_and_set_and_status_writer_interface() 
         )
 
     status, duplicate, operations = asyncio.run(scenario())
-    assert status is CaseStatus.ANSWERED
+    assert status is CaseStatus.TRACKED
     assert duplicate is True
     assert operations == ("create_case_thread", "update_thread_status")
 

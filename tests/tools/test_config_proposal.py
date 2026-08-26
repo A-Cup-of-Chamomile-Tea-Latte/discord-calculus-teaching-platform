@@ -13,7 +13,7 @@ def test_proposed_configuration_passes_schema_and_custom_validation() -> None:
     bundle = load_bundle(ROOT)
     issues = validate_bundle(ROOT, bundle)
     assert [issue for issue in issues if issue.severity == "ERROR"] == []
-    assert any(issue.code == "LEGACY_STATUS_DRIFT" for issue in issues)
+    assert all(issue.code != "LEGACY_STATUS_DRIFT" for issue in issues)
 
 
 def test_rejects_private_support_visibility_leak() -> None:

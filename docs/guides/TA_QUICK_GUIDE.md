@@ -40,3 +40,10 @@
 3. 只記錄事件類別、時間、受影響元件與處理狀態，不複製 token、驗證碼或學生原文。
 4. 通知授權 owner 停用/revoke 受影響 token、deployment 或 artifact；原型不自動執行外部撤銷。
 5. 在重新開啟前完成最小權限、暴露範圍、日誌與資料保留複核。
+
+## 需要人工處理的工作
+
+- `/ops status` 只用來看 queue 深度與 safe error code，不代表問題已解決。
+- 不直接用 `sqlite3 UPDATE` 隱藏失敗紀錄，也不盲目重跑可能已完成的 Discord／email side effect。
+- v10 後續會提供 system admin 專用的 attention list／inspect／retry／replacement-case／resolve 操作；指令真正部署前仍由 owner 依 incident runbook 處理。
+- 完成人工接管指令時，必須同步更新本指南與 [事故及安全退回手冊](../security/INCIDENT-AND-SAFE-FALLBACK-RUNBOOK.md)，並補 idempotency、權限與 audit 測試。

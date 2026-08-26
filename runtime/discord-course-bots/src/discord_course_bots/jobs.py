@@ -56,3 +56,25 @@ class DmClaim:
     claimed_by: str
     attempt_count: int
     lease_expires_at: str
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class EmailDeliveryClaim:
+    delivery_id: str
+    challenge_id: str
+    destination: str
+    verification_code: str
+    email_kind: str
+    expires_at: str
+    claim_token: str
+    attempt_count: int
+    lease_expires_at: str
+
+    def __repr__(self) -> str:
+        return (
+            "EmailDeliveryClaim("
+            f"delivery_id={self.delivery_id!r}, challenge_id={self.challenge_id!r}, "
+            f"email_kind={self.email_kind!r}, expires_at={self.expires_at!r}, "
+            f"attempt_count={self.attempt_count!r}, destination=<redacted>, "
+            "verification_code=<redacted>)"
+        )

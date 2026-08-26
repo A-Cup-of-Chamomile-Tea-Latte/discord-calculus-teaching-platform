@@ -86,8 +86,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--expected-target-schema",
         type=int,
-        default=10,
-        help="Require the candidate migration to reach this schema version (default: 10).",
+        default=11,
+        help="Require the candidate migration to reach this schema version (default: 11).",
     )
     parser.add_argument("--keep", action="store_true")
     return parser.parse_args()

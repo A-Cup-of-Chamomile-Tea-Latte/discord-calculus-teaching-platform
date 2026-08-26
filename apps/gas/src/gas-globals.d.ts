@@ -120,5 +120,6 @@ declare const ScriptApp: {
 };
 
 declare const MailApp: {
+  getRemainingDailyQuota(): number;
   sendEmail(recipient: string, subject: string, body: string): void;
 };

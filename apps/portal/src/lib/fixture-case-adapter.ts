@@ -21,26 +21,14 @@ import {
   toCaseStatusView,
 } from "./case-adapter";
 
-type LegacyCaseStatus =
-  | CaseStatus
-  | "WAITING_FOR_STUDENT"
-  | "ANSWERED"
-  | "ESCALATED"
-  | "TEMPORARILY_CLOSED"
-  | "REOPENED";
-
-type LegacyTimelineEventType =
-  | PublicTimelineEvent["eventType"]
-  | "ANSWERED"
-  | "ESCALATED"
-  | "VERIFIED_VIEW"
-  | "TEMPORARILY_CLOSED";
+type ProjectionTimelineEventType =
+  PublicTimelineEvent["eventType"] | "VERIFIED_VIEW";
 
 interface FixtureCase {
   caseId: string;
   caseNumber: string | null;
   caseType: "GENERAL" | "PRIVATE_SUPPORT";
-  status: LegacyCaseStatus;
+  status: CaseStatus;
   visibility: "CLASS" | "COURSE" | "TEACHING_STAFF";
   authorDisplayMode: AuthorDisplayMode;
   title: string;
@@ -73,7 +61,7 @@ interface FixtureUser {
 interface FixtureProjection {
   caseId: string;
   caseNumber: string;
-  status: LegacyCaseStatus;
+  status: CaseStatus;
   lastUpdateAt: string;
   lastTeachingResponseAt: string | null;
   lastStudentActivityAt: string | null;
@@ -84,7 +72,7 @@ interface FixtureProjection {
   hasAttachments: boolean;
   timelineEvents: Array<
     Omit<PublicTimelineEvent, "eventType"> & {
-      eventType: LegacyTimelineEventType;
+      eventType: ProjectionTimelineEventType;
     }
   >;
   discordDeepLink: string | null;
@@ -116,28 +104,12 @@ const publicFixtureMessageBodies: Record<string, string> = {
   msg_000421_d: "先把共同因式約掉，再代入極限值，就能避開原本的未定形。",
 };
 
-const currentStatus = (status: LegacyCaseStatus): CaseStatus => {
-  const mapping: Record<LegacyCaseStatus, CaseStatus> = {
-    OPEN: "OPEN",
-    TRACKED: "TRACKED",
-    IDLE: "IDLE",
-    CLOSED: "CLOSED",
-    AUTO_CLOSED: "AUTO_CLOSED",
-    WAITING_FOR_STUDENT: "IDLE",
-    ANSWERED: "TRACKED",
-    ESCALATED: "TRACKED",
-    TEMPORARILY_CLOSED: "IDLE",
-    REOPENED: "TRACKED",
-  };
-  return mapping[status];
-};
-
 const publicTimeline = (
   events: FixtureProjection["timelineEvents"],
   closureSource: FixtureProjection["closureSource"],
 ): PublicTimelineEvent[] => {
   const eventCopy: Record<
-    LegacyTimelineEventType,
+    ProjectionTimelineEventType,
     { eventType: PublicTimelineEvent["eventType"]; label: string }
   > = {
     SUBMITTED: { eventType: "SUBMITTED", label: "已建立案件" },
@@ -157,13 +129,7 @@ const publicTimeline = (
     },
     AUTO_CLOSED: { eventType: "AUTO_CLOSED", label: "已自動結案" },
     REOPENED: { eventType: "REOPENED", label: "已重新開啟" },
-    ANSWERED: { eventType: "TRACKED", label: "教學團隊已回覆" },
-    ESCALATED: { eventType: "TRACKED", label: "教學團隊持續處理" },
     VERIFIED_VIEW: { eventType: "TRACKED", label: "已查看最新回覆" },
-    TEMPORARILY_CLOSED: {
-      eventType: "IDLE",
-      label: "已寄出未回覆提醒",
-    },
   };
   return events.map((event) => ({
     ...event,
@@ -237,7 +203,7 @@ function toPublicCase(item: FixtureCase): PublicCaseView | null {
   return {
     caseNumber: item.caseNumber,
     title: publicFixtureTitles[item.caseId] ?? item.title,
-    status: currentStatus(reducedProjection.status),
+    status: reducedProjection.status,
     visibility: item.visibility as PublicVisibility,
     authorDisplayMode: item.authorDisplayMode,
     updatedAt: reducedProjection.lastUpdateAt,
@@ -295,7 +261,7 @@ export class FixtureCaseLookupAdapter implements CaseLookupAdapter {
         {
           caseNumber: item.caseNumber,
           caseType: "PRIVATE_SUPPORT",
-          status: currentStatus(item.status),
+          status: item.status,
           updatedAt: item.updatedAt,
           teachingTeamReplied: false,
           discordDeepLink: null,

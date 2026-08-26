@@ -1,5 +1,4 @@
-export type CaseStatus =
-  "OPEN" | "WAITING_FOR_STUDENT" | "ANSWERED" | "ESCALATED" | "CLOSED";
+export type CaseStatus = "OPEN" | "TRACKED" | "IDLE" | "CLOSED" | "AUTO_CLOSED";
 
 export type CaseVisibility = "CLASS" | "COURSE" | "TEACHING_STAFF";
 

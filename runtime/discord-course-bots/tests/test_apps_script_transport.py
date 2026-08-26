@@ -97,3 +97,35 @@ def test_transport_preserves_safe_gas_execution_error(tmp_path: Path, monkeypatc
 
     with pytest.raises(AppsScriptApiError, match="BRIDGE_TARGET_NOT_CONFIGURED"):
         transport.health()
+
+
+def test_transport_accepts_only_allowlisted_email_receipt(tmp_path: Path, monkeypatch) -> None:
+    credential = tmp_path / "oauth.json"
+    credentials(credential)
+    transport = AppsScriptApiTransport(AppsScriptApiConfig("fixture-deployment", credential))
+    monkeypatch.setattr(
+        transport,
+        "run",
+        lambda _function, _parameters=None: {
+            "deliveryId": "email_delivery_12345678",
+            "status": "PROVIDER_ACCEPTED",
+            "safeResultCode": "EMAIL_PROVIDER_ACCEPTED",
+            "quotaRemainingBefore": 50,
+        },
+    )
+    receipt = transport.send_verification_email({"fixture": True})
+    assert receipt["safeResultCode"] == "EMAIL_PROVIDER_ACCEPTED"
+
+    monkeypatch.setattr(
+        transport,
+        "run",
+        lambda _function, _parameters=None: {
+            "deliveryId": "email_delivery_12345678",
+            "status": "PROVIDER_ACCEPTED",
+            "safeResultCode": "EMAIL_PROVIDER_ACCEPTED",
+            "quotaRemainingBefore": 50,
+            "destination": "student@example.com",
+        },
+    )
+    with pytest.raises(AppsScriptApiError, match="EMAIL_DELIVERY_RECEIPT_INVALID"):
+        transport.send_verification_email({"fixture": True})

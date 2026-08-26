@@ -342,7 +342,6 @@ def _drift_warnings(root: Path) -> list[ValidationIssue]:
     stale_tokens = {
         "ANSWERED",
         "TEMPORARILY_CLOSED",
-        "REOPENED",
         "WAITING_FOR_STUDENT",
         "ESCALATED",
     }
@@ -564,13 +563,12 @@ def _drift_report(issues: tuple[ValidationIssue, ...]) -> str:
             "## 已知主要差異",
             "",
             (
-                "- Task 34 contracts 使用 `ANSWERED`、`TEMPORARILY_CLOSED`、"
-                "`REOPENED` 等舊狀態；最新 Side CONFIG 使用 "
+                "- Live contracts、fixtures 與 Portal projection 已統一使用 "
                 "Open／Tracked／Idle／Closed／Auto Closed。"
             ),
             (
-                "- 本輪 Portal 以顯示轉譯與新情境庫呈現最新提案；"
-                "既有 fixture contracts 保留相容性並列為後續 domain migration。"
+                "- 舊狀態名稱只保留在 SQLite legacy read/migration adapter；"
+                "`REOPENED` 是時間軸事件，不是持久化案件狀態。"
             ),
             (
                 "- 115-1 已有 C01–C16 對應 M1–M4 的來源確認對照；"

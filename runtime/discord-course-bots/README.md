@@ -1,7 +1,7 @@
 # Discord Course Bots — Canonical tracked runtime
 
 這是 Discord Bot 的 canonical tracked runtime 與目前 production candidate。Remote Linux 的已驗證
-production baseline 仍是 schema v6；repository candidate 已整合到 schema v10，但尚未部署。任何 forward
+production baseline 仍是 schema v6；v10 product candidate 已整合到 schema v11，但尚未部署。任何 forward
 都必須先用 production consistent backup 演練 migration，並取得另外的部署授權。
 
 ## 已實作

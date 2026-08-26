@@ -9,7 +9,7 @@
   "metadata": {
     "reason": "Fictional acknowledgement",
     "previousStatus": "OPEN",
-    "nextStatus": "WAITING_FOR_STUDENT"
+    "nextStatus": "IDLE"
   },
   "occurredAt": "2026-07-03T12:00:00+08:00"
 }

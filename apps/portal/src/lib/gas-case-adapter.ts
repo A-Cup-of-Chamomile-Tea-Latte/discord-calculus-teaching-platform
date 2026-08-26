@@ -10,13 +10,7 @@ import { isCaseNumberWellFormed, normalizeCaseNumber } from "./case-adapter";
 export interface GasPublicCaseSummary {
   caseNumber: string;
   caseType: "GENERAL";
-  status:
-    | CaseStatus
-    | "WAITING_FOR_STUDENT"
-    | "ANSWERED"
-    | "ESCALATED"
-    | "TEMPORARILY_CLOSED"
-    | "REOPENED";
+  status: CaseStatus;
   visibility: PublicVisibility;
   publicSummary: string;
   updatedAt: string;
@@ -80,19 +74,7 @@ function assertSafeResponse(response: GasCaseLookupResponse): void {
 }
 
 function toPortalCase(summary: GasPublicCaseSummary): PublicCaseView {
-  const status: CaseStatus = (() => {
-    switch (summary.status) {
-      case "WAITING_FOR_STUDENT":
-      case "TEMPORARILY_CLOSED":
-        return "IDLE";
-      case "ANSWERED":
-      case "ESCALATED":
-      case "REOPENED":
-        return "TRACKED";
-      default:
-        return summary.status;
-    }
-  })();
+  const status = summary.status;
   return {
     caseNumber: summary.caseNumber,
     title: summary.publicSummary,

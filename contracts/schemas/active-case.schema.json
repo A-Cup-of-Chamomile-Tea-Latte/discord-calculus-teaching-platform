@@ -18,12 +18,10 @@
     "status": {
       "enum": [
         "OPEN",
-        "WAITING_FOR_STUDENT",
-        "ANSWERED",
-        "ESCALATED",
-        "TEMPORARILY_CLOSED",
+        "TRACKED",
+        "IDLE",
         "CLOSED",
-        "REOPENED"
+        "AUTO_CLOSED"
       ]
     },
     "projectionVersion": { "type": "integer", "minimum": 1 },

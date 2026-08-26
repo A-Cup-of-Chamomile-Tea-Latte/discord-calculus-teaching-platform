@@ -74,6 +74,11 @@ const definitions = {
         parameters: "commandId, claimToken, resultCode",
         arguments: "commandId, claimToken, resultCode",
       },
+      {
+        name: "bridgeSendVerificationEmail",
+        parameters: "delivery",
+        arguments: "delivery",
+      },
     ],
   },
   bound: {

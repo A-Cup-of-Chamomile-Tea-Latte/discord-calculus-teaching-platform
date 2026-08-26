@@ -21,6 +21,7 @@ from discord_course_bots.data_lab.commands import fetch_once
 from discord_course_bots.data_lab.contracts import validate_common_envelope
 from discord_course_bots.data_lab.projection import build_pending_envelope
 from discord_course_bots.data_lab.repository import DataLabRepository
+from discord_course_bots.repository import Repository
 from discord_course_bots.repository_time import utc_now_iso
 
 LOGGER = logging.getLogger("discord_course_bots.production_bridge")
@@ -233,6 +234,62 @@ def project_once(
         repository.close()
 
 
+RETRYABLE_EMAIL_ERRORS = frozenset(
+    {
+        "EMAIL_QUOTA_RESERVED",
+        "GOOGLE_RATE_LIMITED",
+        "GOOGLE_TRANSPORT_UNAVAILABLE",
+        "OAUTH_REFRESH_FAILED",
+    }
+)
+
+
+def deliver_verification_email_once(
+    settings: BridgeSettings,
+    transport: AppsScriptApiTransport,
+) -> dict[str, Any]:
+    repository = Repository(settings.database_path)
+    try:
+        claim = repository.claim_verification_email("production-email-bridge")
+        if claim is None:
+            return {"status": "NO_WORK", "safeResultCode": "EMAIL_QUEUE_EMPTY"}
+        try:
+            receipt = transport.send_verification_email(
+                {
+                    "deliveryId": claim.delivery_id,
+                    "challengeId": claim.challenge_id,
+                    "destination": claim.destination,
+                    "code": claim.verification_code,
+                    "kind": claim.email_kind,
+                    "expiresAt": claim.expires_at,
+                }
+            )
+            if str(receipt.get("deliveryId")) != claim.delivery_id:
+                raise AppsScriptApiError("EMAIL_DELIVERY_RECEIPT_MISMATCH")
+            safe_result = str(receipt["safeResultCode"])
+            if not repository.complete_verification_email(
+                claim.delivery_id, claim.claim_token, safe_result
+            ):
+                raise RuntimeError("EMAIL_DELIVERY_COMPLETION_FAILED")
+            return {"status": "COMPLETED", "safeResultCode": safe_result}
+        except AppsScriptApiError as error:
+            retryable = error.code in RETRYABLE_EMAIL_ERRORS or error.code.startswith(
+                "GOOGLE_HTTP_5"
+            )
+            repository.fail_verification_email(
+                claim.delivery_id,
+                claim.claim_token,
+                error_code=error.code,
+                retryable=retryable,
+            )
+            return {
+                "status": "RETRYABLE_FAILURE" if retryable else "PERMANENT_FAILURE",
+                "safeResultCode": error.code,
+            }
+    finally:
+        repository.close()
+
+
 class BridgeDaemon:
     def __init__(self, settings: BridgeSettings, transport: AppsScriptApiTransport) -> None:
         self.settings = settings
@@ -257,6 +314,7 @@ class BridgeDaemon:
         finally:
             repository.close()
         projection = project_once(self.settings, self.transport, apply=True)
+        email = deliver_verification_email_once(self.settings, self.transport)
         command: dict[str, Any] = {
             "status": "DISABLED",
             "safeResultCode": "PRODUCTION_COMMANDS_OUT_OF_SCOPE",
@@ -274,7 +332,7 @@ class BridgeDaemon:
                 if int(projection.get("pendingWorkCount", 0)) >= 20:
                     projection = project_once(self.settings, self.transport, apply=True)
         self._cycles += 1
-        return {"projection": projection, "command": command}
+        return {"projection": projection, "email": email, "command": command}
 
     def run(self) -> None:
         self.transport.health()
@@ -282,8 +340,9 @@ class BridgeDaemon:
             try:
                 result = self.cycle()
                 LOGGER.info(
-                    "bridge cycle completed projection=%s command=%s",
+                    "bridge cycle completed projection=%s email=%s command=%s",
                     result["projection"].get("safeResultCode"),
+                    result["email"].get("safeResultCode"),
                     result["command"].get("safeResultCode"),
                 )
             except Exception as error:
@@ -332,9 +391,15 @@ def main() -> None:
             print(json.dumps(transport.health(), ensure_ascii=False, sort_keys=True))
             return
         if args.command == "once":
+            projection = project_once(settings, transport, apply=not args.dry_run)
+            email = (
+                {"status": "DRY_RUN", "safeResultCode": "EMAIL_DELIVERY_NOT_ATTEMPTED"}
+                if args.dry_run
+                else deliver_verification_email_once(settings, transport)
+            )
             print(
                 json.dumps(
-                    project_once(settings, transport, apply=not args.dry_run),
+                    {"projection": projection, "email": email},
                     ensure_ascii=False,
                     sort_keys=True,
                 )

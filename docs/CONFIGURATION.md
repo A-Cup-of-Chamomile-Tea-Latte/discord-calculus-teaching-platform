@@ -1,6 +1,6 @@
 # 設定總覽
 
-最後核對：2026-08-24。Production 已在 remote Linux 運作；repository 另有尚未部署的 schema v10 candidate。設定名稱與責任以本頁和各 component 的 `.env.example` 為準，舊 Task report 只作歷史證據。
+最後核對：2026-08-27。Production 已在 remote Linux 運作；repository 另有尚未部署的 v10 product／schema v11 candidate。設定名稱與責任以本頁和各 component 的 `.env.example` 為準，舊 Task report 只作歷史證據。
 
 ## Portal build
 

@@ -710,6 +710,54 @@ def _apply_private_case_setup_v10(connection: sqlite3.Connection) -> None:
         )
 
 
+EMAIL_DELIVERY_OUTBOX_V11_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS email_delivery_outbox (
+        delivery_id TEXT PRIMARY KEY,
+        challenge_id TEXT NOT NULL,
+        destination TEXT,
+        destination_hash TEXT NOT NULL,
+        verification_code TEXT,
+        email_kind TEXT NOT NULL CHECK(email_kind IN ('INSTITUTIONAL', 'CONTACT')),
+        expires_at TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN (
+            'PENDING', 'CLAIMED', 'RETRYABLE_FAILURE', 'COMPLETED', 'PERMANENT_FAILURE'
+        )),
+        claim_token TEXT,
+        claimed_by TEXT,
+        lease_expires_at TEXT,
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        next_attempt_at TEXT,
+        last_error_code TEXT,
+        provider_receipt TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(challenge_id, delivery_id),
+        CHECK(verification_code IS NULL OR (
+            length(verification_code) = 6 AND verification_code NOT GLOB '*[^0-9]*'
+        )),
+        CHECK(
+            status NOT IN ('PENDING', 'CLAIMED', 'RETRYABLE_FAILURE')
+            OR (destination IS NOT NULL AND verification_code IS NOT NULL)
+        )
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS email_delivery_outbox_claimable
+    ON email_delivery_outbox(status, next_attempt_at, lease_expires_at, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS email_delivery_outbox_challenge
+    ON email_delivery_outbox(challenge_id, created_at)
+    """,
+)
+
+
+def _apply_email_delivery_outbox_v11(connection: sqlite3.Connection) -> None:
+    for statement in EMAIL_DELIVERY_OUTBOX_V11_STATEMENTS:
+        connection.execute(statement)
+
+
 MIGRATIONS = (
     Migration(
         1,
@@ -777,6 +825,13 @@ MIGRATIONS = (
         "private-case-shared-setup-v10",
         "private_open_requests module_code and keyword additive columns; v1",
         _apply_private_case_setup_v10,
+    ),
+    Migration(
+        11,
+        "durable-email-delivery-outbox-v11",
+        "\n".join(statement.strip() for statement in EMAIL_DELIVERY_OUTBOX_V11_STATEMENTS)
+        + "\nplaintext delivery fields scrubbed on terminal state; v1",
+        _apply_email_delivery_outbox_v11,
     ),
 )
 

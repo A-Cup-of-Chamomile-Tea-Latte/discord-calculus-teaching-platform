@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "caseId": "case_working_001",
-  "status": "TEMPORARILY_CLOSED",
+  "status": "IDLE",
   "projectionVersion": 3,
   "sourceCursor": "fixture_cursor_3",
   "updatedAt": "2026-07-23T10:00:00+08:00"

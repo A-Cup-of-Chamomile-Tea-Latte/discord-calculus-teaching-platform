@@ -8,10 +8,10 @@ from enum import StrEnum
 
 class CaseStatus(StrEnum):
     OPEN = "OPEN"
-    WAITING_FOR_STUDENT = "WAITING_FOR_STUDENT"
-    ANSWERED = "ANSWERED"
-    ESCALATED = "ESCALATED"
+    TRACKED = "TRACKED"
+    IDLE = "IDLE"
     CLOSED = "CLOSED"
+    AUTO_CLOSED = "AUTO_CLOSED"
 
 
 class AnonymousReplyDisplayMode(StrEnum):

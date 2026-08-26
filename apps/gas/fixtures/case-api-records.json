@@ -12,7 +12,7 @@
     "caseId": "case_000422",
     "caseNumber": "C02-R8N6WX-0702-1100",
     "caseType": "GENERAL",
-    "status": "WAITING_FOR_STUDENT",
+    "status": "IDLE",
     "visibility": "CLASS",
     "title": "Fictional anonymous continuity question",
     "updatedAt": "2026-07-02T11:30:00+08:00"
@@ -21,7 +21,7 @@
     "caseId": "case_000423",
     "caseNumber": "C01-P3T7V9-0702-1200",
     "caseType": "GENERAL",
-    "status": "ANSWERED",
+    "status": "TRACKED",
     "visibility": "COURSE",
     "title": "Fictional derivative notation question",
     "updatedAt": "2026-07-02T12:20:00+08:00"
@@ -30,7 +30,7 @@
     "caseId": "case_000424",
     "caseNumber": "C01-H5J8Q4-0702-1300",
     "caseType": "GENERAL",
-    "status": "ESCALATED",
+    "status": "TRACKED",
     "visibility": "CLASS",
     "title": "Fictional theorem interpretation question",
     "updatedAt": "2026-07-02T13:45:00+08:00"

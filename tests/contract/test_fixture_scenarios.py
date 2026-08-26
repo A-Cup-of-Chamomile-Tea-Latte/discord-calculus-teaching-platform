@@ -96,9 +96,8 @@ def test_cases_cover_workflow_and_privacy_modes() -> None:
     private = [case for case in cases if case["caseType"] == "PRIVATE_SUPPORT"]
     assert {case["status"] for case in general} == {
         "OPEN",
-        "WAITING_FOR_STUDENT",
-        "ANSWERED",
-        "ESCALATED",
+        "TRACKED",
+        "IDLE",
         "CLOSED",
     }
     assert any(case["authorDisplayMode"] == "COURSE_ALIAS" for case in general)

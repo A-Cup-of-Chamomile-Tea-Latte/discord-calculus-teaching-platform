@@ -80,10 +80,10 @@ def test_fixed_case_status_vocabulary() -> None:
     common = SCHEMAS["common.schema.json"]
     assert common["$defs"]["caseStatus"]["enum"] == [
         "OPEN",
-        "WAITING_FOR_STUDENT",
-        "ANSWERED",
-        "ESCALATED",
+        "TRACKED",
+        "IDLE",
         "CLOSED",
+        "AUTO_CLOSED",
     ]
 
 

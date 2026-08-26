@@ -80,7 +80,7 @@ describe("fixture-first GAS case service", () => {
       caseId: "case_staff_only",
       caseNumber: "C88-Z8Y7X6-0703-0000",
       caseType: "GENERAL",
-      status: "ESCALATED",
+      status: "TRACKED",
       visibility: "TEACHING_STAFF",
       title: "Fixture staff-only case",
       updatedAt: "2026-07-03T00:00:00+08:00",
