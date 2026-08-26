@@ -1,6 +1,6 @@
 # v13 Deployment Mapping Checklist
 
-狀態：`PENDING_OWNER_INPUT`。本表只核對 logical shape 與缺值；不讀取或保存既有 Discord resource IDs、使用者 IDs 或 secrets，也不代表已套用 Discord。
+狀態：`DISCORD_LIVE_VERIFIED / SECURE_VALUES_CAPTURED / HOST_BOOTSTRAP_PENDING`。真實 Discord resource IDs 只保存在 mode `0600` 的 ignored secure mapping；本表與 Git 不保存或顯示值。
 
 ## 已可由 repository 證明
 
@@ -13,47 +13,47 @@
 | Private category | `private_support` logical key | proposed server config |
 | Reviewer levels | `REVIEWER`、`SYSTEM_ADMIN` | runtime migration／repository |
 
-## 必須由 owner 提供的 production values
+## Production gate 現況
 
 | Gate | 目前狀態 | 需要提供／驗證 |
 | --- | --- | --- |
-| Guild | 缺值 | 唯一 production Guild，確認不是 fixture/test Guild |
-| Course role | 未定稿且缺值 | 選定 broad course membership role 的 canonical logical key／name／ID；`verified_member` 與 `registered_audit` 不可自行互換，後者是 database-only attribute |
-| Visitor role | 缺值 | `guest` logical key 對應的 production role ID |
-| C01–C16 class roles | 全部缺值 | 16 個 allowlisted role IDs；不得把 Module role 或任意同名角色當成 class role |
-| C01–C16 role hierarchy | 未驗證 | bot 可管理的 role 位置、staff／administrator 高於 bot、bot 不得擁有 `ADMINISTRATOR` |
-| Managed forums | 三個 production channel IDs 缺值 | `forum.math_questions`、`forum.coursework_systems`、`forum.other_problem_free_talk`；確認 parent category、forum type、tags、Course Assistant 可管理且 dump_bot 只讀 |
-| Private Support category | 缺值 | `category.private_support` production category ID；`@everyone`、student、guest 不可見，只有 creator／staff／course assistant／dump bot 依核准 policy 可見 |
-| Reviewer | 未配置 | 以 secure runtime explicit user grant 設定 `REVIEWER`，不得把 UI `staff` 當成 production authorization |
-| System admin | 未配置 | 以 secure runtime explicit user grant 設定 `SYSTEM_ADMIN`，不得在 Git 或聊天寫入 user IDs |
-| Runtime config | 未核對 | `managed_forum_ids`、`private_support_category_id`、course／visitor role keys 與 grants 的一致性 |
+| Guild | Live allowlisted Guild 已唯讀盤點 | Guild ID 已安全保存，不在 receipt／聊天列印；production identity 仍由 owner 的 host/runtime 邊界確認 |
+| Course role | PASS | canonical role 是 `verified_member`／`Verified Member`；`registered_audit` 已排除為 database-only attribute |
+| Visitor role | PASS | `guest`／`Guest` 已解析並安全保存 |
+| C01–C16 class roles | PASS | 16 個零權限 identity roles 已建立，exact coverage verify PASS |
+| C01–C16 role hierarchy | PASS | Course Manager 可管理 class roles；完整 live verify 為 0 error／0 warning |
+| Managed forums | PASS | 三個 forum logical keys、parent、type、Course Manager／Archive bot boundary 已由 live verify 核對 |
+| Private Support category | PASS | `category.private_support` 與 ACL policy 已由 live verify 核對 |
+| Reviewer bootstrap | 待 host 一次確認 | v6 尚無 `reviewer_grants` table；predeploy 只確認 secure `BOT_OWNER_IDS` 非空，不輸出值 |
+| Reviewer／System admin grants | Post-deploy gate | v13 migration 後由 bootstrap owner 用 `/join-admin grant` 建立 explicit user grants；UI `staff` 不等於 production authorization |
+| Runtime config | Post-deploy apply／smoke | 由 owner commands 寫入 role／forum／category／class→Module，再以白帳號驗證，不把 ID 寫入 Git |
 
 ## C01–C16 class→Module 收據（可先核對，不填 Discord ID）
 
 | Class | Module | Class role ID |
 | --- | --- | --- |
-| C01 | M1 | 待 owner 提供 |
-| C02 | M1 | 待 owner 提供 |
-| C03 | M1 | 待 owner 提供 |
-| C04 | M1 | 待 owner 提供 |
-| C05 | M2 | 待 owner 提供 |
-| C06 | M2 | 待 owner 提供 |
-| C07 | M2 | 待 owner 提供 |
-| C08 | M2 | 待 owner 提供 |
-| C09 | M2 | 待 owner 提供 |
-| C10 | M3 | 待 owner 提供 |
-| C11 | M3 | 待 owner 提供 |
-| C12 | M3 | 待 owner 提供 |
-| C13 | M3 | 待 owner 提供 |
-| C14 | M4 | 待 owner 提供 |
-| C15 | M4 | 待 owner 提供 |
-| C16 | M4 | 待 owner 提供 |
+| C01 | M1 | secure mapping 已保存 |
+| C02 | M1 | secure mapping 已保存 |
+| C03 | M1 | secure mapping 已保存 |
+| C04 | M1 | secure mapping 已保存 |
+| C05 | M2 | secure mapping 已保存 |
+| C06 | M2 | secure mapping 已保存 |
+| C07 | M2 | secure mapping 已保存 |
+| C08 | M2 | secure mapping 已保存 |
+| C09 | M2 | secure mapping 已保存 |
+| C10 | M3 | secure mapping 已保存 |
+| C11 | M3 | secure mapping 已保存 |
+| C12 | M3 | secure mapping 已保存 |
+| C13 | M3 | secure mapping 已保存 |
+| C14 | M4 | secure mapping 已保存 |
+| C15 | M4 | secure mapping 已保存 |
+| C16 | M4 | secure mapping 已保存 |
 
 ## 驗證方式
 
 1. 先執行 `python3 ops/scripts/validate-v13-mapping.py config/release/v13-production-mapping.template.json --allow-pending`，確認 class coverage 與 class→Module 不漂移。
-2. Owner 以 secure runtime／owner-only mapping 提供值後，重跑同一 validator；未填欄位、非 17–20 位數字 snowflake、重複資源或錯誤 Guild 必須 fail closed。
-3. 以 read-only inventory／resolved-member simulation 驗證學生、其他班學生、該班 TA、其他班 TA、staff、guest 與兩個 bot 的 view／post／manage 邊界。
-4. 產生 add／modify／remove diff 與 rollback plan，交由 owner 審閱；本任務不執行 Discord apply。
+2. 對 mode `0600` secure mapping 重跑 validator；canonical keys、17–20 位 snowflake、resource ID uniqueness 與 bootstrap/grant gate 必須通過，且輸出不得包含 IDs。
+3. Guild membership／名稱／ACL 由 live inventory-backed verify 負責；純 shape validator 不冒充能判斷錯誤 Guild。
+4. 部署後以 Student／Guest／Staff 與兩個 bot 的白帳號矩陣驗證 view／post／manage 邊界。
 
-在 secure runtime values 尚未提供前，mapping gate 是 `PENDING_OWNER_INPUT`，不能進入 deploy decision。
+目前唯一未完成的 predeploy mapping 項目是 production host 的 `BOT_OWNER_IDS` 非空確認；explicit reviewer grants 是 migration 後、rollout 前 gate。

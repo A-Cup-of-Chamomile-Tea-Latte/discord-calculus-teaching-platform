@@ -12,19 +12,18 @@
 
 ## Gate 1: production v6 consistent backup
 
-由 production DB owner 在主機上使用 release 內的 rehearsal script。這一步只讀 source，並在獨立
-copy 上驗證 backup、restore、migration 與 rollback：
+由 production host owner 使用 release 內唯一的 owner-prepare entrypoint；它在三服務維持運作時先完成
+全部 fail-closed 檢查，再建立 consistent backup，並只在獨立 copy 上驗證 restore、migration 與 rollback：
 
 ```sh
-python3 ops/scripts/sqlite-recovery-rehearsal.py \
-  --expected-source-schema 6 \
-  --expected-target-schema 13 \
-  /absolute/path/to/production.sqlite3 \
-  /absolute/path/to/owner-only-work-directory
+sudo env PREPARE_V13_HOST=PREPARE-V13-HOST \
+  /home/ding/calculus-discord-staging/releases/<exact-release>/ops/scripts/v13-host-owner-prepare.sh \
+  /home/ding/calculus-discord-staging/releases/<exact-release>
 ```
 
-必須回傳 `"status":"PASS"`，且 source file hash 在執行前後相同。不要把 backup、manifest、
-Discord token 或 DB path 貼到公開頻道。
+必須回傳 `v13_host_prepare=PASS`、`backup_rehearsal=PASS`、`deployer=READY` 與
+`deploy_executed=NO`。FAIL 時只回傳 safe error code，不自行清檔或重跑。不要把 backup、manifest、
+Discord token、mapping ID 或 DB path 貼到公開頻道。
 
 ## Gate 2: secure Discord mapping preview
 
@@ -35,9 +34,9 @@ Provisioning spec 會建立零權限 identity roles `C01` 到 `C16`，並寫入�
 - `ta_role_id`、`professor_role_id` -> `Staff / TA`
 - `class_role_01` ... `class_role_16` -> 同名 class role
 
-`system_admin_role_id` 不由 broad `Admin` role 自動推導；system admin 仍以 owner ID 或明示
-`/join-admin grant ... system_admin:true` 授權。先執行 provisioning preview/verify，確認 Course
-Manager role 高於 16 個 class roles，再決定是否 apply。
+Live provisioning 與 read-only verify 已完成，C01–C16、三個 forums、Private category 與 bot boundaries
+為 0 error／0 warning。`system_admin_role_id` 不由 broad `Admin` role 自動推導；host preflight 先確認
+`BOT_OWNER_IDS` bootstrap 非空，migration 後再以 `/join-admin grant ... system_admin:true` 建立明示 grant。
 
 ## Gate 3: one explicit deploy decision
 

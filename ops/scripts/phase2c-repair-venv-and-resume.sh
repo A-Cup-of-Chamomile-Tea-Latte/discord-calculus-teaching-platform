@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+printf 'phase2c_error=SUPERSEDED_USE_V13_HOST_OWNER_PREPARE\n' >&2
+exit 2
+
 set -euo pipefail
 
 bundle=${1:-}

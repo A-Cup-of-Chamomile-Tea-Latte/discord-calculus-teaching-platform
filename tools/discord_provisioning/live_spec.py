@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass
 
 
@@ -184,3 +185,16 @@ def validate_spec() -> None:
 
 
 validate_spec()
+
+
+def class_resource_errors(role_names: list[str], channel_names: list[str]) -> list[str]:
+    """Require exactly one C01-C16 role and reject class-named channels."""
+
+    expected = [f"C{number:02d}" for number in range(1, 17)]
+    actual = [name for name in role_names if re.fullmatch(r"C\d\d", name)]
+    errors: list[str] = []
+    if Counter(actual) != Counter(expected):
+        errors.append("class roles must be exactly C01 through C16")
+    if any(re.fullmatch(r"C\d\d", name) for name in channel_names):
+        errors.append("forbidden Cxx channel exists")
+    return errors

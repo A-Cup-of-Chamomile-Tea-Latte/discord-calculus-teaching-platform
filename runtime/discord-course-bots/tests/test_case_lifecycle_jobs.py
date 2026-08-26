@@ -31,6 +31,40 @@ def _case(repo: Repository, *, status: str = "TRACKED") -> None:
         assert repo.complete_discord_lifecycle_job(claim.job_id, claim.claim_token)
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("forum_id", "managed"),
+    [(101, True), (102, True), (103, True), (999, False)],
+)
+async def test_public_case_registration_covers_all_three_managed_forums(
+    tmp_path: Path, forum_id: int, managed: bool
+) -> None:
+    repo = Repository(tmp_path / f"forum-{forum_id}.sqlite3")
+    repo.set_config("managed_forum_ids", "[101, 102, 103]")
+    starter = SimpleNamespace(id=forum_id + 2000, author=SimpleNamespace(id=3))
+    setup = SimpleNamespace(id=forum_id + 3000)
+    thread = MagicMock(spec=discord.Thread)
+    thread.id = forum_id + 1000
+    thread.parent_id = forum_id
+    thread.guild.id = 10
+    thread.name = "同批 forum 測試"
+    thread.fetch_message = AsyncMock(return_value=starter)
+    thread.send = AsyncMock(return_value=setup)
+    settings = MagicMock(test_guild_id=10)
+    service = CourseService(MagicMock(), settings, repo)
+
+    await service.register_new_thread(thread)
+
+    draft = repo.get_draft(thread.id)
+    if managed:
+        assert draft is not None
+        assert int(draft["forum_channel_id"]) == forum_id
+        thread.send.assert_awaited_once()
+    else:
+        assert draft is None
+        thread.send.assert_not_awaited()
+
+
 def test_guest_public_identity_is_distinct_from_class_roles(tmp_path: Path) -> None:
     repo = Repository(tmp_path / "guest-identity.sqlite3")
     repo.set_config("visitor_role_id", 700)

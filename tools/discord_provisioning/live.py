@@ -11,7 +11,6 @@ import argparse
 import asyncio
 import json
 import os
-import re
 import sqlite3
 import sys
 from collections.abc import Awaitable, Callable
@@ -31,6 +30,7 @@ from tools.discord_provisioning.live_spec import (
     ROLES,
     WELCOME_CONTENT,
     ChannelSpec,
+    class_resource_errors,
     validate_spec,
 )
 
@@ -70,6 +70,14 @@ def json_dump(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.chmod(path, 0o600)
+
+
+def resolve_database_path(env: dict[str, str | None]) -> Path:
+    raw = Path(str(env.get("DATABASE_PATH") or "data/course_bots.sqlite3"))
+    if raw.is_absolute():
+        return raw
+    env_root = Path(str(env.get("_ENV_FILE_DIR") or RUNTIME_ROOT))
+    return env_root / raw
 
 
 def permission_names(value: discord.Permissions) -> list[str]:
@@ -481,6 +489,23 @@ async def retry(  # noqa: UP047 - Python 3.11 remains a supported project runtim
     raise AssertionError(f"retry loop exhausted for {label}")
 
 
+async def delete_permission_overwrite(channel: discord.abc.GuildChannel, target: object) -> None:
+    """Delete cached or unresolved member/role overwrites safely.
+
+    With guild-only intents, discord.py represents an uncached member overwrite as
+    ``discord.Object``. ``set_permissions`` rejects that placeholder even though
+    Discord's delete endpoint only needs the target snowflake.
+    """
+
+    if isinstance(target, (discord.Member, discord.Role)):
+        await channel.set_permissions(target, overwrite=None, reason=REASON)
+        return
+    target_id = int(target.id)  # type: ignore[attr-defined]
+    await channel._state.http.delete_channel_permissions(  # type: ignore[attr-defined]
+        channel.id, target_id, reason=REASON
+    )
+
+
 class LiveProvisioner:
     def __init__(
         self,
@@ -496,11 +521,7 @@ class LiveProvisioner:
         self.store = store
         self.operations = operations
         self.run_dir = run_dir
-        database_raw = str(env.get("DATABASE_PATH") or "data/course_bots.sqlite3")
-        database_path = Path(database_raw)
-        self.database_path = (
-            database_path if database_path.is_absolute() else RUNTIME_ROOT / database_path
-        )
+        self.database_path = resolve_database_path(env)
         self.course_client_id = int(str(env["COURSE_ASSISTANT_CLIENT_ID"]))
         self.dump_client_id = int(str(env["DUMP_BOT_CLIENT_ID"]))
         self.course: discord.Member
@@ -921,9 +942,7 @@ class LiveProvisioner:
         for target in list(channel.overwrites):
             if target.id not in desired_ids:
                 await retry(
-                    lambda target=target: channel.set_permissions(
-                        target, overwrite=None, reason=REASON
-                    ),
+                    lambda target=target: delete_permission_overwrite(channel, target),
                     label=f"remove stale overwrite {key}:{target.id}",
                 )
                 self.operations.record("updated", f"{key}.permission.remove", channel.id)
@@ -1194,6 +1213,12 @@ class LiveProvisioner:
         errors: list[str] = []
         warnings = list(dict.fromkeys(self.warnings))
 
+        for spec in ROLES:
+            mapped = self.store.get_id(spec.key)
+            role = self.guild.get_role(mapped) if mapped else None
+            if not isinstance(role, discord.Role) or role.name != spec.name:
+                errors.append(f"{spec.key}: missing or wrong role")
+
         expected_types: dict[str, type[discord.abc.GuildChannel]] = {
             "text": discord.TextChannel,
             "forum": discord.ForumChannel,
@@ -1213,11 +1238,12 @@ class LiveProvisioner:
             if not isinstance(channel, discord.CategoryChannel):
                 errors.append(f"{spec.key}: missing category")
 
-        names = [role.name for role in self.guild.roles] + [
-            channel.name for channel in self.guild.channels
-        ]
-        if any(re.fullmatch(r"C\d\d", name) for name in names):
-            errors.append("forbidden Cxx role or channel exists")
+        errors.extend(
+            class_resource_errors(
+                [role.name for role in self.guild.roles],
+                [channel.name for channel in self.guild.channels],
+            )
+        )
 
         managed = set(self.store.resources.get("forum.managed_case", {}).get("keys", []))
         if managed and managed != MANAGED_FORUM_KEYS:
@@ -1477,6 +1503,7 @@ def load_environment(path: Path) -> dict[str, str | None]:
     if not path.is_file():
         raise ProvisioningError(f"environment file is missing: {path}")
     env = dict(dotenv_values(path))
+    env["_ENV_FILE_DIR"] = str(path.resolve().parent)
     required = {
         "TEST_GUILD_ID",
         "COURSE_ASSISTANT_TOKEN",

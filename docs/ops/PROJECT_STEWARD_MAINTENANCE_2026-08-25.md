@@ -1,5 +1,8 @@
 # Project Steward maintenance — 2026-08-25
 
+> **SUPERSEDED — DO NOT OPERATE.** 本頁只保留 2026-08-25 的歷史維護紀錄；現行操作唯一入口是
+> `docs/ops/V13_RELEASE_SAFETY_RUNBOOK.md`。不得重跑本頁的 v10／`3411aff` 指令或沿用其授權。
+
 模式：silent walker；只修正會誤導現行操作的 canonical 文件，不改歷史 task reports／ADR，不觸碰
 production、secrets、Discord 或 Google。
 

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+import pytest
 
 from discord_course_bots.apps_script_transport import AppsScriptApiError
 from discord_course_bots.data_lab.transport import FakeGasTransport
 from discord_course_bots.production_bridge import (
+    BridgeDaemon,
     BridgeSettings,
     deliver_verification_email_once,
     project_once,
@@ -26,6 +30,53 @@ def settings(database: Path) -> BridgeSettings:
         interval_seconds=60,
         staging_lab_root=None,
     )
+
+
+def test_bridge_health_is_written_only_after_first_full_cycle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "runtime.sqlite3"
+    Repository(database).close()
+    transport = FakeGasTransport(
+        FINGERPRINT,
+        expected_environment="PRODUCTION",
+        expected_synthetic_only=False,
+    )
+    daemon = BridgeDaemon(settings(database), transport)  # type: ignore[arg-type]
+    monkeypatch.setattr(
+        "discord_course_bots.production_bridge.project_once",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("fixture failure")),
+    )
+
+    with suppress(RuntimeError):
+        daemon.cycle()
+
+    repository = Repository(database)
+    try:
+        assert repository.safe_runtime_status()["health"] == []
+    finally:
+        repository.close()
+
+
+def test_bridge_marks_healthy_after_first_full_cycle(tmp_path: Path) -> None:
+    database = tmp_path / "runtime.sqlite3"
+    Repository(database).close()
+    transport = FakeGasTransport(
+        FINGERPRINT,
+        expected_environment="PRODUCTION",
+        expected_synthetic_only=False,
+    )
+    daemon = BridgeDaemon(settings(database), transport)  # type: ignore[arg-type]
+
+    daemon.cycle()
+
+    repository = Repository(database)
+    try:
+        assert repository.safe_runtime_status()["health"] == [
+            {"service": "data-bridge", "state": "HEALTHY"}
+        ]
+    finally:
+        repository.close()
 
 
 def test_discord_case_transition_and_projection_share_atomic_ledger(tmp_path: Path) -> None:

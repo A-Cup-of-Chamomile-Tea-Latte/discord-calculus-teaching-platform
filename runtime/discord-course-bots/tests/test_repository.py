@@ -184,6 +184,7 @@ def test_lifecycle_queue_claim_completion_and_status_are_safe(tmp_path: Path) ->
         "dm",
         "private_open",
         "course_role",
+        "email",
     }
     assert set(snapshot["failures"]) == set(snapshot["queues"])
 

@@ -82,4 +82,4 @@ visudo -cf /etc/sudoers.d/calculus-discord-deploy >/dev/null ||
 installer_complete=1
 trap - EXIT
 printf 'deploy_entry=INSTALLED\nnew_port=NO\nsecrets_changed=NO\nsystemd_units_changed=NO\n'
-/usr/local/sbin/calculus-discord-deploy
+printf 'deploy_executed=NO\n'

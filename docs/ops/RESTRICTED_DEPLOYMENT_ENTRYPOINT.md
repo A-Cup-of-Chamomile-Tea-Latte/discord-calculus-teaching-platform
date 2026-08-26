@@ -22,7 +22,7 @@
 - 不安裝或修改 systemd unit。
 - 不讀取、覆寫或輸出 `/etc/calculus-discord` runtime secrets。
 - 不接受任意路徑、任意 command 或任意 sudo arguments。
-- 不自動執行 destructive／跨多版本 migration。
+- 不執行 destructive 或任意 migration target；本版只 allowlist 已獨立 rehearsal 的 additive v6→v13 chain。
 
 ## 一般部署流程
 
@@ -48,7 +48,8 @@ sudo env INSTALL_CALCULUS_DEPLOYER=INSTALL-CALCULUS-DEPLOYER \
 ```
 
 bootstrap 會建立 builder account、安裝 root-owned deployer、以 `visudo`
-驗證最小 sudoers rule，然後直接透過新入口部署當次候選版。它不要求新 port。
+驗證最小 sudoers rule，但不會部署當次候選版。Preflight、install／repair 與 deploy 是三個分離授權；
+它不要求新 port。
 
 成功輸出至少包含：
 
@@ -57,9 +58,7 @@ deploy_entry=INSTALLED
 new_port=NO
 secrets_changed=NO
 systemd_units_changed=NO
-deploy=PASS
-remote_services=HEALTHY
-production_writer=REMOTE
+deploy_executed=NO
 ```
 
 之後一般換版由 `ding` 準備固定 inbox，再執行：
@@ -78,8 +77,8 @@ sudo -n /usr/local/sbin/calculus-discord-deploy
 - destructive、不可逆、跨多 schema version 的 migration。
 - 自動 rollback 無法恢復的主機級事故。
 
-一般 additive、單一 schema version migration 由部署器處理。高風險 migration 預設拒絕，除非另有
-明確必要性、獨立 rehearsal、rollback 與主機 owner 核准。
+本版部署器只處理 exact v6→v13 additive chain；其他 current／target 組合全部拒絕。未來 migration
+必須另做獨立 rehearsal、rollback、code allowlist 與 owner 授權，不能沿用本次 `ADDITIVE` 標籤。
 
 ## 一次性撤銷
 

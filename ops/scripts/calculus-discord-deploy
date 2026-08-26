@@ -114,7 +114,8 @@ current_schema=$(sqlite3 "$database" 'PRAGMA user_version;')
 if [[ $migration_class == NONE ]]; then
   [[ $target_schema -eq $current_schema ]] || fail NONE_MIGRATION_SCHEMA_MISMATCH
 else
-  [[ $target_schema -gt $current_schema ]] || fail ADDITIVE_MIGRATION_TARGET_INVALID
+  [[ $current_schema -eq 6 && $target_schema -eq 13 ]] ||
+    fail ADDITIVE_MIGRATION_CHAIN_REFUSED
 fi
 
 release_destination=/opt/calculus-discord/releases/$release_id
@@ -246,19 +247,47 @@ rollback_deploy() {
   fi
   trap - EXIT
   set +e
-  systemctl stop "${units[@]}" >/dev/null 2>&1
+  local rollback_failed=0
+  systemctl stop "${units[@]}" >/dev/null 2>&1 || rollback_failed=1
   if [[ $release_switched -eq 1 ]]; then
-    ln -s "$old_release" /opt/calculus-discord/current.rollback
-    mv -Tf /opt/calculus-discord/current.rollback /opt/calculus-discord/current
+    ln -s "$old_release" /opt/calculus-discord/current.rollback || rollback_failed=1
+    if [[ $rollback_failed -eq 0 ]]; then
+      mv -Tf /opt/calculus-discord/current.rollback /opt/calculus-discord/current ||
+        rollback_failed=1
+    fi
   fi
   if [[ $backup_ready -eq 1 ]]; then
     install -o calculus-bot -g calculus-bot -m 0600 \
-      "$rollback_database" "$database.rollback"
-    rm -f -- "$database-wal" "$database-shm"
-    mv -f "$database.rollback" "$database"
+      "$rollback_database" "$database.rollback" || rollback_failed=1
+    if [[ $rollback_failed -eq 0 ]]; then
+      rm -f -- "$database-wal" "$database-shm" || rollback_failed=1
+      mv -f "$database.rollback" "$database" || rollback_failed=1
+    fi
   fi
-  systemctl start "${units[@]}" >/dev/null 2>&1
-  printf 'rollback=APPLIED\nremote_services=RESTORE_ATTEMPTED\n' >&2
+  if [[ $release_switched -eq 1 &&
+    $(readlink -f /opt/calculus-discord/current 2>/dev/null) != "$old_release" ]]; then
+    rollback_failed=1
+  fi
+  rollback_integrity=$(sqlite3 "$database" 'PRAGMA integrity_check;' 2>/dev/null)
+  rollback_schema=$(sqlite3 "$database" 'PRAGMA user_version;' 2>/dev/null)
+  rollback_ledger=$(
+    sqlite3 "$database" 'SELECT COUNT(*) FROM schema_migrations;' 2>/dev/null
+  )
+  [[ $rollback_integrity == ok ]] || rollback_failed=1
+  [[ $rollback_schema == "$current_schema" ]] || rollback_failed=1
+  [[ $rollback_ledger == "$current_schema" ]] || rollback_failed=1
+  if [[ $rollback_failed -eq 0 ]]; then
+    systemctl start "${units[@]}" >/dev/null 2>&1 || rollback_failed=1
+    for unit in "${units[@]}"; do
+      [[ $(systemctl is-active "$unit" 2>/dev/null) == active ]] || rollback_failed=1
+    done
+  fi
+  if [[ $rollback_failed -ne 0 ]]; then
+    systemctl stop "${units[@]}" >/dev/null 2>&1 || true
+    printf 'rollback=FAILED_SERVICES_STOPPED\nremote_services=STOPPED\n' >&2
+  else
+    printf 'rollback=APPLIED\nremote_services=RESTORED\n' >&2
+  fi
   cleanup_private_stage
   exit "$result"
 }

@@ -884,6 +884,12 @@ class Repository:
                     "WHERE status NOT IN ('COMPLETED', 'PERMANENT_FAILURE')"
                 ).fetchone()[0]
             ),
+            "email": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM email_delivery_outbox "
+                    "WHERE status NOT IN ('COMPLETED', 'PERMANENT_FAILURE')"
+                ).fetchone()[0]
+            ),
         }
         failures = {
             "discord": int(
@@ -914,6 +920,11 @@ class Repository:
             "course_role": int(
                 self._connection.execute(
                     "SELECT COUNT(*) FROM course_role_jobs WHERE status = 'PERMANENT_FAILURE'"
+                ).fetchone()[0]
+            ),
+            "email": int(
+                self._connection.execute(
+                    "SELECT COUNT(*) FROM email_delivery_outbox WHERE status = 'PERMANENT_FAILURE'"
                 ).fetchone()[0]
             ),
         }

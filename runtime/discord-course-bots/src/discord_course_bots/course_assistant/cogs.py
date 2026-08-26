@@ -147,6 +147,7 @@ class CaseCog(commands.Cog):
             + f"\n- 待發 Discord 私訊：{queues['dm']}"
             + f"\n- 待建立隱密支援：{queues['private_open']}"
             + f"\n- 待套用加入權限：{queues['course_role']}"
+            + f"\n- 待寄 Email 驗證：{queues['email']}"
             + f"\n- 歷史 Private dump queue：{queues['private_dump']}"
             + f"\n- 需人工處理：{sum(failures.values())}",
         )

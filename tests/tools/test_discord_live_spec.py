@@ -7,6 +7,7 @@ from tools.discord_provisioning.live_spec import (
     CHANNELS,
     MANAGED_FORUM_KEYS,
     ROLES,
+    class_resource_errors,
     validate_spec,
 )
 
@@ -35,6 +36,16 @@ def test_live_spec_contains_exactly_the_sixteen_class_identity_roles() -> None:
         f"C{number:02d}" for number in range(1, 17)
     ]
     assert not any(re.fullmatch(r"C\d\d", name) for name in channel_names)
+
+
+def test_class_resource_validation_accepts_exact_roles_only() -> None:
+    expected = [f"C{number:02d}" for number in range(1, 17)]
+
+    assert class_resource_errors(expected, ["welcome"]) == []
+    assert class_resource_errors(expected[:-1], ["welcome"]) == [
+        "class roles must be exactly C01 through C16"
+    ]
+    assert class_resource_errors(expected, ["C01"]) == ["forbidden Cxx channel exists"]
 
 
 def test_dump_and_course_bot_are_not_mutable_role_specs() -> None:

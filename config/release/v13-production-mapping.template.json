@@ -10,8 +10,9 @@
   "server": {
     "guildId": null,
     "courseRole": {
-      "proposedSourceKeys": ["verified_member", "registered_audit"],
-      "selectedLogicalKey": null,
+      "proposedSourceKeys": ["verified_member"],
+      "rejectedAlternatives": ["registered_audit (database-only attribute)"],
+      "selectedLogicalKey": "verified_member",
       "discordId": null
     },
     "visitorRole": {
@@ -40,7 +41,7 @@
   "forums": [
     {"logicalKey": "forum.math_questions", "sourceKey": "math_questions", "discordId": null},
     {"logicalKey": "forum.coursework_systems", "sourceKey": "coursework_systems", "discordId": null},
-    {"logicalKey": "forum.other_problem_free_talk", "sourceKey": "other_problem_free_talk", "discordId": null}
+    {"logicalKey": "forum.other_questions", "sourceKey": "other_problem_free_talk", "discordId": null}
   ],
   "privateSupportCategory": {
     "logicalKey": "category.private_support",
@@ -51,6 +52,7 @@
     "authorizationMode": "EXPLICIT_RUNTIME_USER_GRANT",
     "reviewerLevel": "REVIEWER",
     "systemAdminLevel": "SYSTEM_ADMIN",
+    "bootstrapOwnerConfiguredInSecureRuntime": false,
     "grantsConfiguredInSecureRuntime": false
   },
   "notes": [

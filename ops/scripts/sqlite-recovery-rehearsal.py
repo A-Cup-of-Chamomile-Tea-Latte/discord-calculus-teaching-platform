@@ -121,6 +121,7 @@ def main() -> int:
     try:
         source_before = sha256(source)
         with read_only_connection(source) as source_connection:
+            source_integrity = integrity(source_connection)
             source_snapshot = snapshot(source_connection)
             source_ledger_versions = migration_versions(source_connection)
             backup_connection = sqlite3.connect(backup)
@@ -169,16 +170,22 @@ def main() -> int:
         original_tables_preserved = all(
             migrated_snapshot["rowCounts"].get(table) == count
             for table, count in source_snapshot["rowCounts"].items()
+            if table != "schema_migrations"
         )
         source_after = sha256(source)
         source_mode = stat.S_IMODE(source.stat().st_mode)
+        source_owner_matches_process = source.stat().st_uid == os.geteuid()
         workspace_mode = stat.S_IMODE(work_directory.stat().st_mode)
+        workspace_owner_matches_process = work_directory.stat().st_uid == os.geteuid()
         restored_mode = stat.S_IMODE(restored.stat().st_mode)
         expected_source_schema = args.expected_source_schema
         source_schema_matches = expected_source_schema is None or (
             source_snapshot["schemaVersion"] == expected_source_schema
         )
         source_mode_gate = expected_source_schema is None or source_mode == 0o600
+        source_owner_gate = expected_source_schema is None or source_owner_matches_process
+        workspace_mode_gate = expected_source_schema is None or workspace_mode == 0o700
+        workspace_owner_gate = expected_source_schema is None or workspace_owner_matches_process
         expected_source_ledger = list(range(1, source_snapshot["schemaVersion"] + 1))
         expected_target_ledger = list(range(1, args.expected_target_schema + 1))
         source_ledger_complete = source_ledger_versions == expected_source_ledger
@@ -194,7 +201,11 @@ def main() -> int:
         pass_result = all(
             (
                 source_before == source_after,
+                source_integrity,
                 source_mode_gate,
+                source_owner_gate,
+                workspace_mode_gate,
+                workspace_owner_gate,
                 source_schema_matches,
                 source_ledger_complete,
                 backup_integrity,
@@ -220,9 +231,13 @@ def main() -> int:
             "status": "PASS" if pass_result else "FAIL",
             "sourceOpenedReadOnly": True,
             "sourceFileStableDuringRun": source_before == source_after,
+            "sourceIntegrity": source_integrity,
             "sourceModeOwnerOnly": source_mode == 0o600,
+            "sourceOwnerMatchesProcess": source_owner_matches_process,
             "workspaceWritable": os.access(work_directory, os.W_OK),
             "workspaceOwnerWritable": workspace_mode & stat.S_IWUSR != 0,
+            "workspaceModeOwnerOnly": workspace_mode == 0o700,
+            "workspaceOwnerMatchesProcess": workspace_owner_matches_process,
             "sourceSchemaMatchesExpected": source_schema_matches,
             "sourceLedgerComplete": source_ledger_complete,
             "backupIntegrity": backup_integrity,

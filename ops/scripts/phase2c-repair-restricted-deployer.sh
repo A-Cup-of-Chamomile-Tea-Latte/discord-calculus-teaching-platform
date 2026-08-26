@@ -10,6 +10,7 @@ unset BASH_ENV ENV PYTHONHOME PYTHONPATH PIP_CONFIG_FILE
 
 source_release=${1:-}
 installed_deployer=/usr/local/sbin/calculus-discord-deploy
+installed_sudoers=/etc/sudoers.d/calculus-discord-deploy
 expected_old_sha256=05f6375160579374c5341395b53148506c616bcd43743e3ff4d2977ea521d2b6
 
 fail() {
@@ -22,18 +23,34 @@ fail() {
 [[ ${REPAIR_CALCULUS_DEPLOYER:-} == REPAIR-CALCULUS-DEPLOYER ]] ||
   fail EXACT_APPROVAL_REQUIRED
 [[ $(hostname) == jerrymk-workstation ]] || fail WRONG_HOST
-[[ -f $installed_deployer && ! -L $installed_deployer ]] || fail DEPLOYER_MISSING
-[[ $(stat -c %U:%G "$installed_deployer") == root:root ]] || fail DEPLOYER_OWNER_INVALID
-[[ $(stat -c %a "$installed_deployer") == 755 ]] || fail DEPLOYER_MODE_INVALID
-[[ $(sha256sum "$installed_deployer" | cut -d' ' -f1) == "$expected_old_sha256" ]] ||
-  fail INSTALLED_DEPLOYER_VERSION_REFUSED
 
 source_release=$(realpath -e "$source_release")
 [[ $source_release == /home/ding/calculus-discord-staging/releases/* ]] ||
   fail RELEASE_PATH_REFUSED
 deployer_source=$source_release/ops/scripts/calculus-discord-deploy
+sudoers_source=$source_release/ops/sudoers/calculus-discord-deploy
 [[ -f $deployer_source && ! -L $deployer_source ]] || fail DEPLOYER_SOURCE_MISSING
+[[ -f $sudoers_source && ! -L $sudoers_source ]] || fail SUDOERS_SOURCE_MISSING
 bash -n "$deployer_source" || fail DEPLOYER_SYNTAX_INVALID
+visudo -cf "$sudoers_source" >/dev/null || fail SUDOERS_SOURCE_INVALID
+
+[[ -f $installed_deployer && ! -L $installed_deployer ]] || fail DEPLOYER_MISSING
+[[ $(stat -c %U:%G "$installed_deployer") == root:root ]] || fail DEPLOYER_OWNER_INVALID
+[[ $(stat -c %a "$installed_deployer") == 755 ]] || fail DEPLOYER_MODE_INVALID
+[[ -f $installed_sudoers && ! -L $installed_sudoers ]] || fail SUDOERS_RULE_MISSING
+[[ $(stat -c %U:%G "$installed_sudoers") == root:root ]] || fail SUDOERS_OWNER_INVALID
+[[ $(stat -c %a "$installed_sudoers") == 440 ]] || fail SUDOERS_MODE_INVALID
+visudo -cf "$installed_sudoers" >/dev/null || fail SUDOERS_INSTALLED_INVALID
+cmp -s "$sudoers_source" "$installed_sudoers" || fail SUDOERS_RULE_MISMATCH
+
+installed_sha256=$(sha256sum "$installed_deployer" | cut -d' ' -f1)
+candidate_sha256=$(sha256sum "$deployer_source" | cut -d' ' -f1)
+if [[ $installed_sha256 == "$candidate_sha256" ]]; then
+  printf 'deployer_repair=ALREADY_READY\nnew_port=NO\nsecrets_changed=NO\n'
+  printf 'systemd_units_changed=NO\ndeploy_executed=NO\n'
+  exit 0
+fi
+[[ $installed_sha256 == "$expected_old_sha256" ]] || fail INSTALLED_DEPLOYER_VERSION_REFUSED
 
 incoming=$installed_deployer.incoming
 [[ ! -e $incoming ]] || fail DEPLOYER_INCOMING_PRESENT
@@ -48,6 +65,8 @@ install -o root -g root -m 0755 "$deployer_source" "$incoming"
 [[ $(sha256sum "$incoming" | cut -d' ' -f1) == \
   "$(sha256sum "$deployer_source" | cut -d' ' -f1)" ]] || fail DEPLOYER_COPY_MISMATCH
 mv -f "$incoming" "$installed_deployer"
+[[ $(sha256sum "$installed_deployer" | cut -d' ' -f1) == "$candidate_sha256" ]] ||
+  fail DEPLOYER_PROMOTION_MISMATCH
 trap - EXIT
 printf 'deployer_repair=PASS\nnew_port=NO\nsecrets_changed=NO\nsystemd_units_changed=NO\n'
 printf 'deploy_executed=NO\n'

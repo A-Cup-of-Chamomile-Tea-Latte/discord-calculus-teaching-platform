@@ -301,18 +301,6 @@ class BridgeDaemon:
         self.stop.set()
 
     def cycle(self) -> dict[str, Any]:
-        repository = DataLabRepository(self.settings.database_path)
-        try:
-            _record_health(
-                repository,
-                self.settings,
-                status="HEALTHY",
-                safe_error_code=None,
-                successful=True,
-                enqueue=self._cycles % 5 == 0,
-            )
-        finally:
-            repository.close()
         projection = project_once(self.settings, self.transport, apply=True)
         email = deliver_verification_email_once(self.settings, self.transport)
         command: dict[str, Any] = {
@@ -331,6 +319,26 @@ class BridgeDaemon:
                 )
                 if int(projection.get("pendingWorkCount", 0)) >= 20:
                     projection = project_once(self.settings, self.transport, apply=True)
+        failure = next(
+            (
+                item
+                for item in (projection, email, command)
+                if str(item.get("status")) in {"ERROR", "RETRYABLE_FAILURE", "PERMANENT_FAILURE"}
+            ),
+            None,
+        )
+        repository = DataLabRepository(self.settings.database_path)
+        try:
+            _record_health(
+                repository,
+                self.settings,
+                status="DEGRADED" if failure else "HEALTHY",
+                safe_error_code=None if failure is None else str(failure.get("safeResultCode")),
+                successful=failure is None,
+                enqueue=self._cycles % 5 == 0,
+            )
+        finally:
+            repository.close()
         self._cycles += 1
         return {"projection": projection, "email": email, "command": command}
 

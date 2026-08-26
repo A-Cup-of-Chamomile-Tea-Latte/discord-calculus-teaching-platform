@@ -18,7 +18,12 @@ EXPECTED_MODULES = {
 EXPECTED_FORUM_KEYS = {
     "forum.math_questions",
     "forum.coursework_systems",
-    "forum.other_problem_free_talk",
+    "forum.other_questions",
+}
+EXPECTED_FORUM_SOURCES = {
+    "forum.math_questions": "math_questions",
+    "forum.coursework_systems": "coursework_systems",
+    "forum.other_questions": "other_problem_free_talk",
 }
 SNOWFLAKE = re.compile(r"^[0-9]{17,20}$")
 
@@ -45,6 +50,7 @@ def main() -> int:
     args = parse_args()
     errors: list[str] = []
     missing: list[str] = []
+    resource_ids: list[tuple[str, str]] = []
     try:
         value = load(args.mapping)
     except (OSError, json.JSONDecodeError, ValueError) as error:
@@ -56,17 +62,19 @@ def main() -> int:
     if value.get("termCode") != "115-1":
         errors.append("termCode")
 
-    def required_id(path: str, candidate: object) -> None:
+    def required_id(path: str, candidate: object, *, resource: bool = True) -> None:
         if candidate is None:
             missing.append(path)
         elif not SNOWFLAKE.fullmatch(str(candidate)):
             errors.append(path)
+        elif resource:
+            resource_ids.append((path, str(candidate)))
 
     server = value.get("server")
     if not isinstance(server, dict):
         errors.append("server")
     else:
-        required_id("server.guildId", server.get("guildId"))
+        required_id("server.guildId", server.get("guildId"), resource=False)
         for key in ("courseRole", "visitorRole"):
             role = server.get(key)
             if not isinstance(role, dict):
@@ -74,8 +82,14 @@ def main() -> int:
             else:
                 required_id(f"server.{key}.discordId", role.get("discordId"))
         course_role = server.get("courseRole")
-        if isinstance(course_role, dict) and not course_role.get("selectedLogicalKey"):
-            missing.append("server.courseRole.selectedLogicalKey")
+        if isinstance(course_role, dict):
+            if course_role.get("selectedLogicalKey") != "verified_member":
+                errors.append("server.courseRole.selectedLogicalKey")
+            if course_role.get("proposedSourceKeys") != ["verified_member"]:
+                errors.append("server.courseRole.proposedSourceKeys")
+        visitor_role = server.get("visitorRole")
+        if isinstance(visitor_role, dict) and visitor_role.get("proposedSourceKey") != "guest":
+            errors.append("server.visitorRole.proposedSourceKey")
 
     classes = value.get("classRoles")
     expected_classes = set(EXPECTED_MODULES)
@@ -112,6 +126,8 @@ def main() -> int:
             actual_forums.add(key)
             if key not in EXPECTED_FORUM_KEYS:
                 errors.append(f"forums.{key}.logicalKey")
+            elif item.get("sourceKey") != EXPECTED_FORUM_SOURCES[key]:
+                errors.append(f"forums.{key}.sourceKey")
             required_id(f"forums.{key}.discordId", item.get("discordId"))
     if actual_forums != EXPECTED_FORUM_KEYS:
         errors.append("forums.coverage")
@@ -120,13 +136,35 @@ def main() -> int:
     if not isinstance(category, dict):
         errors.append("privateSupportCategory")
     else:
+        if category.get("logicalKey") != "category.private_support":
+            errors.append("privateSupportCategory.logicalKey")
+        if category.get("sourceKey") != "private_support":
+            errors.append("privateSupportCategory.sourceKey")
         required_id("privateSupportCategory.discordId", category.get("discordId"))
 
     reviewer = value.get("reviewerMapping")
     if not isinstance(reviewer, dict):
         errors.append("reviewerMapping")
-    elif reviewer.get("grantsConfiguredInSecureRuntime") is not True:
-        missing.append("reviewerMapping.secureRuntimeGrants")
+    else:
+        if reviewer.get("authorizationMode") != "EXPLICIT_RUNTIME_USER_GRANT":
+            errors.append("reviewerMapping.authorizationMode")
+        if reviewer.get("reviewerLevel") != "REVIEWER":
+            errors.append("reviewerMapping.reviewerLevel")
+        if reviewer.get("systemAdminLevel") != "SYSTEM_ADMIN":
+            errors.append("reviewerMapping.systemAdminLevel")
+        if not (
+            reviewer.get("bootstrapOwnerConfiguredInSecureRuntime") is True
+            or reviewer.get("grantsConfiguredInSecureRuntime") is True
+        ):
+            missing.append("reviewerMapping.secureRuntimeBootstrapOrGrants")
+
+    seen_ids: dict[str, str] = {}
+    for path, resource_id in resource_ids:
+        previous = seen_ids.get(resource_id)
+        if previous is not None:
+            errors.extend((previous, path, "resourceIds.duplicate"))
+        else:
+            seen_ids[resource_id] = path
 
     errors = sorted(set(errors))
     missing = sorted(set(missing))
@@ -148,7 +186,8 @@ def main() -> int:
             if isinstance(item, dict)
         )
         else "FAIL",
-        "sensitiveValuesReadOrPrinted": False,
+        "inventoryGuildMembership": "NOT_CHECKED",
+        "sensitiveValuesPrinted": False,
     }
     print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
     if errors or (missing and not args.allow_pending):
