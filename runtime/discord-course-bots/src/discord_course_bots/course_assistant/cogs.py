@@ -161,10 +161,7 @@ class CaseCog(commands.Cog):
         except ValueError as exc:
             await _reply(interaction, str(exc))
             return
-        try:
-            _, module_code = self.service.class_context_for_member(interaction.user)
-        except RuntimeError:
-            module_code = self.service.settings.module_code
+        module_code = self.service.private_module_for_member(interaction.user)
         request = self.service.repo.begin_private_open_request(
             interaction_id=str(interaction.id),
             guild_id=interaction.guild.id,

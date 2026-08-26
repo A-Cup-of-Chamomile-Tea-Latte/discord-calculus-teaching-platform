@@ -36,7 +36,6 @@ LOGGER = logging.getLogger(__name__)
 
 JOIN_PATH = "/api/join"
 CASE_LOOKUP_PATH = "/api/cases/lookup"
-CASE_STATUS_PATH = "/api/cases/status"
 CSRF_HEADER = "x-csrf-token"
 SESSION_COOKIE = "portal_session"
 CSRF_COOKIE = "portal_csrf"
@@ -416,7 +415,7 @@ class PortalBackend:
 
     def handle(self, request: PortalRequest) -> PortalResponse:
         path = urlsplit(request.target).path
-        if path not in {JOIN_PATH, CASE_LOOKUP_PATH, CASE_STATUS_PATH}:
+        if path not in {JOIN_PATH, CASE_LOOKUP_PATH}:
             return _error(HTTPStatus.NOT_FOUND, "NOT_FOUND")
         parsed_target = urlsplit(request.target)
         if parsed_target.fragment:
@@ -437,18 +436,6 @@ class PortalBackend:
 
         method = request.method.upper()
         if method == "GET":
-            if path == CASE_STATUS_PATH:
-                query = parse_qs(parsed_target.query, keep_blank_values=True, max_num_fields=2)
-                if set(query) != {"caseNumber"} or len(query["caseNumber"]) != 1:
-                    return _error(HTTPStatus.BAD_REQUEST, "INVALID_REQUEST")
-                lookup_request = PortalRequest(
-                    method="POST",
-                    target=CASE_LOOKUP_PATH,
-                    headers={**request.headers, "Content-Type": "application/json"},
-                    body=_json_bytes({"caseNumber": query["caseNumber"][0]}),
-                    client_key=request.client_key,
-                )
-                return self._lookup(lookup_request, subject)
             if parsed_target.query:
                 return _error(HTTPStatus.BAD_REQUEST, "INVALID_REQUEST")
             return self._csrf_seed(request)

@@ -5,7 +5,7 @@ import discord
 import pytest
 
 from discord_course_bots.course_assistant.service import CaseAlreadyOpenError
-from discord_course_bots.course_assistant.views import AIPermissionView, ReopenView
+from discord_course_bots.course_assistant.views import AIPermissionView, DraftSetupView, ReopenView
 
 
 @pytest.mark.asyncio
@@ -106,3 +106,27 @@ async def test_ai_permission_uses_yes_no_buttons_instead_of_a_select() -> None:
     interaction.response.edit_message.assert_awaited_once_with(
         content="AI 文字內容分析：**允許**", view=view
     )
+
+
+@pytest.mark.asyncio
+async def test_draft_delete_failure_does_not_expose_raw_exception() -> None:
+    service = MagicMock()
+    service.repo.get_draft.return_value = {"author_id": 3}
+    service.delete_draft = AsyncMock(side_effect=RuntimeError("sensitive database path"))
+    view = DraftSetupView(service)
+    delete_button = next(child for child in view.children if child.label.startswith("我沒有問題"))
+    channel = MagicMock(spec=discord.Thread)
+    interaction = SimpleNamespace(
+        channel=channel,
+        user=SimpleNamespace(id=3),
+        response=SimpleNamespace(send_message=AsyncMock()),
+        followup=SimpleNamespace(send=AsyncMock()),
+    )
+
+    await delete_button.callback(interaction)
+
+    interaction.followup.send.assert_awaited_once_with(
+        "刪除失敗，貼文仍保留；請稍後重試或聯絡教學團隊。",
+        ephemeral=True,
+    )
+    assert "sensitive database path" not in interaction.followup.send.await_args.args[0]

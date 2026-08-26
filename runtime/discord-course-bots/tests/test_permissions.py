@@ -31,3 +31,13 @@ def test_configured_system_admin_role_grants_operator_access() -> None:
 
     assert service.is_allowed_operator(member)
     repository.get_config_int.assert_called_once_with("system_admin_role_id")
+
+
+def test_private_support_uses_configured_metadata_fallback_without_class_mapping() -> None:
+    settings = SimpleNamespace(owner_ids=frozenset(), module_code="M3")
+    repository = MagicMock()
+    repository.get_config_int.return_value = None
+    service = CourseService(MagicMock(), settings, repository)
+    member = SimpleNamespace(id=42, roles=[])
+
+    assert service.private_module_for_member(member) == "M3"

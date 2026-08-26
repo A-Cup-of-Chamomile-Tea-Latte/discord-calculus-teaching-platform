@@ -84,6 +84,18 @@ class CourseService:
             raise RuntimeError("班別與 Module 對照尚未同步；請先請系統管理員更新設定。")
         return class_code, module_code
 
+    def private_module_for_member(self, member: discord.Member) -> str:
+        """Resolve Private Support metadata without weakening its channel ACL."""
+        try:
+            return self.class_context_for_member(member)[1]
+        except RuntimeError:
+            LOGGER.info(
+                "Private Support requester %s has no unique class/module mapping; "
+                "using the configured private metadata fallback",
+                member.id,
+            )
+            return self.settings.module_code
+
     async def register_new_thread(self, thread: discord.Thread) -> None:
         if thread.guild.id != self.settings.test_guild_id:
             return

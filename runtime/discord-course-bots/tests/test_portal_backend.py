@@ -189,6 +189,21 @@ def test_csrf_seed_is_same_origin_and_no_store(tmp_path: Path) -> None:
     assert response.headers["Cache-Control"] == "no-store"
 
 
+def test_undocumented_get_case_status_route_is_not_available(tmp_path: Path) -> None:
+    backend, _, _, session = backend_for(tmp_path)
+    response = backend.handle(
+        PortalRequest(
+            method="GET",
+            target="/api/cases/status?caseNumber=C01-7K4M2Q-0702-1000",
+            headers={"Host": HOST, "Cookie": f"portal_session={session}"},
+            client_key="test-client",
+        )
+    )
+
+    assert response.status == 404
+    assert response.json()["error"] == "NOT_FOUND"
+
+
 def test_rate_limit_is_per_route_and_generic(tmp_path: Path) -> None:
     backend, _, _, session = backend_for(
         tmp_path, rate_limiter=RateLimiter(limit=1, window_seconds=60)

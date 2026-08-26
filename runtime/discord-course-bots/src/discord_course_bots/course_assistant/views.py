@@ -168,7 +168,11 @@ class DraftSetupView(discord.ui.View):
         try:
             await self.service.delete_draft(interaction, channel.id)
         except (RuntimeError, PermissionError, discord.HTTPException) as exc:
-            await interaction.followup.send(f"刪除失敗：{exc}", ephemeral=True)
+            LOGGER.warning("Draft deletion failed for thread %s: %s", channel.id, exc)
+            await interaction.followup.send(
+                "刪除失敗，貼文仍保留；請稍後重試或聯絡教學團隊。",
+                ephemeral=True,
+            )
 
     @discord.ui.button(
         label="隱私與資料說明",

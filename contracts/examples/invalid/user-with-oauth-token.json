@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "userId": "usr_amber",
+  "displayLabel": "Amber Example",
+  "defaultAuthorDisplayMode": "COURSE_ALIAS",
+  "analysisPermissionDefault": "INCLUDED",
+  "verifiedEmailIds": [],
+  "discordAccountIds": [],
+  "membershipIds": [],
+  "createdAt": "2026-07-01T09:00:00+08:00",
+  "updatedAt": "2026-07-01T09:00:00+08:00",
+  "oauthAccessToken": "fictional-value-must-not-be-stored"
+}
