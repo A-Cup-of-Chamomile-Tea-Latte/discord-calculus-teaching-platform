@@ -33,7 +33,7 @@ Last repository／AI handoff reconciliation: 2026-08-26（Asia/Taipei）
 - Portal backend v1 已建立 `POST /api/join` 與 `POST /api/cases/lookup`；使用外部 signed session、CSRF cookie、same-origin／Host allowlist、JSON／form allowlist、rate limit、generic errors 與 metadata-only audit。Browser 不持有 SQLite 或 Discord credential。
 - Discord allowlisted live Guild 已建立 C01–C16，三個 managed forums、Private category、role hierarchy
   與 bot permissions 經 read-only verify 為 0 error／0 warning；真實 IDs 只保存在 mode `0600` secure mapping。
-- Deployment hardening 後的 worktree gate 通過 Portal 61、Config 3、GAS 70、Python 331、Ruff、format、mypy、build、production npm audit 0 與 secret scan；exact commit 後仍須產生 archive checksum 與外部 evidence receipt。
+- Deployment hardening 後的 worktree gate 通過 Portal 61、Config 3、GAS 70、Python 334、Ruff、format、mypy、build、production npm audit 0 與 secret scan；exact commit 由外部 evidence receipt 綁定 archive checksum。
 - schema-shaped v6 暫存副本已演練到 v13：ledger 1–13 完整、`integrity_check=ok`、核心 row counts 不變。這不取代 production consistent backup rehearsal。
 
 ## Portal 現況

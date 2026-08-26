@@ -12,14 +12,10 @@
 
 ## Gate 1: production v6 consistent backup
 
-由 production host owner 使用 release 內唯一的 owner-prepare entrypoint；它在三服務維持運作時先完成
-全部 fail-closed 檢查，再建立 consistent backup，並只在獨立 copy 上驗證 restore、migration 與 rollback：
-
-```sh
-sudo env PREPARE_V13_HOST=PREPARE-V13-HOST \
-  /home/ding/calculus-discord-staging/releases/<exact-release>/ops/scripts/v13-host-owner-prepare.sh \
-  /home/ding/calculus-discord-staging/releases/<exact-release>
-```
+由 production host owner 使用 `docs/ops/V13_RELEASE_SAFETY_RUNBOOK.md` 的單一 friend bootstrap block。
+Bootstrap 只從 root-owned trusted release 執行 owner-prepare；不得直接從 `/home/ding` upload tree 以 root
+執行腳本。Owner-prepare 在三服務維持運作時先完成全部 fail-closed 檢查，再建立 consistent backup，並只
+在獨立 copy 上驗證 restore、migration 與 rollback。
 
 必須回傳 `v13_host_prepare=PASS`、`backup_rehearsal=PASS`、`deployer=READY` 與
 `deploy_executed=NO`。FAIL 時只回傳 safe error code，不自行清檔或重跑。不要把 backup、manifest、

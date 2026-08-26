@@ -25,7 +25,10 @@ fail() {
 
 inbox=/home/ding/calculus-discord-staging/deploy-inbox
 request_source=$inbox/request.txt
-archive_source=$inbox/release.tar
+legacy_archive_source=$inbox/release.tar
+trusted_release_root=/var/lib/calculus-discord-deploy/releases
+preflight_root=/var/lib/calculus-discord-deploy/preflight
+rollback_root=/var/lib/calculus-discord-deploy/rollback
 database=/var/lib/calculus-discord/runtime.sqlite3
 units=(
   calculus-course-assistant.service
@@ -34,7 +37,7 @@ units=(
 )
 
 [[ -e $request_source ]] || fail REQUEST_MISSING
-[[ -e $archive_source ]] || fail ARCHIVE_MISSING
+[[ ! -e $legacy_archive_source ]] || fail LEGACY_INBOX_ARCHIVE_REFUSED
 [[ -L /opt/calculus-discord/current ]] || fail CURRENT_RELEASE_MISSING
 [[ -f $database ]] || fail PRODUCTION_DATABASE_MISSING
 id calculus-builder >/dev/null 2>&1 || fail BUILD_USER_MISSING
@@ -43,6 +46,8 @@ private_stage=$(mktemp -d /var/lib/calculus-discord-deploy/deploy.XXXXXXXX)
 chown root:calculus-builder "$private_stage"
 chmod 0710 "$private_stage"
 deployment_started=0
+incoming_created=0
+release_created=0
 request=$private_stage/request.txt
 archive=$private_stage/release.tar
 cleanup_private_stage() {
@@ -51,10 +56,11 @@ cleanup_private_stage() {
     rm -rf -- "$private_stage"
   fi
   if [[ $result -ne 0 && ${deployment_started:-0} -eq 0 ]]; then
-    if [[ -n ${incoming:-} && -d $incoming ]]; then
+    if [[ ${incoming_created:-0} -eq 1 && -n ${incoming:-} && -d $incoming ]]; then
       rm -rf -- "$incoming"
     fi
-    if [[ -n ${release_destination:-} && -d $release_destination ]]; then
+    if [[ ${release_created:-0} -eq 1 && -n ${release_destination:-} && \
+      -d $release_destination ]]; then
       rm -rf -- "$release_destination"
     fi
   fi
@@ -62,7 +68,7 @@ cleanup_private_stage() {
 }
 trap cleanup_private_stage EXIT
 
-/usr/bin/python3 - "$request_source" "$archive_source" "$request" "$archive" <<'PY'
+/usr/bin/python3 -I - "$request_source" "$request" <<'PY'
 import os
 from pathlib import Path
 import pwd
@@ -70,32 +76,28 @@ import shutil
 import stat
 import sys
 
-owner_uid = pwd.getpwnam("ding").pw_uid
-items = (
-    (Path(sys.argv[1]), Path(sys.argv[3]), 4_096),
-    (Path(sys.argv[2]), Path(sys.argv[4]), 104_857_600),
-)
-for source, destination, maximum_size in items:
-    descriptor = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
-    try:
-        metadata = os.fstat(descriptor)
-        if not stat.S_ISREG(metadata.st_mode):
-            raise SystemExit("deploy inbox item is not a regular file")
-        if metadata.st_uid != owner_uid or stat.S_IMODE(metadata.st_mode) != 0o600:
-            raise SystemExit("deploy inbox ownership or mode is invalid")
-        if metadata.st_size > maximum_size:
-            raise SystemExit("deploy inbox item exceeds size limit")
-        with os.fdopen(descriptor, "rb", closefd=False) as reader:
-            with destination.open("xb") as writer:
-                shutil.copyfileobj(reader, writer)
-        destination.chmod(0o600)
-    finally:
-        os.close(descriptor)
+source = Path(sys.argv[1])
+destination = Path(sys.argv[2])
+descriptor = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    metadata = os.fstat(descriptor)
+    if not stat.S_ISREG(metadata.st_mode):
+        raise SystemExit("deploy request is not a regular file")
+    if metadata.st_uid != pwd.getpwnam("ding").pw_uid or stat.S_IMODE(metadata.st_mode) != 0o600:
+        raise SystemExit("deploy request ownership or mode is invalid")
+    if metadata.st_size > 4_096:
+        raise SystemExit("deploy request exceeds size limit")
+    with os.fdopen(descriptor, "rb", closefd=False) as reader:
+        with destination.open("xb") as writer:
+            shutil.copyfileobj(reader, writer)
+    destination.chmod(0o600)
+finally:
+    os.close(descriptor)
 PY
 
 mapfile -t request_lines <"$request"
 [[ ${#request_lines[@]} -eq 4 ]] || fail REQUEST_FORMAT_INVALID
-[[ ${request_lines[0]} =~ ^release_id=([a-f0-9]{7,40})$ ]] || fail RELEASE_ID_INVALID
+[[ ${request_lines[0]} =~ ^release_id=([a-f0-9]{12})$ ]] || fail RELEASE_ID_INVALID
 release_id=${BASH_REMATCH[1]}
 [[ ${request_lines[1]} =~ ^archive_sha256=([a-f0-9]{64})$ ]] ||
   fail ARCHIVE_SHA256_INVALID
@@ -107,8 +109,97 @@ target_schema=${BASH_REMATCH[1]}
   fail MIGRATION_CLASS_INVALID
 migration_class=${BASH_REMATCH[1]}
 
+trusted_release=$trusted_release_root/$release_id
+archive_source=$trusted_release/.v13-source-archive.tar
+preflight_bundle=$preflight_root/$release_id
+preflight_backup=$preflight_bundle/backup.sqlite3
+preflight_receipt=$preflight_bundle/receipt.json
+for secure_root in "$trusted_release_root" "$preflight_root" "$rollback_root"; do
+  [[ -d $secure_root && ! -L $secure_root ]] || fail SECURE_ARTIFACT_ROOT_MISSING
+  [[ $(stat -c %U:%G "$secure_root") == root:root ]] ||
+    fail SECURE_ARTIFACT_ROOT_OWNER_INVALID
+  [[ -z $(find "$secure_root" -maxdepth 0 -perm /022 -print -quit) ]] ||
+    fail SECURE_ARTIFACT_ROOT_WRITABLE_BY_OTHERS
+done
+[[ -d $trusted_release && ! -L $trusted_release ]] || fail TRUSTED_RELEASE_MISSING
+[[ $(stat -c %U:%G "$trusted_release") == root:root ]] || fail TRUSTED_RELEASE_OWNER_INVALID
+[[ -z $(find "$trusted_release" ! -user root -print -quit) ]] ||
+  fail TRUSTED_RELEASE_TREE_OWNER_INVALID
+[[ -z $(find "$trusted_release" -perm /022 -print -quit) ]] ||
+  fail TRUSTED_RELEASE_WRITABLE_BY_OTHERS
+[[ -f $archive_source && ! -L $archive_source ]] || fail TRUSTED_ARCHIVE_MISSING
+[[ $(stat -c %U:%G "$archive_source") == root:root && \
+  $(stat -c %a "$archive_source") == 444 ]] || fail TRUSTED_ARCHIVE_BOUNDARY_INVALID
+[[ -d $preflight_bundle && ! -L $preflight_bundle ]] || fail PREFLIGHT_BUNDLE_MISSING
+[[ $(stat -c %U:%G "$preflight_bundle") == root:root && \
+  $(stat -c %a "$preflight_bundle") == 700 ]] || fail PREFLIGHT_BUNDLE_BOUNDARY_INVALID
+[[ -f $preflight_backup && ! -L $preflight_backup ]] || fail PREFLIGHT_BACKUP_MISSING
+[[ -f $preflight_receipt && ! -L $preflight_receipt ]] || fail PREFLIGHT_RECEIPT_MISSING
+
+/usr/bin/python3 -I - "$archive_source" "$archive" <<'PY'
+import os
+from pathlib import Path
+import shutil
+import stat
+import sys
+
+source = Path(sys.argv[1])
+destination = Path(sys.argv[2])
+descriptor = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    metadata = os.fstat(descriptor)
+    if not stat.S_ISREG(metadata.st_mode):
+        raise SystemExit("trusted archive is not a regular file")
+    if metadata.st_uid != 0 or stat.S_IMODE(metadata.st_mode) != 0o444:
+        raise SystemExit("trusted archive ownership or mode is invalid")
+    if metadata.st_size > 104_857_600:
+        raise SystemExit("trusted archive exceeds size limit")
+    with os.fdopen(descriptor, "rb", closefd=False) as reader:
+        with destination.open("xb") as writer:
+            shutil.copyfileobj(reader, writer)
+    destination.chmod(0o600)
+finally:
+    os.close(descriptor)
+PY
+
 [[ $(sha256sum "$archive" | cut -d' ' -f1) == "$archive_sha256" ]] ||
   fail ARCHIVE_CHECKSUM_MISMATCH
+installed_deployer_sha256=$(sha256sum /usr/local/sbin/calculus-discord-deploy | cut -d' ' -f1)
+/usr/bin/python3 -I - "$preflight_backup" "$preflight_receipt" "$release_id" \
+  "$archive_sha256" "$installed_deployer_sha256" <<'PY' || fail PREFLIGHT_BINDING_INVALID
+import hashlib
+import json
+from pathlib import Path
+import re
+import stat
+import sys
+
+backup = Path(sys.argv[1])
+receipt = Path(sys.argv[2])
+release_id = sys.argv[3]
+archive_sha256 = sys.argv[4]
+deployer_sha256 = sys.argv[5]
+for path in (backup, receipt):
+    metadata = path.stat()
+    if metadata.st_uid != 0 or stat.S_IMODE(metadata.st_mode) != 0o600:
+        raise SystemExit(1)
+value = json.loads(receipt.read_text(encoding="utf-8"))
+backup_sha256 = hashlib.sha256(backup.read_bytes()).hexdigest()
+commit = str(value.get("candidateCommit", ""))
+if not (
+    value.get("status") == "PASS"
+    and value.get("releaseId") == release_id
+    and len(commit) == 40
+    and commit.startswith(release_id)
+    and value.get("archiveSha256") == archive_sha256
+    and value.get("candidateDeployerSha256") == deployer_sha256
+    and value.get("backupSha256") == backup_sha256
+    and re.fullmatch(r"[a-f0-9]{64}", str(value.get("treeSha256", "")))
+    and value.get("productionDatabaseModified") is False
+    and value.get("deployExecuted") is False
+):
+    raise SystemExit(1)
+PY
 current_schema=$(sqlite3 "$database" 'PRAGMA user_version;')
 [[ $current_schema =~ ^[0-9]+$ ]] || fail CURRENT_SCHEMA_INVALID
 if [[ $migration_class == NONE ]]; then
@@ -123,8 +214,9 @@ incoming=$release_destination.incoming
 runtime=$release_destination/runtime/discord-course-bots
 dependency_lock=$release_destination/ops/requirements/discord-runtime.txt
 old_release=$(readlink -f /opt/calculus-discord/current)
-rollback_database=/var/lib/calculus-discord/backups/deploy-$release_id.before.sqlite3
-receipt=/var/lib/calculus-discord/receipts/deploy-$release_id.txt
+rollback_bundle=$rollback_root/$release_id
+rollback_database=$rollback_bundle/database.sqlite3
+receipt=$rollback_bundle/receipt.txt
 migration_workspace=$private_stage/migration
 staging_database=$migration_workspace/runtime.sqlite3
 
@@ -133,7 +225,7 @@ staging_database=$migration_workspace/runtime.sqlite3
 [[ ! -e $release_destination && ! -e $incoming ]] || fail RELEASE_ALREADY_PRESENT
 [[ ! -e /opt/calculus-discord/current.incoming ]] || fail CURRENT_INCOMING_PRESENT
 [[ ! -e /opt/calculus-discord/current.rollback ]] || fail CURRENT_ROLLBACK_PRESENT
-[[ ! -e $rollback_database && ! -e $receipt ]] || fail DEPLOY_ARTIFACT_ALREADY_PRESENT
+[[ ! -e $rollback_bundle ]] || fail DEPLOY_ARTIFACT_ALREADY_PRESENT
 [[ $(sqlite3 "$database" 'PRAGMA integrity_check;') == ok ]] ||
   fail PRODUCTION_DATABASE_INTEGRITY_FAILED
 [[ $(sqlite3 "$database" 'SELECT COUNT(*) FROM schema_migrations;') == "$current_schema" ]] ||
@@ -144,7 +236,8 @@ for unit in "${units[@]}"; do
 done
 
 install -d -o calculus-builder -g calculus-builder -m 0755 "$incoming"
-/usr/bin/python3 - "$archive" "$incoming" <<'PY'
+incoming_created=1
+/usr/bin/python3 -I - "$archive" "$incoming" <<'PY'
 from pathlib import Path
 import sys
 import tarfile
@@ -165,8 +258,10 @@ PY
 [[ -f $incoming/ops/requirements/discord-runtime.txt ]] || fail DEPENDENCY_LOCK_MISSING
 chown -R calculus-builder:calculus-builder "$incoming"
 mv "$incoming" "$release_destination"
+incoming_created=0
+release_created=1
 
-/usr/bin/python3 - "$dependency_lock" <<'PY'
+/usr/bin/python3 -I - "$dependency_lock" <<'PY'
 from pathlib import Path
 import re
 import sys
@@ -216,7 +311,7 @@ chmod 0600 "$staging_database"
 runuser -u calculus-builder -- test -w "$staging_database" ||
   fail STAGING_DATABASE_NOT_WRITABLE
 runuser -u calculus-builder -- env -i HOME=/var/lib/calculus-discord-build \
-  PATH=/usr/bin:/bin "$runtime/.venv/bin/python" - "$staging_database" \
+  PATH=/usr/bin:/bin "$runtime/.venv/bin/python" -I - "$staging_database" \
   "$target_schema" <<'PY'
 from pathlib import Path
 import sys
@@ -294,19 +389,20 @@ rollback_deploy() {
 trap rollback_deploy EXIT
 
 systemctl stop "${units[@]}"
+install -d -o root -g root -m 0700 "$rollback_bundle"
 sqlite3 "$database" ".backup '$rollback_database'"
-chown calculus-bot:calculus-bot "$rollback_database"
+chown root:root "$rollback_database"
 chmod 0600 "$rollback_database"
 [[ $(sqlite3 "$rollback_database" 'PRAGMA integrity_check;') == ok ]] ||
   fail ROLLBACK_DATABASE_INTEGRITY_FAILED
 backup_ready=1
 rollback_sha=$(sha256sum "$rollback_database" | cut -d' ' -f1)
 printf 'release=%s\nrollback_sha256=%s\n' "$release_id" "$rollback_sha" >"$receipt"
-chown calculus-bot:calculus-bot "$receipt"
+chown root:root "$receipt"
 chmod 0600 "$receipt"
 
 runuser -u calculus-bot -- env -i HOME=/var/lib/calculus-discord \
-  PATH=/usr/bin:/bin "$runtime/.venv/bin/python" - "$database" \
+  PATH=/usr/bin:/bin "$runtime/.venv/bin/python" -I - "$database" \
   "$target_schema" <<'PY'
 from pathlib import Path
 import sys
@@ -367,6 +463,6 @@ wait_for_health calculus-data-bridge.service data-bridge
   fail LIFECYCLE_QUEUE_DEGRADED
 
 trap cleanup_private_stage EXIT
-rm -f -- "$request_source" "$archive_source" || true
+rm -f -- "$request_source" || true
 printf 'deploy=PASS\nschema=%s\nremote_services=HEALTHY\nproduction_writer=REMOTE\n' \
   "$target_schema"

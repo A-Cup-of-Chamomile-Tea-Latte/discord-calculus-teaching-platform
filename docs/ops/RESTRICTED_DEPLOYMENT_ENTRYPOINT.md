@@ -26,13 +26,15 @@
 
 ## 一般部署流程
 
-1. `ding` 將 clean、verified release 放入固定 staging release 路徑。
-2. 非 root preparer 建立 mode `0600` 的固定 inbox archive 與四欄 request。
-3. root-owned deployer 先複製到 private staging，避免傳輸後被置換，再驗證 SHA-256、release ID、
-   current／target schema 與 migration class。
+1. Host-owner bootstrap 驗證 exact archive，將 release 放入 root-owned、`ding` 不可寫的 trusted
+   release 路徑；`ding` 只能從該路徑建立 inbox request。
+2. 非 root preparer 只建立 mode `0600` 的四欄 request；不重新封裝或複製 release archive。
+3. root-owned deployer 從 trusted release 讀取 friend bootstrap 保存的 root-owned original archive，複製到
+   private staging，再驗證 SHA-256、preflight receipt、release ID、current／target schema 與 migration class。
 4. `calculus-builder` 建 venv；live services 此時仍運作。
 5. 以 SQLite consistent copy 執行 migration；schema、ledger、integrity 全 PASS 才允許停服務。
-6. 保存 pre-deploy rollback DB，以 `calculus-bot` migration 正式 DB，atomic 切換 release。
+6. 在 root-only deploy namespace 保存 pre-deploy rollback DB，以 `calculus-bot` migration 正式 DB，
+   atomic 切換 release；service account 不可替換 rollback source。
 7. 固定依序啟動 course assistant、dump bot、data bridge，要求 fresh health。
 8. 任一 gate 失敗，自動恢復舊 release 與舊 DB，再嘗試啟動舊服務。
 
@@ -43,11 +45,12 @@ installer、deployer 與 sudoers template，再執行一次 bootstrap：
 
 ```bash
 sudo env INSTALL_CALCULUS_DEPLOYER=INSTALL-CALCULUS-DEPLOYER \
-  /home/ding/calculus-discord-staging/releases/<release-id>/ops/scripts/install-calculus-discord-deployer.sh \
-  /home/ding/calculus-discord-staging/releases/<release-id>
+  /var/lib/calculus-discord-deploy/releases/<release-id>/ops/scripts/install-calculus-discord-deployer.sh \
+  /var/lib/calculus-discord-deploy/releases/<release-id>
 ```
 
-bootstrap 會建立 builder account、安裝 root-owned deployer、以 `visudo`
+Trusted release 必須先由 v13 friend bootstrap 建立，不可從 `/home/ding` upload tree 直接以 root 執行。
+Installer 會建立 builder account、安裝 root-owned deployer、以 `visudo`
 驗證最小 sudoers rule，但不會部署當次候選版。Preflight、install／repair 與 deploy 是三個分離授權；
 它不要求新 port。
 

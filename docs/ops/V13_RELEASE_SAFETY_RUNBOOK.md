@@ -1,8 +1,8 @@
 # v13 Deployment Safety Runbook
 
-狀態：`PREPARATION_IN_PROGRESS / EXACT_RELEASE_NOT_FROZEN / REMOTE_REQUEST_PENDING`。舊 `3411aff`
-request 已可逆封存；目前修補仍在隔離分支，不能稱為 staged 或等待部署授權。只有 exact clean commit、
-archive SHA-256 與 host-owner prepare receipt 完成後，才建立新的 remote request。
+狀態：`LOCAL_GATES_PASS / FREEZE_VIA_EXTERNAL_RELEASE_EVIDENCE / HOST_OWNER_PREPARE_PENDING`。舊
+`3411aff` request 已可逆封存；只有 external release evidence 綁定的 exact clean commit、archive SHA-256
+與 host-owner prepare receipt 完成後，才建立新的 remote request。
 
 本輪安全決策：移除未納管的 `GET /api/cases/status` 旁路；草稿刪除失敗只回固定訊息；Private
 Support 在無唯一班級 mapping 時保留受控 module metadata fallback。Private 頻道 ACL 仍只由 Discord
@@ -18,18 +18,49 @@ overwrites 決定，不由 module metadata 決定。Private 在 48＋48 自動�
 
 ## 1. Host owner 單次 prepare
 
-Codex／PM 提供 exact Git archive、standalone bootstrap 與兩者的 SHA-256；朋友先用非 sudo
-`sha256sum -c` 核對。將兩檔放進既有 staging root 後，朋友只執行下列一個 root command 一次：
+Codex／PM 提供 exact Git archive、standalone bootstrap 與兩者的 SHA-256。將兩檔放進既有 upload
+root 後，朋友只執行下列一個 root command 一次。Launcher 先把 bootstrap 複製到 `/run` 的 root-only
+暫存目錄，驗證該可信副本的 SHA-256，再執行它；不可直接 `sudo bash` 開啟 `ding` 可寫路徑上的腳本：
 
 ```bash
-sudo env BOOTSTRAP_V13_RELEASE=BOOTSTRAP-V13-RELEASE \
-  bash /home/ding/calculus-discord-staging/v13-friend-bootstrap.sh \
-  /home/ding/calculus-discord-staging/v13-release-<exact-release>.tar \
-  <archive-sha256> <exact-release>
+sudo env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C \
+  V13_RELEASE_ID=<exact-release> \
+  V13_BOOTSTRAP_SHA256=<bootstrap-sha256> \
+  V13_ARCHIVE_SHA256=<archive-sha256> /bin/bash <<'V13_ROOT'
+set -euo pipefail
+umask 077
+launcher_error() {
+  trap - ERR
+  printf 'v13_launcher=FAIL\nsafe_error_code=TRUSTED_COPY_OR_INPUT_INVALID\n' >&2
+  printf 'deploy_executed=NO\n' >&2
+  exit 2
+}
+trap launcher_error ERR
+[[ $V13_RELEASE_ID =~ ^[a-f0-9]{12}$ ]]
+[[ $V13_BOOTSTRAP_SHA256 =~ ^[a-f0-9]{64}$ ]]
+[[ $V13_ARCHIVE_SHA256 =~ ^[a-f0-9]{64}$ ]]
+source=/home/ding/calculus-discord-staging/v13-friend-bootstrap.sh
+archive=/home/ding/calculus-discord-staging/v13-release-$V13_RELEASE_ID.tar
+[[ -f $source && ! -L $source ]]
+[[ -f $archive && ! -L $archive ]]
+[[ $(stat -c %s "$source") -le 1048576 ]]
+[[ $(stat -c %s "$archive") -le 104857600 ]]
+trusted_dir=$(mktemp -d /run/v13-bootstrap.XXXXXXXX)
+trap 'rm -rf -- "$trusted_dir"' EXIT
+trusted=$trusted_dir/v13-friend-bootstrap.sh
+install -o root -g root -m 0700 "$source" "$trusted"
+printf "%s  %s\n" "$V13_BOOTSTRAP_SHA256" "$trusted" | sha256sum -c -
+if ! BOOTSTRAP_V13_RELEASE=BOOTSTRAP-V13-RELEASE \
+  "$trusted" "$archive" "$V13_ARCHIVE_SHA256" "$V13_RELEASE_ID"; then
+  exit 2
+fi
+V13_ROOT
 ```
 
 Bootstrap 以單一 file descriptor 驗證 archive 是 regular file、SHA-256、Git commit、path traversal、檔案型別、
-數量與大小，再 atomic stage 成 owner-only release。接著 owner prepare 在任何 host mutation 前先檢查
+數量與大小，再 atomic stage 到 root-owned、`ding` 不可寫的 trusted release root。Stage receipt 綁定 full
+commit、archive SHA-256 與完整 tree digest；同一 exact release 可安全 resume，root 不從 upload root 執行或
+import candidate code。接著 owner prepare 在任何 production mutation 前先檢查
 exact path、critical files、archive tree、dependency lock、
 deployer old/new/unknown 狀態、sudoers、users、directories、三服務 active／enabled／service user、runtime
 env owner/mode/必填值、`BOT_OWNER_IDS` bootstrap，以及 production DB owner/mode/integrity/foreign keys／
@@ -37,17 +68,25 @@ schema v6／migration names+checksums、fresh health／既有 failure queues、�
 deployer 或同一 candidate deployer；其他狀態 fail closed。
 
 所有前置條件通過後，它只會 idempotent repair root-owned deployer、建立 consistent backup 與獨立 v6→v13
-rehearsal receipt；不 stop/start service、不切 symlink、不 migrate production、不建立 deploy request。只接受：
+rehearsal receipt，並將既有三個 runtime env 檔案從 `calculus-bot:calculus-bot 0600` 正規化為
+`root:root 0600`（只改 owner metadata，不改 secret values；systemd 仍可讀取）。Backup／receipt 位於
+`/var/lib/calculus-discord-deploy` 的 root-only namespace，不放在 service-owned backups 目錄。它不
+stop/start service、不切 symlink、不 migrate production、不建立 deploy request。Fresh
+與 exact resume 都必須包含完整成功欄位；只接受：
 
 ```text
-v13_host_prepare=PASS
+v13_host_prepare=PASS 或 ALREADY_READY
 backup_rehearsal=PASS
 deployer=READY
+runtime_env_ownership=HARDENED 或 ALREADY_ROOT_OWNED
 production_database_modified=NO
+v13_friend_bootstrap=PASS
+release_staged=PASS 或 ALREADY_STAGED
 deploy_executed=NO
 ```
 
-若輸出 `FAIL`，只回傳 `safe_error_code`；朋友不要自行清檔、修權限、改 user 或重跑。PM 先用 receipt
+只要 command 非零退出、提前回到 prompt、輸出 `FAIL`，或必要 PASS 欄位少一個，都視為失敗；朋友不要
+自行清檔、修權限、改 user 或重跑。PM 先用 receipt
 與 exact source 修完同類問題，再決定是否需要新的 owner 窗口。重貼舊 phase2c 指令一律禁止。
 
 ## 2. Mapping gate
@@ -71,7 +110,8 @@ Release 與 request 可先在非 production staging 完成 checksum 固定；只
 mapping gate 與 PM／課程 owner 對該 exact release 的明示 deploy 授權全部通過後，才可執行 restricted
 deployer：
 
-1. 核對固定 inbox 中 exact release archive、dependency lock、release ID 與 SHA-256。
+1. 核對 root-owned trusted release 中的 original archive、dependency lock、release ID、SHA-256 與
+   friend preflight receipt；固定 inbox 只接受四欄 request，不接受第二份 user-owned archive。
 2. 以 `ops/scripts/prepare-calculus-discord-deploy-request.sh` 產生四欄 request：release、archive SHA-256、target schema `13`、migration class `ADDITIVE`；deployer 只接受經 rehearsal 的 exact v6→v13 chain，不接受任意 additive target。
 3. 由既有 root-owned `/usr/local/sbin/calculus-discord-deploy` 執行唯一 production cutover；不直接執行 archive 內任意 script，不切換 `/opt/calculus-discord/current`。
 4. Deployer 先驗證 current schema／ledger、release checksum、builder workspace 與 verified-copy migration；全部通過後才短暫停止三服務。

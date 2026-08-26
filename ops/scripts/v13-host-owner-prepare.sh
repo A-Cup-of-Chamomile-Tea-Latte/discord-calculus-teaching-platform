@@ -12,6 +12,10 @@ source_release=${1:-}
 installed_deployer=/usr/local/sbin/calculus-discord-deploy
 installed_sudoers=/etc/sudoers.d/calculus-discord-deploy
 database=/var/lib/calculus-discord/runtime.sqlite3
+trusted_release_root=/var/lib/calculus-discord-deploy/releases
+preflight_root=/var/lib/calculus-discord-deploy/preflight
+rollback_root=/var/lib/calculus-discord-deploy/rollback
+stage_receipt_name=.v13-stage-receipt.json
 expected_old_deployer_sha256=05f6375160579374c5341395b53148506c616bcd43743e3ff4d2977ea521d2b6
 units=(
   calculus-course-assistant.service
@@ -29,19 +33,66 @@ fail() {
 [[ ${PREPARE_V13_HOST:-} == PREPARE-V13-HOST ]] || fail EXACT_APPROVAL_REQUIRED
 [[ $(hostname) == jerrymk-workstation ]] || fail WRONG_HOST
 
-for command in awk bash chmod cmp cut df find getent hostname id install mv python3 readlink \
+for command in awk bash chmod chown cmp cut df find getent hostname id install mv python3 readlink \
   realpath rm sha256sum sqlite3 stat systemctl visudo wc; do
   command -v "$command" >/dev/null 2>&1 || fail "COMMAND_MISSING_${command^^}"
 done
 id ding >/dev/null 2>&1 || fail DEPLOY_USER_MISSING
 
 source_release=$(realpath -e "$source_release")
-[[ $source_release == /home/ding/calculus-discord-staging/releases/* ]] ||
+[[ $source_release == "$trusted_release_root"/* ]] ||
   fail RELEASE_PATH_REFUSED
-[[ $(stat -c %U:%G "$source_release") == ding:ding ]] || fail RELEASE_OWNER_INVALID
+[[ $(stat -c %U:%G "$trusted_release_root") == root:root ]] || fail RELEASE_ROOT_OWNER_INVALID
+[[ -z $(find "$trusted_release_root" -maxdepth 0 -perm /022 -print -quit) ]] ||
+  fail RELEASE_ROOT_WRITABLE_BY_OTHERS
+for secure_root in "$preflight_root" "$rollback_root"; do
+  if [[ -e $secure_root ]]; then
+    [[ -d $secure_root && ! -L $secure_root ]] || fail SECURE_ARTIFACT_ROOT_INVALID
+    [[ $(stat -c %U:%G "$secure_root") == root:root ]] || fail SECURE_ARTIFACT_ROOT_OWNER_INVALID
+    [[ -z $(find "$secure_root" -maxdepth 0 -perm /022 -print -quit) ]] ||
+      fail SECURE_ARTIFACT_ROOT_WRITABLE_BY_OTHERS
+  else
+    install -d -o root -g root -m 0700 "$secure_root"
+  fi
+done
+[[ $(stat -c %U:%G "$source_release") == root:root ]] || fail RELEASE_OWNER_INVALID
+[[ -z $(find "$source_release" ! -user root -print -quit) ]] || fail RELEASE_TREE_OWNER_INVALID
 [[ -z $(find "$source_release" -perm /022 -print -quit) ]] || fail RELEASE_WRITABLE_BY_OTHERS
 release_id=$(basename "$source_release")
-[[ $release_id =~ ^[a-f0-9]{7,40}$ ]] || fail RELEASE_ID_INVALID
+[[ $release_id =~ ^[a-f0-9]{12}$ ]] || fail RELEASE_ID_INVALID
+stage_receipt=$source_release/$stage_receipt_name
+[[ -f $stage_receipt && ! -L $stage_receipt ]] || fail STAGE_RECEIPT_MISSING
+[[ $(stat -c %U:%G "$stage_receipt") == root:root && $(stat -c %a "$stage_receipt") == 600 ]] ||
+  fail STAGE_RECEIPT_BOUNDARY_INVALID
+stage_binding_output=$(python3 -I - "$stage_receipt" "$release_id" <<'PY'
+import json
+from pathlib import Path
+import re
+import sys
+
+value = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+release_id = sys.argv[2]
+sha256 = re.compile(r"^[a-f0-9]{64}$")
+commit = str(value.get("commit", ""))
+if not (
+    value.get("status") == "PASS"
+    and value.get("releaseId") == release_id
+    and len(commit) == 40
+    and commit.startswith(release_id)
+    and sha256.fullmatch(str(value.get("archiveSha256", "")))
+    and sha256.fullmatch(str(value.get("treeSha256", "")))
+):
+    raise SystemExit(1)
+print(commit)
+print(value["archiveSha256"])
+print(value["treeSha256"])
+PY
+) || fail STAGE_RECEIPT_INVALID
+mapfile -t stage_binding <<<"$stage_binding_output"
+[[ ${#stage_binding[@]} -eq 3 ]] || fail STAGE_RECEIPT_INVALID
+candidate_commit=${stage_binding[0]}
+archive_sha256=${stage_binding[1]}
+tree_sha256=${stage_binding[2]}
 
 deployer_source=$source_release/ops/scripts/calculus-discord-deploy
 repairer_source=$source_release/ops/scripts/phase2c-repair-restricted-deployer.sh
@@ -68,7 +119,7 @@ release_bytes=$(find "$source_release" -type f -printf '%s\n' | awk '{sum += $1}
 [[ $release_file_count -le 20000 ]] || fail RELEASE_FILE_COUNT_EXCEEDED
 [[ $release_bytes -le 268435456 ]] || fail RELEASE_SIZE_EXCEEDED
 
-python3 - "$dependency_lock" <<'PY' || fail DEPENDENCY_LOCK_INVALID
+python3 -I - "$dependency_lock" <<'PY' || fail DEPENDENCY_LOCK_INVALID
 from pathlib import Path
 import re
 import sys
@@ -121,7 +172,7 @@ current_release=$(readlink -f /opt/calculus-discord/current)
   fail PRODUCTION_DATABASE_OWNER_INVALID
 [[ $(stat -c %a "$database") == 600 ]] || fail PRODUCTION_DATABASE_MODE_INVALID
 
-python3 - "$database" "$source_release" <<'PY' || fail PRODUCTION_DATABASE_V6_INVALID
+python3 -I - "$database" "$source_release" <<'PY' || fail PRODUCTION_DATABASE_V6_INVALID
 from pathlib import Path
 from datetime import UTC, datetime
 import sqlite3
@@ -192,14 +243,20 @@ for unit in "${units[@]}"; do
     fail REMOTE_SERVICE_USER_INVALID
 done
 
+runtime_env_owner_action=ALREADY_ROOT_OWNED
 for env_file in /etc/calculus-discord/course-assistant.env \
   /etc/calculus-discord/dump-bot.env /etc/calculus-discord/data-bridge.env; do
   [[ -f $env_file && ! -L $env_file ]] || fail RUNTIME_ENV_MISSING
-  [[ $(stat -c %U:%G "$env_file") == root:root ]] || fail RUNTIME_ENV_OWNER_INVALID
+  env_owner=$(stat -c %U:%G "$env_file")
+  if [[ $env_owner == calculus-bot:calculus-bot ]]; then
+    runtime_env_owner_action=HARDEN_REQUIRED
+  elif [[ $env_owner != root:root ]]; then
+    fail RUNTIME_ENV_OWNER_INVALID
+  fi
   [[ $(stat -c %a "$env_file") == 600 ]] || fail RUNTIME_ENV_MODE_INVALID
 done
 
-python3 - <<'PY' || fail RUNTIME_ENV_REQUIRED_VALUE_MISSING
+python3 -I - <<'PY' || fail RUNTIME_ENV_REQUIRED_VALUE_MISSING
 from pathlib import Path
 import shlex
 
@@ -243,13 +300,10 @@ inbox=/home/ding/calculus-discord-staging/deploy-inbox
 [[ ! -e /opt/calculus-discord/releases/$release_id ]] || fail RELEASE_ALREADY_PRESENT
 [[ ! -e /opt/calculus-discord/releases/$release_id.incoming ]] ||
   fail RELEASE_INCOMING_PRESENT
-[[ ! -e /var/lib/calculus-discord/backups/deploy-$release_id.before.sqlite3 ]] ||
-  fail DEPLOY_ROLLBACK_ARTIFACT_PRESENT
-[[ ! -e /var/lib/calculus-discord/receipts/deploy-$release_id.txt ]] ||
-  fail DEPLOY_RECEIPT_PRESENT
+[[ ! -e $rollback_root/$release_id ]] || fail DEPLOY_ROLLBACK_ARTIFACT_PRESENT
 
 for filesystem in /home/ding/calculus-discord-staging /opt/calculus-discord \
-  /var/lib/calculus-discord; do
+  /var/lib/calculus-discord /var/lib/calculus-discord-deploy; do
   available_kib=$(df -Pk "$filesystem" | awk 'NR == 2 {print $4}')
   available_inodes=$(df -Pi "$filesystem" | awk 'NR == 2 {print $4}')
   [[ $available_kib =~ ^[0-9]+$ && $available_kib -ge 1048576 ]] ||
@@ -258,6 +312,17 @@ for filesystem in /home/ding/calculus-discord-staging /opt/calculus-discord \
     fail DISK_INODES_INSUFFICIENT
 done
 
+if [[ $runtime_env_owner_action == HARDEN_REQUIRED ]]; then
+  chown root:root /etc/calculus-discord/course-assistant.env \
+    /etc/calculus-discord/dump-bot.env /etc/calculus-discord/data-bridge.env
+  for env_file in /etc/calculus-discord/course-assistant.env \
+    /etc/calculus-discord/dump-bot.env /etc/calculus-discord/data-bridge.env; do
+    [[ $(stat -c %U:%G "$env_file") == root:root && $(stat -c %a "$env_file") == 600 ]] ||
+      fail RUNTIME_ENV_HARDEN_FAILED
+  done
+  runtime_env_owner_action=HARDENED
+fi
+
 if [[ $deployer_action == REPAIR_REQUIRED ]]; then
   REPAIR_CALCULUS_DEPLOYER=REPAIR-CALCULUS-DEPLOYER \
     "$repairer_source" "$source_release" >/dev/null
@@ -265,19 +330,23 @@ fi
 [[ $(sha256sum "$installed_deployer" | cut -d' ' -f1) == "$candidate_deployer_sha256" ]] ||
   fail DEPLOYER_NOT_READY_AFTER_REPAIR
 
-backup_root=/var/lib/calculus-discord/backups
-receipt_root=/var/lib/calculus-discord/receipts
-work_root=/var/lib/calculus-discord/staging/v13-$release_id
-backup=$backup_root/v13-preflight-$release_id.sqlite3
-receipt=$receipt_root/v13-preflight-$release_id.json
-if [[ -e $backup || -e $receipt ]]; then
+preflight_bundle=$preflight_root/$release_id
+preflight_incoming=$preflight_bundle.incoming
+work_root=$preflight_incoming/work
+backup=$preflight_bundle/backup.sqlite3
+receipt=$preflight_bundle/receipt.json
+if [[ -e $preflight_bundle ]]; then
+  [[ -d $preflight_bundle && ! -L $preflight_bundle ]] || fail PREFLIGHT_BUNDLE_INVALID
+  [[ $(stat -c %U:%G "$preflight_bundle") == root:root && \
+    $(stat -c %a "$preflight_bundle") == 700 ]] || fail PREFLIGHT_BUNDLE_BOUNDARY_INVALID
   [[ -f $backup && ! -L $backup && -f $receipt && ! -L $receipt ]] ||
-    fail PREFLIGHT_ARTIFACT_PARTIAL
+    fail PREFLIGHT_BUNDLE_INCOMPLETE
   [[ $(stat -c %U:%G "$backup") == root:root && $(stat -c %a "$backup") == 600 ]] ||
     fail PREFLIGHT_BACKUP_BOUNDARY_INVALID
   [[ $(stat -c %U:%G "$receipt") == root:root && $(stat -c %a "$receipt") == 600 ]] ||
     fail PREFLIGHT_RECEIPT_BOUNDARY_INVALID
-  python3 - "$backup" "$receipt" "$release_id" "$candidate_deployer_sha256" <<'PY' ||
+  python3 -I - "$backup" "$receipt" "$release_id" "$candidate_deployer_sha256" \
+    "$candidate_commit" "$archive_sha256" "$tree_sha256" <<'PY' ||
     fail PREFLIGHT_ARTIFACT_INVALID
 import hashlib
 import json
@@ -291,22 +360,29 @@ if not (
     value.get("status") == "PASS"
     and value.get("releaseId") == sys.argv[3]
     and value.get("candidateDeployerSha256") == sys.argv[4]
+    and value.get("candidateCommit") == sys.argv[5]
+    and value.get("archiveSha256") == sys.argv[6]
+    and value.get("treeSha256") == sys.argv[7]
     and value.get("backupSha256") == digest
 ):
     raise SystemExit(1)
 PY
   printf 'v13_host_prepare=ALREADY_READY\nbackup_rehearsal=PASS\n'
-  printf 'deployer=READY\ndeploy_executed=NO\n'
+  printf 'deployer=READY\nruntime_env_ownership=%s\n' "$runtime_env_owner_action"
+  printf 'production_database_modified=NO\ndeploy_executed=NO\n'
   exit 0
 fi
 
-install -d -o root -g root -m 0700 "$backup_root" "$receipt_root" "$work_root"
-backup_incoming=$backup.incoming
-raw_receipt=$receipt.incoming.raw
-receipt_incoming=$receipt.incoming
+[[ ! -e $preflight_incoming ]] || fail PREFLIGHT_INCOMING_PRESENT
+install -d -o root -g root -m 0700 "$preflight_incoming" "$work_root"
+backup_incoming=$preflight_incoming/backup.sqlite3
+raw_receipt=$preflight_incoming/rehearsal.raw.json
+receipt_incoming=$preflight_incoming/receipt.json
 cleanup_prepare() {
   local result=$?
-  rm -f -- "$backup_incoming" "$raw_receipt" "$receipt_incoming"
+  if [[ $result -ne 0 && -d $preflight_incoming ]]; then
+    rm -rf -- "$preflight_incoming"
+  fi
   return "$result"
 }
 trap cleanup_prepare EXIT
@@ -315,13 +391,14 @@ sqlite3 "$database" ".backup '$backup_incoming'"
 chmod 0600 "$backup_incoming"
 [[ $(sqlite3 "$backup_incoming" 'PRAGMA integrity_check;') == ok ]] ||
   fail PREFLIGHT_BACKUP_INTEGRITY_FAILED
-python3 "$rehearsal_source" "$backup_incoming" "$work_root" \
+python3 -I "$rehearsal_source" "$backup_incoming" "$work_root" \
   --expected-source-schema 6 --expected-target-schema 13 >"$raw_receipt" ||
   fail RECOVERY_REHEARSAL_FAILED
 chmod 0600 "$raw_receipt"
 
-python3 - "$raw_receipt" "$backup_incoming" "$receipt_incoming" "$release_id" \
-  "$candidate_deployer_sha256" <<'PY' || fail RECOVERY_RECEIPT_INVALID
+python3 -I - "$raw_receipt" "$backup_incoming" "$receipt_incoming" "$release_id" \
+  "$candidate_deployer_sha256" "$candidate_commit" "$archive_sha256" \
+  "$tree_sha256" <<'PY' || fail RECOVERY_RECEIPT_INVALID
 import hashlib
 import json
 from datetime import UTC, datetime
@@ -336,6 +413,9 @@ value.update(
     {
         "releaseId": sys.argv[4],
         "candidateDeployerSha256": sys.argv[5],
+        "candidateCommit": sys.argv[6],
+        "archiveSha256": sys.argv[7],
+        "treeSha256": sys.argv[8],
         "backupSha256": hashlib.sha256(backup.read_bytes()).hexdigest(),
         "observedAt": datetime.now(UTC).isoformat(),
         "productionDatabaseModified": False,
@@ -347,9 +427,9 @@ destination.write_text(json.dumps(value, sort_keys=True) + "\n", encoding="utf-8
 destination.chmod(0o600)
 PY
 
-mv "$backup_incoming" "$backup"
-mv "$receipt_incoming" "$receipt"
 rm -f -- "$raw_receipt"
+mv "$preflight_incoming" "$preflight_bundle"
 trap - EXIT
 printf 'v13_host_prepare=PASS\nbackup_rehearsal=PASS\ndeployer=READY\n'
+printf 'runtime_env_ownership=%s\n' "$runtime_env_owner_action"
 printf 'production_database_modified=NO\ndeploy_executed=NO\n'

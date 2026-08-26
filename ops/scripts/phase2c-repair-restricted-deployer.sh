@@ -25,8 +25,12 @@ fail() {
 [[ $(hostname) == jerrymk-workstation ]] || fail WRONG_HOST
 
 source_release=$(realpath -e "$source_release")
-[[ $source_release == /home/ding/calculus-discord-staging/releases/* ]] ||
+[[ $source_release == /var/lib/calculus-discord-deploy/releases/* ]] ||
   fail RELEASE_PATH_REFUSED
+[[ $(stat -c %U:%G "$source_release") == root:root ]] || fail RELEASE_OWNER_INVALID
+[[ -z $(find "$source_release" ! -user root -print -quit) ]] || fail RELEASE_TREE_OWNER_INVALID
+[[ -z $(find "$source_release" -perm /022 -print -quit) ]] ||
+  fail RELEASE_WRITABLE_BY_OTHERS
 deployer_source=$source_release/ops/scripts/calculus-discord-deploy
 sudoers_source=$source_release/ops/sudoers/calculus-discord-deploy
 [[ -f $deployer_source && ! -L $deployer_source ]] || fail DEPLOYER_SOURCE_MISSING
@@ -62,8 +66,8 @@ cleanup_repair() {
 trap cleanup_repair EXIT
 
 install -o root -g root -m 0755 "$deployer_source" "$incoming"
-[[ $(sha256sum "$incoming" | cut -d' ' -f1) == \
-  "$(sha256sum "$deployer_source" | cut -d' ' -f1)" ]] || fail DEPLOYER_COPY_MISMATCH
+[[ $(sha256sum "$incoming" | cut -d' ' -f1) == "$candidate_sha256" ]] ||
+  fail DEPLOYER_COPY_MISMATCH
 mv -f "$incoming" "$installed_deployer"
 [[ $(sha256sum "$installed_deployer" | cut -d' ' -f1) == "$candidate_sha256" ]] ||
   fail DEPLOYER_PROMOTION_MISMATCH
