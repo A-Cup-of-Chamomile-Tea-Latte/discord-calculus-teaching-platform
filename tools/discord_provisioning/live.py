@@ -754,7 +754,10 @@ class LiveProvisioner:
                 )
                 self.store.set(spec.key, role.id, "role", role.name)
                 self.operations.record("created", spec.key, role.id)
-            elif spec.key in {"role.verified_member", "role.guest"} and role.permissions.value != 0:
+            elif (
+                spec.key in {"role.verified_member", "role.guest"}
+                or spec.key.startswith("role.class_")
+            ) and role.permissions.value != 0:
                 if role >= self.course.top_role:
                     raise ProvisioningError(f"cannot narrow role permissions: {role.name}")
                 await retry(
@@ -774,6 +777,16 @@ class LiveProvisioner:
             self.roles["role.guest"],
             self.dump.top_role,
         ]
+        unsafe_class_roles = [
+            role.name
+            for key, role in self.roles.items()
+            if key.startswith("role.class_") and role >= self.course.top_role
+        ]
+        if unsafe_class_roles:
+            self.warnings.append(
+                "Course Manager must remain above class identity roles: "
+                + ", ".join(unsafe_class_roles)
+            )
         if not all(hierarchy[index] > hierarchy[index + 1] for index in range(len(hierarchy) - 1)):
             self.warnings.append(
                 "Role hierarchy still needs the Guild owner to enforce "
@@ -1134,13 +1147,22 @@ class LiveProvisioner:
             "verified_member_role_id": self.roles["role.verified_member"].id,
             "verified_student_role_id": self.roles["role.verified_member"].id,
             "guest_role_id": self.roles["role.guest"].id,
+            "course_role_id": self.roles["role.verified_member"].id,
+            "visitor_role_id": self.roles["role.guest"].id,
             "ta_role_id": self.roles["role.staff"].id,
+            "professor_role_id": self.roles["role.staff"].id,
             "bot_control_channel_id": self.channels["channel.bot_control"].id,
             "system_log_channel_id": self.channels["channel.system_log"].id,
             "managed_forum_ids": json.dumps(managed_ids),
             "private_support_category_id": self.categories["category.private_support"].id,
             "discord_provisioning_version": "2026-07-30",
         }
+        values.update(
+            {
+                f"class_role_{number:02d}": self.roles[f"role.class_{number:02d}"].id
+                for number in range(1, 17)
+            }
+        )
         if "forum.math_questions" in self.channels:
             values["public_forum_channel_id"] = self.channels["forum.math_questions"].id
         with sqlite3.connect(self.database_path) as db:
@@ -1158,11 +1180,8 @@ class LiveProvisioner:
                     """,
                     (key, str(value), datetime.now(UTC).isoformat()),
                 )
-            db.execute("DELETE FROM runtime_config WHERE key = 'professor_role_id'")
             db.commit()
-        if any(str(before.get(key)) != str(value) for key, value in values.items()) or (
-            "professor_role_id" in before
-        ):
+        if any(str(before.get(key)) != str(value) for key, value in values.items()):
             self.operations.record("updated", "runtime_config")
 
     def _perms(self, key: str, target: discord.Role | discord.Member) -> discord.Permissions:

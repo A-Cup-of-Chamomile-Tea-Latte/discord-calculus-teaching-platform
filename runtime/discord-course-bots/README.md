@@ -10,12 +10,15 @@ production baseline 仍是 schema v6；v10 product candidate 已整合到 schema
 
 - 僅接受 `TEST_GUILD_ID` 指定的單一伺服器。
 - 偵測白名單 Forum 的新文章。
-- 公開起始設定訊息；只有原作者可設定或刪除草稿。
+- 公開起始設定訊息；只有原作者可設定或按「刪除這篇草稿」。
 - 私人關鍵字輸入 + AI Yes/No 選擇。
 - 正式成案、初始快照、案號、DM；DM 失敗時只記錄 Email fallback 待處理，不假裝已寄信。
 - 固定 `[M{n} | C{classCode}][關鍵字]` 前綴與離線後校正；班別從 Discord class role 唯一判斷，Module 從設定取得。
 - `/case close` 與「繼續詢問」。
 - `/private open` 建立受限 Private Support 頻道；案號使用 `C99…-P`。
+- Private 案件進入 IDLE 48 小時後，再 48 小時無學生回覆會先自動排入
+  `private_dump_jobs`。只有 manifest 驗證成功才刪除 Discord 頻道並清除 operational DB
+  內的正文、連結與 requester；export 失敗時保留頻道並進人工接管。
 - `/join-review` 與 `/join-admin`：兩級審核權限、五態加入流程、角色／暱稱 durable side effect 與 Discord DM。
 - 草稿提醒與刪除排程；測試時可把秒數縮短。
 
@@ -23,10 +26,13 @@ production baseline 仍是 schema v6；v10 product candidate 已整合到 schema
 
 - 邀請權限只有 View Channel + Read Message History。
 - `probe`：一次性登入、列出可見頻道與權限後離線。
-- `online`：保留給歷史 Private dump job 與受控 export 相容性；新 Private Support 流程不再建立 dump job。
+- `online`：處理 Private Support 到期時的 verified export；v10 production 必須保持此服務在線。
 - `export-public`：只匯出已登錄的公開 Forum 案件。
 - `export-private`：只匯出已登錄的 Private Support 案件。
 - Private dump queue 使用原子 claim、唯一 token、15 分鐘 lease、5 分鐘心跳、指數退避與最多五次嘗試；只有持有目前 claim token 的 worker 可以完成或標記失敗。
+- System admin 可用 `/ops attention-list`、`attention-inspect`、`attention-retry`、
+  `attention-resolve`，以及 `/ops replacement-case` 接管失敗項目；這些命令只操作 allowlisted
+  queue 欄位並留下 owner audit，不接受任意 SQL。
 - SQLite 使用具 checksum 的 migration ledger；未知新版或已竄改 migration 會拒絕啟動。
 - `discord-db-inspect` 以 SQLite 唯讀模式列出 schema version、表名、欄位與列數；不執行 migration，也不讀出或列印 application row values。
 

@@ -12,9 +12,11 @@ def test_public_and_private_case_number_formats() -> None:
     moment = datetime(2026, 7, 29, 2, 15, tzinfo=UTC)
     public_number = generate_case_number(class_code="01", now=moment)
     private_number = generate_case_number(private_support=True, now=moment)
+    guest_number = generate_case_number(guest=True, now=moment)
 
     assert re.fullmatch(r"C01-[A-HJ-NP-Z2-9]{6}-0729-1015", public_number)
     assert re.fullmatch(r"C99-[A-HJ-NP-Z2-9]{6}-0729-1015-P", private_number)
+    assert re.fullmatch(r"Guest-[A-HJ-NP-Z2-9]{6}-0729-1015", guest_number)
 
 
 def test_public_case_number_collision_retries_with_a_new_number(

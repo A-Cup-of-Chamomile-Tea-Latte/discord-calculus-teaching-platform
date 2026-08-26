@@ -35,13 +35,16 @@ from .repository import Repository
 LOGGER = logging.getLogger(__name__)
 
 JOIN_PATH = "/api/join"
+EMAIL_START_PATH = "/api/join/email/start"
+EMAIL_VERIFY_PATH = "/api/join/email/verify"
 CASE_LOOKUP_PATH = "/api/cases/lookup"
+PORTAL_ROUTES = frozenset({JOIN_PATH, EMAIL_START_PATH, EMAIL_VERIFY_PATH, CASE_LOOKUP_PATH})
 CSRF_HEADER = "x-csrf-token"
 SESSION_COOKIE = "portal_session"
 CSRF_COOKIE = "portal_csrf"
 CASE_STATUS_VALUES = frozenset({"OPEN", "TRACKED", "IDLE", "CLOSED", "AUTO_CLOSED"})
 CASE_NUMBER_RE = re.compile(
-    r"^C[0-9]{2}-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}-"
+    r"^(?:C[0-9]{2}|GUEST)-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}-"
     r"(?:0[1-9]|1[0-2])(?:0[1-9]|[12][0-9]|3[01])-"
     r"(?:[01][0-9]|2[0-3])[0-5][0-9](?:-P)?$"
 )
@@ -62,6 +65,14 @@ class PortalStore(Protocol):
         self, case_number: str, *, allow_private: bool
     ) -> Mapping[str, Any] | None: ...
 
+    def start_email_verification(self, **kwargs: Any) -> str: ...
+
+    def verify_email_challenge(self, **kwargs: Any) -> bool: ...
+
+    def email_verification_matches(self, **kwargs: Any) -> bool: ...
+
+    def consume_email_verification(self, **kwargs: Any) -> bool: ...
+
 
 class SqlitePortalStore:
     """Adapter over the existing Course Manager / case Repository."""
@@ -76,6 +87,18 @@ class SqlitePortalStore:
         self, case_number: str, *, allow_private: bool
     ) -> Mapping[str, Any] | None:
         return self.repository.safe_case_projection(case_number, allow_private=allow_private)
+
+    def start_email_verification(self, **kwargs: Any) -> str:
+        return self.repository.start_email_verification(**kwargs)
+
+    def verify_email_challenge(self, **kwargs: Any) -> bool:
+        return self.repository.verify_email_challenge(**kwargs)
+
+    def email_verification_matches(self, **kwargs: Any) -> bool:
+        return self.repository.email_verification_matches(**kwargs)
+
+    def consume_email_verification(self, **kwargs: Any) -> bool:
+        return self.repository.consume_email_verification(**kwargs)
 
     def close(self) -> None:
         self.repository.close()
@@ -187,7 +210,7 @@ class SQLiteAuditSink:
     def append(self, record: PortalAuditRecord) -> None:
         if not SAFE_AUDIT_EVENT.fullmatch(record.event_type):
             raise PortalBackendError("unsafe audit event")
-        if record.route not in {JOIN_PATH, CASE_LOOKUP_PATH}:
+        if record.route not in PORTAL_ROUTES:
             raise PortalBackendError("unsafe audit route")
         if not record.actor_fingerprint or len(record.actor_fingerprint) != 16:
             raise PortalBackendError("unsafe audit actor")
@@ -351,13 +374,15 @@ def normalize_case_number(value: str) -> str:
     normalized = "".join(value.strip().upper().split())
     if not CASE_NUMBER_RE.fullmatch(normalized):
         raise ValueError("invalid case number")
+    if normalized.startswith("GUEST-") and normalized.endswith("-P"):
+        raise ValueError("invalid Guest case number")
     parts = normalized.split("-")
     month = int(parts[2][:2])
     day = int(parts[2][2:])
     maximum_days = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
     if day < 1 or day > maximum_days[month - 1]:
         raise ValueError("invalid case date")
-    return normalized
+    return "Guest-" + normalized[6:] if normalized.startswith("GUEST-") else normalized
 
 
 def _safe_requested_case_number(value: str) -> str:
@@ -394,7 +419,7 @@ def _error(status: int, code: str) -> PortalResponse:
 
 
 class PortalBackend:
-    """Two-route Portal backend with fail-closed security middleware."""
+    """Small same-origin Portal backend with fail-closed security middleware."""
 
     def __init__(
         self,
@@ -415,7 +440,7 @@ class PortalBackend:
 
     def handle(self, request: PortalRequest) -> PortalResponse:
         path = urlsplit(request.target).path
-        if path not in {JOIN_PATH, CASE_LOOKUP_PATH}:
+        if path not in PORTAL_ROUTES:
             return _error(HTTPStatus.NOT_FOUND, "NOT_FOUND")
         parsed_target = urlsplit(request.target)
         if parsed_target.fragment:
@@ -448,7 +473,58 @@ class PortalBackend:
 
         if path == JOIN_PATH:
             return self._join(request, subject)
+        if path == EMAIL_START_PATH:
+            return self._email_start(request, subject)
+        if path == EMAIL_VERIFY_PATH:
+            return self._email_verify(request, subject)
         return self._lookup(request, subject)
+
+    def _email_start(self, request: PortalRequest, subject: str) -> PortalResponse:
+        try:
+            payload = self._parse_payload(request)
+            if set(payload) != {"identityType", "email"}:
+                raise PortalBackendError("invalid verification fields")
+            identity = payload["identityType"]
+            destination = payload["email"]
+            if identity not in {"STUDENT", "GUEST"} or not destination or len(destination) > 254:
+                raise PortalBackendError("invalid verification identity")
+            kind = "INSTITUTIONAL" if identity == "STUDENT" else "CONTACT"
+            challenge_id = self.store.start_email_verification(
+                session_subject=subject,
+                destination=destination,
+                email_kind=kind,
+            )
+            self._audit("PORTAL_EMAIL_STARTED", EMAIL_START_PATH, "ACCEPTED", subject)
+        except (ValueError, PortalBackendError):
+            return _error(HTTPStatus.BAD_REQUEST, "INVALID_REQUEST")
+        except Exception:
+            LOGGER.error("portal email verification start failure")
+            return _error(HTTPStatus.SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE")
+        return _response(
+            HTTPStatus.ACCEPTED,
+            {"schemaVersion": "1.0", "outcome": "ACCEPTED", "challengeId": challenge_id},
+        )
+
+    def _email_verify(self, request: PortalRequest, subject: str) -> PortalResponse:
+        try:
+            payload = self._parse_payload(request)
+            if set(payload) != {"challengeId", "code"}:
+                raise PortalBackendError("invalid verification fields")
+            verified = self.store.verify_email_challenge(
+                challenge_id=payload["challengeId"],
+                session_subject=subject,
+                verification_code=payload["code"],
+            )
+            outcome = "VERIFIED" if verified else "REJECTED"
+            self._audit("PORTAL_EMAIL_VERIFIED", EMAIL_VERIFY_PATH, outcome, subject)
+        except PortalBackendError:
+            return _error(HTTPStatus.BAD_REQUEST, "INVALID_REQUEST")
+        except Exception:
+            LOGGER.error("portal email verification check failure")
+            return _error(HTTPStatus.SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE")
+        if not verified:
+            return _error(HTTPStatus.BAD_REQUEST, "VERIFICATION_REJECTED")
+        return _response(HTTPStatus.OK, {"schemaVersion": "1.0", "outcome": "VERIFIED"})
 
     def _same_origin(self, request: PortalRequest, *, require_origin: bool) -> bool:
         origin = request.header("origin")
@@ -532,13 +608,27 @@ class PortalBackend:
         except PortalBackendError:
             return _error(HTTPStatus.BAD_REQUEST, "INVALID_REQUEST")
 
+        challenge_id = str(values.pop("email_verification_id"))
+        destination = str(values["identity_email"])
         try:
+            if not self.store.email_verification_matches(
+                challenge_id=challenge_id,
+                session_subject=subject,
+                destination=destination,
+            ):
+                return _error(HTTPStatus.BAD_REQUEST, "EMAIL_NOT_VERIFIED")
             self._audit("PORTAL_JOIN_ATTEMPT", JOIN_PATH, "ATTEMPT", subject)
         except Exception:
             LOGGER.error("portal join audit failure")
             return _error(HTTPStatus.SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE")
         try:
             _, duplicate = self.store.submit_join_application(**values)
+            if not self.store.consume_email_verification(
+                challenge_id=challenge_id,
+                session_subject=subject,
+                destination=destination,
+            ):
+                raise PortalBackendError("verification consumption failed")
         except (ValueError, PortalBackendError):
             return _error(HTTPStatus.BAD_REQUEST, "INVALID_REQUEST")
         except Exception:
@@ -580,6 +670,7 @@ class PortalBackend:
             "guestEmail",
             "guestReason",
             "rulesPrivacy",
+            "emailVerificationId",
         }
         if set(payload) - allowed or payload.get("rulesPrivacy") != "yes":
             raise PortalBackendError("invalid join fields")
@@ -587,6 +678,9 @@ class PortalBackend:
         username = payload.get("discordUsername", "")
         if identity not in {"STUDENT", "GUEST"} or not username or len(username) > 32:
             raise PortalBackendError("invalid join identity")
+        challenge_id = payload.get("emailVerificationId", "")
+        if not re.fullmatch(r"email_verification_[a-f0-9]{32}", challenge_id):
+            raise PortalBackendError("invalid email verification")
         if identity == "STUDENT":
             if payload.get("guestEmail") or payload.get("guestReason"):
                 raise PortalBackendError("cross-identity fields")
@@ -602,6 +696,7 @@ class PortalBackend:
                 "ntu_mail": ntu_email,
                 "contact_email": contact_gmail or None,
                 "class_code": class_code,
+                "email_verification_id": challenge_id,
             }
         guest_email = payload.get("guestEmail", "")
         guest_reason = payload.get("guestReason", "")
@@ -615,6 +710,7 @@ class PortalBackend:
             "identity_email": guest_email,
             "contact_email": guest_email,
             "visit_reason": guest_reason,
+            "email_verification_id": challenge_id,
         }
 
     def _lookup(self, request: PortalRequest, subject: str) -> PortalResponse:

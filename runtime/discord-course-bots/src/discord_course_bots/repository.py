@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import secrets
 import sqlite3
 import uuid
 from collections.abc import Iterator
@@ -275,13 +276,18 @@ class Repository:
         canonical_title: str,
         initial_snapshot: dict[str, Any],
         class_code: str | None = None,
+        guest: bool = False,
         private_support: bool = False,
     ) -> str:
         for _ in range(CASE_NUMBER_MAX_ATTEMPTS):
             case_number = (
                 generate_case_number(private_support=True)
                 if private_support
-                else generate_case_number(class_code=class_code)
+                else (
+                    generate_case_number(guest=True)
+                    if guest
+                    else generate_case_number(class_code=class_code)
+                )
             )
             try:
                 with self.transaction() as db:
@@ -339,6 +345,8 @@ class Repository:
         self, case_number: str, *, allow_private: bool
     ) -> dict[str, Any] | None:
         normalized = case_number.strip().upper()
+        if normalized.startswith("GUEST-"):
+            normalized = "Guest-" + normalized[6:]
         row = self._connection.execute(
             "SELECT * FROM cases WHERE case_number = ?", (normalized,)
         ).fetchone()
@@ -564,6 +572,12 @@ class Repository:
                     ),
                     created_at=at,
                 )
+                if str(row["visibility"]) == "PRIVATE":
+                    db.execute(
+                        "UPDATE private_support SET status = 'CLOSED', closed_at = ?, "
+                        "updated_at = ? WHERE channel_id = ? AND status != 'DELETED'",
+                        (at, at, int(row["thread_id"])),
+                    )
                 changed.append(row)
         return changed
 
@@ -615,6 +629,12 @@ class Repository:
                     ),
                     created_at=now,
                 )
+                if str(before["visibility"]) == "PRIVATE":
+                    db.execute(
+                        "UPDATE private_support SET status = 'CLOSED', closed_at = ?, "
+                        "updated_at = ? WHERE channel_id = ? AND status != 'DELETED'",
+                        (now, now, thread_id),
+                    )
         return self.get_case_by_thread(thread_id) if changed else None
 
     def reopen_case(self, thread_id: int) -> sqlite3.Row | None:
@@ -657,6 +677,17 @@ class Repository:
                 desired_title=cycle_title(str(row["base_title"]), int(row["reopen_count"])),
                 created_at=now,
             )
+            if str(row["visibility"]) == "PRIVATE":
+                dump = db.execute(
+                    "SELECT status FROM private_dump_jobs WHERE channel_id = ?", (thread_id,)
+                ).fetchone()
+                if dump is not None:
+                    raise RuntimeError("PRIVATE_CASE_ALREADY_ARCHIVED")
+                db.execute(
+                    "UPDATE private_support SET status = 'OPEN', closed_at = NULL, "
+                    "updated_at = ? WHERE channel_id = ? AND status != 'DELETED'",
+                    (now, thread_id),
+                )
             return row
 
     def has_unfinished_discord_lifecycle_job(self, case_id: str) -> bool:
@@ -784,6 +815,28 @@ class Repository:
                 max_retry_seconds=300,
             )
 
+    def defer_discord_lifecycle_job(
+        self, job_id: str, claim_token: str, *, delay_seconds: int = 10
+    ) -> bool:
+        """Release a claim while a prerequisite queue is still making progress."""
+        if delay_seconds < 1 or delay_seconds > 300:
+            raise ValueError("Unsafe lifecycle defer interval")
+        now = datetime.now(UTC)
+        retry_at = (now + timedelta(seconds=delay_seconds)).isoformat()
+        with self.transaction() as db:
+            result = db.execute(
+                """
+                UPDATE discord_lifecycle_jobs
+                SET status = 'RETRYABLE_FAILURE', next_attempt_at = ?, claimed_by = NULL,
+                    claim_token = NULL, lease_expires_at = NULL,
+                    attempt_count = CASE WHEN attempt_count > 0 THEN attempt_count - 1 ELSE 0 END,
+                    last_error_code = 'WAITING_FOR_PRIVATE_DUMP', updated_at = ?
+                WHERE job_id = ? AND status = 'CLAIMED' AND claim_token = ?
+                """,
+                (retry_at, now.isoformat(), job_id, claim_token),
+            )
+            return result.rowcount == 1
+
     def safe_runtime_status(self) -> dict[str, Any]:
         health_rows = self._connection.execute(
             "SELECT service_key, status, checked_at FROM service_health ORDER BY service_key"
@@ -878,6 +931,248 @@ class Repository:
             "queues": queue_depths,
             "failures": failures,
         }
+
+    @staticmethod
+    def _manual_attention_source(queue_kind: str) -> tuple[str, str, str, str]:
+        sources = {
+            "LIFECYCLE": (
+                "discord_lifecycle_jobs",
+                "job_id",
+                "PERMANENT_FAILURE",
+                "last_error_code",
+            ),
+            "PRIVATE_OPEN": (
+                "private_open_requests",
+                "interaction_id",
+                "PERMANENT_FAILURE",
+                "last_error_code",
+            ),
+            "DM": (
+                "discord_dm_outbox",
+                "message_key",
+                "PERMANENT_FAILURE",
+                "last_error_code",
+            ),
+            "COURSE_ROLE": (
+                "course_role_jobs",
+                "job_id",
+                "PERMANENT_FAILURE",
+                "last_error_code",
+            ),
+            "EMAIL": (
+                "email_delivery_outbox",
+                "delivery_id",
+                "PERMANENT_FAILURE",
+                "last_error_code",
+            ),
+            "PRIVATE_DUMP": ("private_dump_jobs", "channel_id", "FAILED", "error"),
+        }
+        normalized = queue_kind.strip().upper()
+        if normalized not in sources:
+            raise ValueError("不支援的人工接管 queue kind。")
+        return sources[normalized]
+
+    def list_manual_attention(self, *, limit: int = 10) -> list[dict[str, Any]]:
+        if limit < 1 or limit > 25:
+            raise ValueError("人工接管清單上限必須介於 1 與 25。")
+        items: list[dict[str, Any]] = []
+        for kind in ("LIFECYCLE", "PRIVATE_OPEN", "DM", "COURSE_ROLE", "EMAIL", "PRIVATE_DUMP"):
+            table, key_column, terminal_status, error_column = self._manual_attention_source(kind)
+            rows = self._connection.execute(
+                f"SELECT {key_column} AS item_key, attempt_count, {error_column} AS error_code, "
+                f"updated_at FROM {table} WHERE status = ? ORDER BY updated_at LIMIT ?",
+                (terminal_status, limit),
+            ).fetchall()
+            for row in rows:
+                latest = self._connection.execute(
+                    """SELECT action FROM manual_attention_actions
+                       WHERE queue_kind = ? AND item_key = ?
+                       ORDER BY created_at DESC, action_id DESC LIMIT 1""",
+                    (kind, str(row["item_key"])),
+                ).fetchone()
+                if latest is not None and str(latest["action"]) == "RESOLVE":
+                    continue
+                items.append(
+                    {
+                        "kind": kind,
+                        "itemKey": str(row["item_key"]),
+                        "attempts": int(row["attempt_count"]),
+                        "errorCode": str(row["error_code"] or "UNKNOWN"),
+                        "updatedAt": str(row["updated_at"] or ""),
+                    }
+                )
+        return sorted(items, key=lambda item: item["updatedAt"])[:limit]
+
+    def inspect_manual_attention(self, queue_kind: str, item_key: str) -> dict[str, Any] | None:
+        kind = queue_kind.strip().upper()
+        table, key_column, terminal_status, error_column = self._manual_attention_source(kind)
+        if not item_key or len(item_key) > 128:
+            raise ValueError("人工接管 item key 無效。")
+        row = self._connection.execute(
+            f"SELECT {key_column} AS item_key, status, attempt_count, "
+            f"{error_column} AS error_code, updated_at FROM {table} WHERE {key_column} = ?",
+            (int(item_key) if kind == "PRIVATE_DUMP" else item_key,),
+        ).fetchone()
+        if row is None:
+            return None
+        latest = self._connection.execute(
+            """SELECT action, reason_code, created_at FROM manual_attention_actions
+               WHERE queue_kind = ? AND item_key = ?
+               ORDER BY created_at DESC, action_id DESC LIMIT 1""",
+            (kind, item_key),
+        ).fetchone()
+        return {
+            "kind": kind,
+            "itemKey": str(row["item_key"]),
+            "status": str(row["status"]),
+            "terminal": str(row["status"]) == terminal_status,
+            "attempts": int(row["attempt_count"]),
+            "errorCode": str(row["error_code"] or "NONE"),
+            "updatedAt": str(row["updated_at"] or ""),
+            "lastOwnerAction": None if latest is None else str(latest["action"]),
+            "lastReasonCode": None if latest is None else str(latest["reason_code"]),
+        }
+
+    def _record_manual_attention_action(
+        self,
+        db: sqlite3.Connection,
+        *,
+        queue_kind: str,
+        item_key: str,
+        action: str,
+        actor_id: int,
+        reason_code: str,
+    ) -> None:
+        if actor_id <= 0 or not SAFE_JOB_ERROR_CODE.fullmatch(reason_code):
+            raise ValueError("人工接管 actor 或 reason code 無效。")
+        db.execute(
+            """INSERT INTO manual_attention_actions(
+                   action_id, queue_kind, item_key, action, actor_id, reason_code, created_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                f"attention-{uuid.uuid4().hex}",
+                queue_kind,
+                item_key,
+                action,
+                actor_id,
+                reason_code,
+                utc_now_iso(),
+            ),
+        )
+
+    def retry_manual_attention(
+        self, queue_kind: str, item_key: str, *, actor_id: int, reason_code: str
+    ) -> bool:
+        kind = queue_kind.strip().upper()
+        table, key_column, terminal_status, _ = self._manual_attention_source(kind)
+        key: str | int = int(item_key) if kind == "PRIVATE_DUMP" else item_key
+        now = utc_now_iso()
+        with self.transaction() as db:
+            if kind == "EMAIL":
+                payload = db.execute(
+                    "SELECT destination, verification_code FROM email_delivery_outbox "
+                    "WHERE delivery_id = ? AND status = 'PERMANENT_FAILURE'",
+                    (key,),
+                ).fetchone()
+                if (
+                    payload is None
+                    or payload["destination"] is None
+                    or payload["verification_code"] is None
+                ):
+                    return False
+            if kind == "PRIVATE_DUMP":
+                result = db.execute(
+                    """UPDATE private_dump_jobs SET status = 'PENDING', retry_at = NULL,
+                       claimed_by = NULL, claim_token = NULL, lease_expires_at = NULL,
+                       failure_kind = NULL, error = NULL, updated_at = ?
+                       WHERE channel_id = ? AND status = ?""",
+                    (now, key, terminal_status),
+                )
+            else:
+                result = db.execute(
+                    f"""UPDATE {table} SET status = 'RETRYABLE_FAILURE', next_attempt_at = NULL,
+                       claimed_by = NULL, claim_token = NULL, lease_expires_at = NULL,
+                       last_error_code = NULL, updated_at = ?
+                       WHERE {key_column} = ? AND status = ?""",
+                    (now, key, terminal_status),
+                )
+            if result.rowcount != 1:
+                return False
+            self._record_manual_attention_action(
+                db,
+                queue_kind=kind,
+                item_key=item_key,
+                action="RETRY",
+                actor_id=actor_id,
+                reason_code=reason_code,
+            )
+            return True
+
+    def resolve_manual_attention(
+        self, queue_kind: str, item_key: str, *, actor_id: int, reason_code: str
+    ) -> bool:
+        kind = queue_kind.strip().upper()
+        table, key_column, terminal_status, _ = self._manual_attention_source(kind)
+        key: str | int = int(item_key) if kind == "PRIVATE_DUMP" else item_key
+        row = self._connection.execute(
+            f"SELECT 1 FROM {table} WHERE {key_column} = ? AND status = ?",
+            (key, terminal_status),
+        ).fetchone()
+        if row is None:
+            return False
+        with self.transaction() as db:
+            self._record_manual_attention_action(
+                db,
+                queue_kind=kind,
+                item_key=item_key,
+                action="RESOLVE",
+                actor_id=actor_id,
+                reason_code=reason_code,
+            )
+            return True
+
+    def create_replacement_private_request(
+        self,
+        *,
+        previous_case_number: str,
+        requester_id: int,
+        actor_id: int,
+        reason_code: str,
+        guild_id: int,
+        module_code: str,
+    ) -> sqlite3.Row:
+        previous = self._connection.execute(
+            "SELECT * FROM cases WHERE case_number = ? AND visibility = 'PRIVATE'",
+            (previous_case_number.strip().upper(),),
+        ).fetchone()
+        if previous is None or canonical_case_status(str(previous["status"])) != "AUTO_CLOSED":
+            raise RuntimeError("REPLACEMENT_SOURCE_NOT_ELIGIBLE")
+        interaction_id = f"manual-replacement-{uuid.uuid4().hex}"
+        request = self.begin_private_open_request(
+            interaction_id=interaction_id,
+            guild_id=guild_id,
+            requester_id=requester_id,
+            module_code=module_code,
+            keyword="人工接管",
+            ai_content_permission=False,
+        )
+        if str(request["status"]) == "REJECTED":
+            raise RuntimeError("REPLACEMENT_REQUEST_REJECTED")
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE private_open_requests SET replacement_for_case_id = ? "
+                "WHERE interaction_id = ?",
+                (str(previous["case_id"]), interaction_id),
+            )
+            self._record_manual_attention_action(
+                db,
+                queue_kind="PRIVATE_CASE",
+                item_key=str(previous["case_number"]),
+                action="REPLACEMENT_CASE",
+                actor_id=actor_id,
+                reason_code=reason_code,
+            )
+        return self.get_private_open_request(interaction_id)
 
     def _record_public_case_transition(
         self,
@@ -1319,6 +1614,30 @@ class Repository:
                 created_at=now,
             )
 
+    def enqueue_case_reopen_dm(self, *, case_id: str, cycle_number: int) -> None:
+        if cycle_number < 2:
+            raise ValueError("Reopen cycle must be at least 2")
+        row = self._connection.execute(
+            "SELECT author_id, case_number, jump_url FROM cases WHERE case_id = ?", (case_id,)
+        ).fetchone()
+        if row is None or int(row["author_id"]) <= 0 or not row["jump_url"]:
+            return
+        now = utc_now_iso()
+        case_number = str(row["case_number"])
+        with self.transaction() as db:
+            self._enqueue_dm(
+                db,
+                message_key=f"case-reopen:{case_id}:{cycle_number}",
+                recipient_id=int(row["author_id"]),
+                message_kind="CASE_REOPENED",
+                aggregate_ref=f"{case_number}:cycle:{cycle_number}",
+                body=(
+                    f"您的案件已重新開啟（第 {cycle_number} 次提問）。\n"
+                    f"案號：`{case_number}`\n前往案件：{row['jump_url']}"
+                ),
+                created_at=now,
+            )
+
     def get_dm_message(self, message_key: str) -> sqlite3.Row | None:
         return self._connection.execute(
             "SELECT * FROM discord_dm_outbox WHERE message_key = ?", (message_key,)
@@ -1439,6 +1758,168 @@ class Repository:
             ):
                 raise ValueError("Email delivery idempotency conflict")
         return identifier
+
+    @staticmethod
+    def _email_session_fingerprint(session_subject: str) -> str:
+        if not session_subject or len(session_subject) > 256:
+            raise ValueError("Invalid verification session")
+        return hashlib.sha256(session_subject.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _email_code_hash(code: str, salt: str) -> str:
+        return hashlib.pbkdf2_hmac(
+            "sha256", code.encode("ascii"), bytes.fromhex(salt), 200_000
+        ).hex()
+
+    def start_email_verification(
+        self,
+        *,
+        session_subject: str,
+        destination: str,
+        email_kind: str,
+        now: datetime | None = None,
+        ttl_seconds: int = 600,
+    ) -> str:
+        kind = email_kind.strip().upper()
+        if kind == "INSTITUTIONAL":
+            normalized_destination = normalize_ntu_email(destination)
+        elif kind == "CONTACT":
+            normalized_destination = normalize_email(destination)
+        else:
+            raise ValueError("Invalid verification email kind")
+        if ttl_seconds < 60 or ttl_seconds > 1_800:
+            raise ValueError("Unsafe verification expiry")
+        moment = (now or datetime.now(UTC)).astimezone(UTC)
+        expires_at = (moment + timedelta(seconds=ttl_seconds)).isoformat()
+        challenge_id = f"email_verification_{uuid.uuid4().hex}"
+        verification_code = f"{secrets.randbelow(1_000_000):06d}"
+        salt = secrets.token_hex(16)
+        session_fingerprint = self._email_session_fingerprint(session_subject)
+        destination_hash = hashlib.sha256(normalized_destination.encode("utf-8")).hexdigest()
+        at = moment.isoformat()
+        with self.transaction() as db:
+            db.execute(
+                """
+                INSERT INTO email_verification_challenges(
+                    challenge_id, session_fingerprint, destination_hash, email_kind,
+                    code_salt, code_hash, expires_at, status, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
+                """,
+                (
+                    challenge_id,
+                    session_fingerprint,
+                    destination_hash,
+                    kind,
+                    salt,
+                    self._email_code_hash(verification_code, salt),
+                    expires_at,
+                    at,
+                    at,
+                ),
+            )
+        self.enqueue_verification_email(
+            challenge_id=challenge_id,
+            destination=normalized_destination,
+            verification_code=verification_code,
+            email_kind=kind,
+            expires_at=expires_at,
+        )
+        return challenge_id
+
+    def verify_email_challenge(
+        self,
+        *,
+        challenge_id: str,
+        session_subject: str,
+        verification_code: str,
+        now: datetime | None = None,
+    ) -> bool:
+        if not re.fullmatch(r"email_verification_[a-f0-9]{32}", challenge_id):
+            return False
+        if not re.fullmatch(r"[0-9]{6}", verification_code):
+            return False
+        moment = (now or datetime.now(UTC)).astimezone(UTC)
+        at = moment.isoformat()
+        fingerprint = self._email_session_fingerprint(session_subject)
+        with self.immediate_transaction() as db:
+            row = db.execute(
+                "SELECT * FROM email_verification_challenges WHERE challenge_id = ?",
+                (challenge_id,),
+            ).fetchone()
+            if row is None or str(row["session_fingerprint"]) != fingerprint:
+                return False
+            status = str(row["status"])
+            if status == "VERIFIED":
+                return True
+            if status != "PENDING":
+                return False
+            if datetime.fromisoformat(str(row["expires_at"])).astimezone(UTC) <= moment:
+                db.execute(
+                    "UPDATE email_verification_challenges SET status = 'EXPIRED', "
+                    "updated_at = ? WHERE challenge_id = ?",
+                    (at, challenge_id),
+                )
+                return False
+            attempt_count = int(row["attempt_count"]) + 1
+            expected = str(row["code_hash"])
+            supplied = self._email_code_hash(verification_code, str(row["code_salt"]))
+            if not secrets.compare_digest(expected, supplied):
+                status = "LOCKED" if attempt_count >= 5 else "PENDING"
+                db.execute(
+                    "UPDATE email_verification_challenges SET attempt_count = ?, status = ?, "
+                    "updated_at = ? WHERE challenge_id = ?",
+                    (attempt_count, status, at, challenge_id),
+                )
+                return False
+            db.execute(
+                """UPDATE email_verification_challenges
+                   SET attempt_count = ?, status = 'VERIFIED', verified_at = ?, updated_at = ?
+                   WHERE challenge_id = ?""",
+                (attempt_count, at, at, challenge_id),
+            )
+            return True
+
+    def email_verification_matches(
+        self,
+        *,
+        challenge_id: str,
+        session_subject: str,
+        destination: str,
+        now: datetime | None = None,
+    ) -> bool:
+        normalized_destination = normalize_email(destination)
+        row = self._connection.execute(
+            "SELECT * FROM email_verification_challenges WHERE challenge_id = ?",
+            (challenge_id,),
+        ).fetchone()
+        if row is None or str(row["status"]) not in {"VERIFIED", "CONSUMED"}:
+            return False
+        moment = (now or datetime.now(UTC)).astimezone(UTC)
+        return (
+            str(row["session_fingerprint"]) == self._email_session_fingerprint(session_subject)
+            and str(row["destination_hash"])
+            == hashlib.sha256(normalized_destination.encode("utf-8")).hexdigest()
+            and datetime.fromisoformat(str(row["expires_at"])).astimezone(UTC) > moment
+        )
+
+    def consume_email_verification(
+        self, *, challenge_id: str, session_subject: str, destination: str
+    ) -> bool:
+        if not self.email_verification_matches(
+            challenge_id=challenge_id,
+            session_subject=session_subject,
+            destination=destination,
+        ):
+            return False
+        now = utc_now_iso()
+        with self.transaction() as db:
+            result = db.execute(
+                """UPDATE email_verification_challenges
+                   SET status = 'CONSUMED', consumed_at = COALESCE(consumed_at, ?), updated_at = ?
+                   WHERE challenge_id = ? AND status IN ('VERIFIED', 'CONSUMED')""",
+                (now, now, challenge_id),
+            )
+            return result.rowcount == 1
 
     def claim_verification_email(self, worker_id: str) -> EmailDeliveryClaim | None:
         now = datetime.now(UTC)
@@ -2239,15 +2720,46 @@ class Repository:
             ).fetchall()
         )
 
-    def mark_private_deleted(self, channel_id: int) -> None:
+    def mark_private_deleted(self, channel_id: int) -> bool:
         deleted_at = utc_now_iso()
         with self.transaction() as db:
+            dump = db.execute(
+                "SELECT status FROM private_dump_jobs WHERE channel_id = ?", (channel_id,)
+            ).fetchone()
+            if dump is None or str(dump["status"]) not in {"VERIFIED", "DELETED"}:
+                return False
+            support = db.execute(
+                "SELECT case_number FROM private_support WHERE channel_id = ?", (channel_id,)
+            ).fetchone()
+            if support is None:
+                return False
+            case_number = str(support["case_number"])
             db.execute(
-                "UPDATE private_support SET status = 'DELETED' WHERE channel_id = ?", (channel_id,)
+                """UPDATE private_support SET status = 'DELETED', requester_id = 0,
+                   ai_content_permission = 0, updated_at = ? WHERE channel_id = ?""",
+                (deleted_at, channel_id),
             )
             db.execute(
                 """UPDATE private_dump_jobs
                 SET status = 'DELETED', delete_completed_at = ?, updated_at = ?
-                WHERE channel_id = ? AND status = 'VERIFIED'""",
+                WHERE channel_id = ? AND status IN ('VERIFIED', 'DELETED')""",
                 (deleted_at, deleted_at, channel_id),
             )
+            db.execute(
+                """UPDATE cases SET author_id = 0, keyword = '已刪除',
+                   ai_content_permission = 0, canonical_title = '[Private][已刪除]',
+                   base_title = '[Private][已刪除]', initial_snapshot_json = '{}',
+                   jump_url = NULL, updated_at = ? WHERE thread_id = ?""",
+                (deleted_at, channel_id),
+            )
+            db.execute(
+                """UPDATE private_open_requests SET requester_id = 0, keyword = '已刪除',
+                   jump_url = NULL, updated_at = ? WHERE channel_id = ?""",
+                (deleted_at, channel_id),
+            )
+            db.execute(
+                """UPDATE discord_dm_outbox SET recipient_id = 0, body = '', updated_at = ?
+                   WHERE aggregate_ref = ? AND status IN ('COMPLETED', 'PERMANENT_FAILURE')""",
+                (deleted_at, case_number),
+            )
+            return True

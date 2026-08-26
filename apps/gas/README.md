@@ -58,4 +58,8 @@ Case API contracts、provider ports、CORS/redirect與rate-limit策略見`docs/C
 
 Task 18 的一次性「啟動碼」domain service、80-bit 強隨機格式、只存 fingerprint 的界線與 Google Sheets 併發限制見 `docs/ACTIVATION_CODES.md`。目前尚未提供 production repository 或公開兌換 route。
 
-Task 19 的 provider-neutral 電子郵件驗證 service 只接記憶體 mock；六位 code、salted hash、expiry、attempt/send limit、cooldown、institutional/contact 分流及 Gmail/Apps Script quota 前提見 `docs/EMAIL_VERIFICATION.md`。目前不會寄送任何真實郵件。
+Task 19 的 provider-neutral 電子郵件驗證 service 與記憶體 mock 仍保留；v10 candidate 另以
+SQLite durable outbox、Linux bridge 與 standalone `MailApp` provider 接上正式 delivery boundary。
+六位 code、PBKDF2 hash、10 分鐘 expiry、最多五次驗證、institutional/contact 分流及 quota
+前提見 `docs/EMAIL_VERIFICATION.md`。本機測試與 build 不寄信；只有 owner 完成 GAS deployment、
+Script Properties 與 production bridge 設定後才會寄出真實驗證信。

@@ -18,6 +18,10 @@ from .interaction_throttle import InteractionThrottle
 LOGGER = logging.getLogger(__name__)
 
 
+class PrivateDumpPending(RuntimeError):
+    """The private export prerequisite is still progressing normally."""
+
+
 class CaseAlreadyOpenError(RuntimeError):
     """Raised when a stale reopen control is used after the case was reopened."""
 
@@ -83,6 +87,31 @@ class CourseService:
         if module_code not in {"M1", "M2", "M3", "M4"}:
             raise RuntimeError("班別與 Module 對照尚未同步；請先請系統管理員更新設定。")
         return class_code, module_code
+
+    def public_case_context_for_member(
+        self, member: discord.Member
+    ) -> tuple[str | None, str, bool]:
+        """Resolve exactly one public identity without treating Guest as C00."""
+        member_role_ids = {role.id for role in member.roles}
+        guest_role_id = self.repo.get_config_int("visitor_role_id")
+        is_guest = guest_role_id is not None and guest_role_id in member_role_ids
+        class_matches = [
+            class_code
+            for class_code in (f"{number:02d}" for number in range(1, 17))
+            if (role_id := self.repo.get_config_int(f"class_role_{class_code}")) is not None
+            and role_id in member_role_ids
+        ]
+        if is_guest and class_matches:
+            raise RuntimeError("Guest 與正式班級角色同時存在；請先請 Course Manager 修正角色。")
+        if is_guest:
+            return None, self.settings.module_code, True
+        if len(class_matches) != 1:
+            raise RuntimeError("無法確認唯一班別；請先請 Course Manager 檢查班級角色。")
+        class_code = class_matches[0]
+        module_code = self.repo.get_config(f"class_module_{class_code}")
+        if module_code not in {"M1", "M2", "M3", "M4"}:
+            raise RuntimeError("班別與 Module 對照尚未同步；請先請系統管理員更新設定。")
+        return class_code, module_code, False
 
     def private_module_for_member(self, member: discord.Member) -> str:
         """Resolve Private Support metadata without weakening its channel ACL."""
@@ -156,7 +185,7 @@ class CourseService:
 
         if not isinstance(interaction.user, discord.Member):
             raise RuntimeError("無法讀取伺服器成員資料；請稍後再試。")
-        class_code, module_code = self.class_context_for_member(interaction.user)
+        class_code, module_code, is_guest = self.public_case_context_for_member(interaction.user)
         keyword = normalize_keyword(keyword_raw)
         channel = interaction.channel
         if not isinstance(channel, discord.Thread):
@@ -168,6 +197,7 @@ class CourseService:
             class_code,
             keyword,
             str(draft["original_title"]),
+            guest=is_guest,
         )
         await channel.edit(name=title, reason="Course case finalized")
 
@@ -199,6 +229,7 @@ class CourseService:
             canonical_title=title,
             initial_snapshot=snapshot,
             class_code=class_code,
+            guest=is_guest,
         )
 
         setup_message_id = draft["setup_message_id"]
@@ -402,6 +433,78 @@ class CourseService:
         job = self.repo.get_discord_lifecycle_job(claim.job_id)
         if job is None:
             raise RuntimeError("LIFECYCLE_JOB_MISSING")
+        case = self.repo.get_case_by_thread(int(job["thread_id"]))
+        is_private_auto_close = (
+            case is not None
+            and str(case["visibility"]) == "PRIVATE"
+            and str(job["transition"]) == "AUTO_CLOSE"
+        )
+        if is_private_auto_close:
+            dump = self.repo.get_private_dump_job(int(job["thread_id"]))
+            if dump is None:
+                try:
+                    channel = self.bot.get_channel(int(job["thread_id"]))
+                    if channel is None:
+                        channel = await self.bot.fetch_channel(int(job["thread_id"]))
+                except discord.NotFound:
+                    channel = None
+                if not isinstance(channel, discord.TextChannel):
+                    raise RuntimeError("LIFECYCLE_THREAD_INVALID")
+                if str(job["stage"]) == "PENDING":
+                    support = self.repo.get_private_support(channel.id)
+                    if support is None:
+                        raise RuntimeError("PRIVATE_SUPPORT_RECORD_MISSING")
+                    member = channel.guild.get_member(int(support["requester_id"]))
+                    if member is None:
+                        try:
+                            member = await channel.guild.fetch_member(int(support["requester_id"]))
+                        except discord.NotFound:
+                            member = None
+                    if member is not None:
+                        overwrite = channel.overwrites_for(member)
+                        overwrite.send_messages = False
+                        await channel.set_permissions(
+                            member,
+                            overwrite=overwrite,
+                            reason="Private Support retention expiry freeze",
+                        )
+                    notice = await channel.send(
+                        "⏳ **隱密案件保存期限已到。**\n\n"
+                        "系統正在建立經驗證的內容輸出；完成後會刪除此受限頻道。"
+                    )
+                    if not self.repo.mark_discord_lifecycle_stage(
+                        claim.job_id,
+                        claim.claim_token,
+                        "NOTICE_SENT",
+                        control_message_id=notice.id,
+                    ):
+                        raise RuntimeError("LIFECYCLE_CLAIM_LOST")
+                if not self.repo.queue_private_dump(channel.id, requested_by=0):
+                    raise RuntimeError("PRIVATE_DUMP_QUEUE_FAILED")
+                raise PrivateDumpPending("WAITING_FOR_PRIVATE_DUMP")
+            if str(dump["status"]) in {"PENDING", "CLAIMED"}:
+                raise PrivateDumpPending("WAITING_FOR_PRIVATE_DUMP")
+            if str(dump["status"]) == "FAILED":
+                raise RuntimeError("PRIVATE_DUMP_FAILED")
+            if str(dump["status"]) not in {"VERIFIED", "DELETED"}:
+                raise RuntimeError("PRIVATE_DUMP_STATE_INVALID")
+            try:
+                channel = self.bot.get_channel(int(job["thread_id"]))
+                if channel is None:
+                    channel = await self.bot.fetch_channel(int(job["thread_id"]))
+            except discord.NotFound:
+                channel = None
+            if channel is not None:
+                if not isinstance(channel, discord.TextChannel):
+                    raise RuntimeError("LIFECYCLE_THREAD_INVALID")
+                await channel.delete(reason="Verified Private Support retention expiry")
+            if not self.repo.mark_private_deleted(int(job["thread_id"])):
+                raise RuntimeError("PRIVATE_DELETE_NOT_VERIFIED")
+            if not self.repo.mark_discord_lifecycle_stage(
+                claim.job_id, claim.claim_token, "DISCORD_APPLIED"
+            ):
+                raise RuntimeError("LIFECYCLE_CLAIM_LOST")
+            return
         channel = self.bot.get_channel(int(job["thread_id"]))
         if channel is None:
             channel = await self.bot.fetch_channel(int(job["thread_id"]))
@@ -470,6 +573,7 @@ class CourseService:
                     claim.job_id, claim.claim_token, "DISCORD_APPLIED"
                 ):
                     raise RuntimeError("LIFECYCLE_CLAIM_LOST")
+            self.repo.enqueue_case_reopen_dm(case_id=str(job["case_id"]), cycle_number=cycle_number)
             if job["control_message_id"] is None:
                 notice = await channel.send(
                     f"🔄 **第 {cycle_number} 次提問已開始。** 請繼續提出問題。"
@@ -500,6 +604,11 @@ def classify_discord_lifecycle_error(error: Exception) -> tuple[str, bool]:
             "LIFECYCLE_JOB_MISSING",
             "LIFECYCLE_THREAD_INVALID",
             "LIFECYCLE_TRANSITION_INVALID",
+            "PRIVATE_DUMP_FAILED",
+            "PRIVATE_DUMP_STATE_INVALID",
+            "PRIVATE_DELETE_NOT_VERIFIED",
+            "PRIVATE_SUPPORT_RECORD_MISSING",
+            "PRIVATE_DUMP_QUEUE_FAILED",
         }:
             return (code, False)
         if code == "LIFECYCLE_CLAIM_LOST":

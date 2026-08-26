@@ -17,6 +17,13 @@ def test_root_npm_scripts_use_the_portable_python_launcher() -> None:
         assert " python -m " not in f" {command} "
 
 
+def test_portable_python_launcher_sets_repository_import_paths() -> None:
+    root = Path(__file__).resolve().parents[1]
+    launcher = (root / "tools/run-python.mjs").read_text(encoding="utf-8")
+    assert 'join(repositoryRoot, "runtime", "discord-course-bots", "src")' in launcher
+    assert "PYTHONPATH" in launcher
+
+
 def test_python_baseline_uses_fixture_mode() -> None:
     assert runtime_mode() == "fixture-only"
 

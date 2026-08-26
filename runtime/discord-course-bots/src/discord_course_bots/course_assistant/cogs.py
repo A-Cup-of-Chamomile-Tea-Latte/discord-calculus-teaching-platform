@@ -14,7 +14,7 @@ from discord.ext import commands, tasks
 from discord_course_bots.domain.applicants import normalize_class_code
 from discord_course_bots.domain.keyword import normalize_keyword
 
-from .service import CourseService, classify_discord_lifecycle_error
+from .service import CourseService, PrivateDumpPending, classify_discord_lifecycle_error
 
 LOGGER = logging.getLogger(__name__)
 STATIC_ROLE_CONFIG_KEYS = frozenset(
@@ -60,11 +60,22 @@ def _staff_allowed(member: discord.Member, service: CourseService) -> bool:
 class CaseCog(commands.Cog):
     case = app_commands.Group(name="case", description="案件操作")
     private = app_commands.Group(name="private", description="隱密支援")
-    ops = app_commands.Group(name="ops", description="管理者唯讀狀態命令")
+    ops = app_commands.Group(name="ops", description="系統管理與人工接管")
 
     def __init__(self, bot: commands.Bot, service: CourseService) -> None:
         self.bot = bot
         self.service = service
+
+    async def _require_operator(self, interaction: discord.Interaction) -> bool:
+        allowed = (
+            interaction.guild is not None
+            and interaction.guild.id == self.service.settings.test_guild_id
+            and isinstance(interaction.user, discord.Member)
+            and self.service.is_allowed_operator(interaction.user)
+        )
+        if not allowed:
+            await _reply(interaction, "只有本伺服器的系統管理者可以執行此操作。")
+        return bool(allowed)
 
     @case.command(name="close", description="由 Staff 關閉目前案件")
     async def close(self, interaction: discord.Interaction) -> None:
@@ -113,13 +124,7 @@ class CaseCog(commands.Cog):
 
     @ops.command(name="status", description="查看不含個資的唯讀系統狀態")
     async def ops_status(self, interaction: discord.Interaction) -> None:
-        if (
-            interaction.guild is None
-            or interaction.guild.id != self.service.settings.test_guild_id
-            or not isinstance(interaction.user, discord.Member)
-            or not self.service.is_allowed_operator(interaction.user)
-        ):
-            await _reply(interaction, "只有本伺服器的系統管理者可以查看狀態。")
+        if not await self._require_operator(interaction):
             return
         snapshot = self.service.repo.safe_runtime_status()
         expected = ("course-assistant", "dump-bot", "data-bridge")
@@ -144,6 +149,118 @@ class CaseCog(commands.Cog):
             + f"\n- 待套用加入權限：{queues['course_role']}"
             + f"\n- 歷史 Private dump queue：{queues['private_dump']}"
             + f"\n- 需人工處理：{sum(failures.values())}",
+        )
+
+    @ops.command(name="attention-list", description="列出不含內容與個資的人工接管項目")
+    async def attention_list(self, interaction: discord.Interaction) -> None:
+        if not await self._require_operator(interaction):
+            return
+        items = self.service.repo.list_manual_attention(limit=10)
+        if not items:
+            await _reply(interaction, "目前沒有未解決的人工接管項目。")
+            return
+        lines = [
+            f"`{item['kind']}`｜`{item['itemKey']}`｜{item['errorCode']}｜"
+            f"嘗試 {item['attempts']} 次"
+            for item in items
+        ]
+        await _reply(interaction, "**人工接管清單（不含內容／個資）**\n" + "\n".join(lines))
+
+    @ops.command(name="attention-inspect", description="檢查一個人工接管項目的安全狀態")
+    async def attention_inspect(
+        self, interaction: discord.Interaction, queue_kind: str, item_key: str
+    ) -> None:
+        if not await self._require_operator(interaction):
+            return
+        try:
+            item = self.service.repo.inspect_manual_attention(queue_kind, item_key)
+        except (ValueError, TypeError):
+            await _reply(interaction, "queue kind 或 item key 無效。")
+            return
+        if item is None:
+            await _reply(interaction, "找不到這個人工接管項目。")
+            return
+        await _reply(
+            interaction,
+            f"`{item['kind']}`｜`{item['itemKey']}`\n"
+            f"狀態：{item['status']}\n錯誤碼：{item['errorCode']}\n"
+            f"嘗試：{item['attempts']}\n最後 owner 動作：{item['lastOwnerAction'] or '無'}",
+        )
+
+    @ops.command(name="attention-retry", description="重試 allowlisted 的 terminal failure")
+    async def attention_retry(
+        self,
+        interaction: discord.Interaction,
+        queue_kind: str,
+        item_key: str,
+        reason_code: str,
+    ) -> None:
+        if not await self._require_operator(interaction):
+            return
+        try:
+            changed = self.service.repo.retry_manual_attention(
+                queue_kind,
+                item_key,
+                actor_id=interaction.user.id,
+                reason_code=reason_code.strip().upper(),
+            )
+        except (ValueError, TypeError):
+            await _reply(interaction, "參數無效；reason_code 請用大寫英文、數字或底線。")
+            return
+        await _reply(
+            interaction,
+            "已重新排入可靠 queue。" if changed else "此項目目前不可安全重試。",
+        )
+
+    @ops.command(name="attention-resolve", description="標記 terminal failure 已由 owner 處理")
+    async def attention_resolve(
+        self,
+        interaction: discord.Interaction,
+        queue_kind: str,
+        item_key: str,
+        reason_code: str,
+    ) -> None:
+        if not await self._require_operator(interaction):
+            return
+        try:
+            changed = self.service.repo.resolve_manual_attention(
+                queue_kind,
+                item_key,
+                actor_id=interaction.user.id,
+                reason_code=reason_code.strip().upper(),
+            )
+        except (ValueError, TypeError):
+            await _reply(interaction, "參數無效；reason_code 請用大寫英文、數字或底線。")
+            return
+        await _reply(
+            interaction, "已留下 owner resolve 稽核。" if changed else "找不到 terminal failure。"
+        )
+
+    @ops.command(name="replacement-case", description="為已自動刪除的 Private 案件建立新案件")
+    async def replacement_case(
+        self,
+        interaction: discord.Interaction,
+        previous_case_number: str,
+        member: discord.Member,
+        reason_code: str,
+    ) -> None:
+        if not await self._require_operator(interaction) or interaction.guild is None:
+            return
+        try:
+            request = self.service.repo.create_replacement_private_request(
+                previous_case_number=previous_case_number,
+                requester_id=member.id,
+                actor_id=interaction.user.id,
+                reason_code=reason_code.strip().upper(),
+                guild_id=interaction.guild.id,
+                module_code=self.service.settings.module_code,
+            )
+        except (RuntimeError, ValueError):
+            await _reply(interaction, "來源案件不可建立 replacement，或參數不安全。")
+            return
+        await _reply(
+            interaction,
+            f"已建立 replacement request `{request['interaction_id']}`；完成後會私訊當事人。",
         )
 
     @private.command(name="open", description="建立隱密支援空間")
@@ -535,6 +652,12 @@ class DraftLifecycleCog(commands.Cog):
     async def _run_lifecycle_claim(self, claim) -> None:
         try:
             await self.service.apply_discord_lifecycle_job(claim)
+        except PrivateDumpPending:
+            if not self.service.repo.defer_discord_lifecycle_job(
+                claim.job_id, claim.claim_token, delay_seconds=10
+            ):
+                LOGGER.error("Private dump wait lost lifecycle claim")
+            return
         except Exception as exc:  # noqa: BLE001 - queue boundary records safe codes
             error_code, retryable = classify_discord_lifecycle_error(exc)
             self.service.repo.fail_discord_lifecycle_job(

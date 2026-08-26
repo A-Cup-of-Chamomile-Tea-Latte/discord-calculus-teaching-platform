@@ -8,6 +8,8 @@ import pytest
 
 from discord_course_bots.portal_backend import (
     CASE_LOOKUP_PATH,
+    EMAIL_START_PATH,
+    EMAIL_VERIFY_PATH,
     JOIN_PATH,
     InMemoryAuditSink,
     PortalBackend,
@@ -89,10 +91,35 @@ def lookup_payload(case_number: str) -> dict[str, str]:
     return {"caseNumber": case_number}
 
 
+def verified_payload(
+    store: SqlitePortalStore, session: str, payload: dict[str, str]
+) -> dict[str, str]:
+    identity = payload["identityType"]
+    destination = payload["ntuEmail"] if identity == "STUDENT" else payload["guestEmail"]
+    challenge_id = store.repository.start_email_verification(
+        session_subject="student-session",
+        destination=destination,
+        email_kind="INSTITUTIONAL" if identity == "STUDENT" else "CONTACT",
+    )
+    row = store.repository._connection.execute(
+        "SELECT verification_code FROM email_delivery_outbox WHERE challenge_id = ?",
+        (challenge_id,),
+    ).fetchone()
+    assert row is not None
+    assert store.repository.verify_email_challenge(
+        challenge_id=challenge_id,
+        session_subject="student-session",
+        verification_code=str(row["verification_code"]),
+    )
+    return {**payload, "emailVerificationId": challenge_id}
+
+
 def test_join_revalidates_and_uses_canonical_sqlite_store(tmp_path: Path) -> None:
     audit = InMemoryAuditSink()
     backend, _, store, session = backend_for(tmp_path, audit=audit)
-    response = backend.handle(request(session, JOIN_PATH, student_payload()))
+    response = backend.handle(
+        request(session, JOIN_PATH, verified_payload(store, session, student_payload()))
+    )
 
     assert response.status == 202
     assert response.json()["outcome"] == "ACCEPTED"
@@ -105,9 +132,17 @@ def test_join_revalidates_and_uses_canonical_sqlite_store(tmp_path: Path) -> Non
 
 
 def test_duplicate_join_is_idempotent_and_generic(tmp_path: Path) -> None:
-    backend, _, _, session = backend_for(tmp_path)
-    first = backend.handle(request(session, JOIN_PATH, student_payload()))
-    second = backend.handle(request(session, JOIN_PATH, student_payload(classCode="C02")))
+    backend, _, store, session = backend_for(tmp_path)
+    first = backend.handle(
+        request(session, JOIN_PATH, verified_payload(store, session, student_payload()))
+    )
+    second = backend.handle(
+        request(
+            session,
+            JOIN_PATH,
+            verified_payload(store, session, student_payload(classCode="C02")),
+        )
+    )
 
     assert first.status == second.status == 202
     assert first.body == second.body
@@ -135,18 +170,15 @@ def test_join_rejects_invalid_fields(tmp_path: Path, overrides: dict[str, str]) 
 
 def test_guest_join_maps_to_visitor_and_revalidates(tmp_path: Path) -> None:
     backend, _, store, session = backend_for(tmp_path)
+    payload = {
+        "identityType": "GUEST",
+        "discordUsername": "visitor.name",
+        "guestEmail": "visitor@example.com",
+        "guestReason": "我是旁聽學生，希望加入討論。",
+        "rulesPrivacy": "yes",
+    }
     response = backend.handle(
-        request(
-            session,
-            JOIN_PATH,
-            {
-                "identityType": "GUEST",
-                "discordUsername": "visitor.name",
-                "guestEmail": "visitor@example.com",
-                "guestReason": "我是旁聽學生，希望加入討論。",
-                "rulesPrivacy": "yes",
-            },
-        )
+        request(session, JOIN_PATH, verified_payload(store, session, payload))
     )
 
     assert response.status == 202
@@ -205,11 +237,12 @@ def test_undocumented_get_case_status_route_is_not_available(tmp_path: Path) -> 
 
 
 def test_rate_limit_is_per_route_and_generic(tmp_path: Path) -> None:
-    backend, _, _, session = backend_for(
+    backend, _, store, session = backend_for(
         tmp_path, rate_limiter=RateLimiter(limit=1, window_seconds=60)
     )
-    first = backend.handle(request(session, JOIN_PATH, student_payload()))
-    second = backend.handle(request(session, JOIN_PATH, student_payload()))
+    payload = verified_payload(store, session, student_payload())
+    first = backend.handle(request(session, JOIN_PATH, payload))
+    second = backend.handle(request(session, JOIN_PATH, payload))
 
     assert first.status == 202
     assert second.status == 429
@@ -323,7 +356,9 @@ def test_audit_failure_fails_closed_before_join_storage(tmp_path: Path) -> None:
             raise RuntimeError("audit unavailable")
 
     backend, _, store, session = backend_for(tmp_path, audit=FailingAudit())
-    response = backend.handle(request(session, JOIN_PATH, student_payload()))
+    response = backend.handle(
+        request(session, JOIN_PATH, verified_payload(store, session, student_payload()))
+    )
 
     assert response.status == 503
     assert not store.repository.pending_join_applications()  # type: ignore[union-attr]
@@ -332,7 +367,9 @@ def test_audit_failure_fails_closed_before_join_storage(tmp_path: Path) -> None:
 def test_sqlite_audit_sink_persists_only_metadata(tmp_path: Path) -> None:
     audit = SQLiteAuditSink(tmp_path / "audit.sqlite3")
     backend, _, store, session = backend_for(tmp_path / "operational", audit=audit)
-    response = backend.handle(request(session, JOIN_PATH, student_payload()))
+    response = backend.handle(
+        request(session, JOIN_PATH, verified_payload(store, session, student_payload()))
+    )
 
     assert response.status == 202
     rows = audit._connection.execute(
@@ -346,3 +383,48 @@ def test_sqlite_audit_sink_persists_only_metadata(tmp_path: Path) -> None:
     assert "student@ntu.edu.tw" not in json.dumps(rows, default=str)
     assert len(store.repository.pending_join_applications()) == 1  # type: ignore[union-attr]
     audit.close()
+
+
+def test_email_verification_routes_bind_code_to_session_and_hide_code(tmp_path: Path) -> None:
+    backend, _, store, session = backend_for(tmp_path)
+    started = backend.handle(
+        request(
+            session,
+            EMAIL_START_PATH,
+            {"identityType": "STUDENT", "email": "student@ntu.edu.tw"},
+        )
+    )
+    assert started.status == 202
+    challenge_id = started.json()["challengeId"]
+    assert "verification_code" not in started.body.decode()
+    row = store.repository._connection.execute(
+        "SELECT verification_code FROM email_delivery_outbox WHERE challenge_id = ?",
+        (challenge_id,),
+    ).fetchone()
+    verified = backend.handle(
+        request(
+            session,
+            EMAIL_VERIFY_PATH,
+            {"challengeId": challenge_id, "code": str(row["verification_code"])},
+        )
+    )
+    assert verified.status == 200
+    assert verified.json()["outcome"] == "VERIFIED"
+
+
+def test_join_rejects_unverified_email(tmp_path: Path) -> None:
+    backend, _, store, session = backend_for(tmp_path)
+    challenge_id = store.repository.start_email_verification(
+        session_subject="student-session",
+        destination="student@ntu.edu.tw",
+        email_kind="INSTITUTIONAL",
+    )
+    response = backend.handle(
+        request(
+            session,
+            JOIN_PATH,
+            student_payload(emailVerificationId=challenge_id),
+        )
+    )
+    assert response.status == 400
+    assert response.json()["error"] == "EMAIL_NOT_VERIFIED"

@@ -114,7 +114,7 @@ async def test_draft_delete_failure_does_not_expose_raw_exception() -> None:
     service.repo.get_draft.return_value = {"author_id": 3}
     service.delete_draft = AsyncMock(side_effect=RuntimeError("sensitive database path"))
     view = DraftSetupView(service)
-    delete_button = next(child for child in view.children if child.label.startswith("我沒有問題"))
+    delete_button = next(child for child in view.children if child.label == "刪除這篇草稿")
     channel = MagicMock(spec=discord.Thread)
     interaction = SimpleNamespace(
         channel=channel,

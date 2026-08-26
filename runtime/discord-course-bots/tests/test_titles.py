@@ -11,6 +11,12 @@ def test_first_cycle_title() -> None:
     )
 
 
+def test_guest_title_has_no_module_or_class_placeholder() -> None:
+    assert canonical_title("M1", None, "極限", "怎麼開始？", guest=True) == (
+        "[Guest][極限] 怎麼開始？"
+    )
+
+
 def test_restores_prefix_without_duplication() -> None:
     assert (
         canonical_title("M1", "01", "隱函數微分", "[M1 | C01][隱函數微分] 還有其他解法嗎？")

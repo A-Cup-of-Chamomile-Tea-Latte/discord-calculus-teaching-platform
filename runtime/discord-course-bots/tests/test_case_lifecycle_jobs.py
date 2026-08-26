@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -6,7 +7,7 @@ import discord
 import pytest
 
 from discord_course_bots.course_assistant.cogs import CaseCog
-from discord_course_bots.course_assistant.service import CourseService
+from discord_course_bots.course_assistant.service import CourseService, PrivateDumpPending
 from discord_course_bots.repository import Repository
 
 
@@ -28,6 +29,24 @@ def _case(repo: Repository, *, status: str = "TRACKED") -> None:
         claim = repo.claim_discord_lifecycle_job("setup")
         assert claim is not None
         assert repo.complete_discord_lifecycle_job(claim.job_id, claim.claim_token)
+
+
+def test_guest_public_identity_is_distinct_from_class_roles(tmp_path: Path) -> None:
+    repo = Repository(tmp_path / "guest-identity.sqlite3")
+    repo.set_config("visitor_role_id", 700)
+    repo.set_config("class_role_01", 101)
+    repo.set_config("class_module_01", "M1")
+    settings = MagicMock()
+    settings.module_code = "M1"
+    service = CourseService(MagicMock(), settings, repo)
+    guest = MagicMock(spec=discord.Member)
+    guest.roles = [SimpleNamespace(id=700)]
+    conflict = MagicMock(spec=discord.Member)
+    conflict.roles = [SimpleNamespace(id=700), SimpleNamespace(id=101)]
+
+    assert service.public_case_context_for_member(guest) == (None, "M1", True)
+    with pytest.raises(RuntimeError, match="同時存在"):
+        service.public_case_context_for_member(conflict)
 
 
 @pytest.mark.asyncio
@@ -66,6 +85,7 @@ async def test_close_job_records_notice_before_one_combined_thread_edit(tmp_path
 async def test_reopen_job_is_restart_safe_after_public_notice(tmp_path: Path) -> None:
     repo = Repository(tmp_path / "reopen.sqlite3")
     _case(repo, status="CLOSED")
+    repo.set_case_jump_url(1, "https://discord.com/channels/1/1")
     reopened = repo.reopen_case(1)
     assert reopened is not None
     claim = repo.claim_discord_lifecycle_job("worker")
@@ -90,6 +110,9 @@ async def test_reopen_job_is_restart_safe_after_public_notice(tmp_path: Path) ->
         reason="Course case reopened",
     )
     thread.send.assert_awaited_once_with("🔄 **第 2 次提問已開始。** 請繼續提出問題。")
+    reopened_dm = repo.get_dm_message("case-reopen:case-1:2")
+    assert reopened_dm is not None
+    assert reopened_dm["message_kind"] == "CASE_REOPENED"
 
 
 @pytest.mark.asyncio
@@ -110,5 +133,69 @@ async def test_ops_status_is_owner_only_and_ephemeral() -> None:
 
     service.repo.safe_runtime_status.assert_not_called()
     interaction.response.send_message.assert_awaited_once_with(
-        "只有本伺服器的系統管理者可以查看狀態。", ephemeral=True
+        "只有本伺服器的系統管理者可以執行此操作。", ephemeral=True
     )
+
+
+def _auto_closed_private(repo: Repository) -> object:
+    opened = repo.begin_private_open_request(
+        interaction_id="private-1",
+        guild_id=10,
+        requester_id=3,
+        ai_content_permission=True,
+    )
+    assert opened["status"] == "PENDING"
+    repo.complete_private_open_request(
+        interaction_id="private-1",
+        channel_id=55,
+        jump_url="https://discord.com/channels/10/55",
+        requester_id=3,
+        ai_content_permission=True,
+    )
+    moment = datetime(2026, 8, 27, tzinfo=UTC)
+    repo.record_case_activity(55, actor_id=9, is_staff=True, occurred_at=moment)
+    repo.mark_due_cases_idle(48 * 3600, now=moment + timedelta(hours=48, seconds=1))
+    idle_claim = repo.claim_discord_lifecycle_job("idle-worker")
+    assert idle_claim is not None
+    assert repo.complete_discord_lifecycle_job(idle_claim.job_id, idle_claim.claim_token)
+    repo.auto_close_due_cases(48 * 3600, now=moment + timedelta(hours=96, seconds=2))
+    lifecycle_claim = repo.claim_discord_lifecycle_job("close-worker")
+    assert lifecycle_claim is not None
+    return lifecycle_claim
+
+
+@pytest.mark.asyncio
+async def test_private_auto_close_waits_for_verified_dump_then_deletes_and_scrubs(
+    tmp_path: Path,
+) -> None:
+    repo = Repository(tmp_path / "private-auto-close.sqlite3")
+    lifecycle_claim = _auto_closed_private(repo)
+    requester = MagicMock(spec=discord.Member)
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.id = 55
+    channel.guild.get_member.return_value = requester
+    channel.overwrites_for.return_value = discord.PermissionOverwrite(send_messages=True)
+    channel.set_permissions = AsyncMock()
+    channel.send = AsyncMock(return_value=SimpleNamespace(id=505))
+    channel.delete = AsyncMock()
+    bot = MagicMock()
+    bot.get_channel.return_value = channel
+    service = CourseService(bot, MagicMock(), repo)
+
+    with pytest.raises(PrivateDumpPending):
+        await service.apply_discord_lifecycle_job(lifecycle_claim)
+    assert not channel.delete.await_count
+    channel.set_permissions.assert_awaited_once()
+    dump_claim = repo.claim_private_dump_job(worker_id="dump-worker")
+    assert dump_claim is not None
+
+    assert repo.complete_private_dump(55, dump_claim.claim_token, "manifest.json")
+    await service.apply_discord_lifecycle_job(lifecycle_claim)
+
+    channel.delete.assert_awaited_once()
+    case = repo.get_case_by_thread(55)
+    assert case["author_id"] == 0
+    assert case["initial_snapshot_json"] == "{}"
+    assert case["jump_url"] is None
+    assert repo.get_private_support(55)["status"] == "DELETED"
+    assert repo.get_private_dump_job(55)["status"] == "DELETED"

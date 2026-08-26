@@ -63,9 +63,15 @@ if (!executable) {
   process.exit(127);
 }
 
+const pythonPathEntries = [
+  repositoryRoot,
+  join(repositoryRoot, "runtime", "discord-course-bots", "src"),
+  ...(process.env.PYTHONPATH ?? "").split(delimiter).filter(Boolean),
+];
+
 const result = spawnSync(executable, process.argv.slice(2), {
   stdio: "inherit",
-  env: process.env,
+  env: { ...process.env, PYTHONPATH: pythonPathEntries.join(delimiter) },
 });
 
 if (result.error) {

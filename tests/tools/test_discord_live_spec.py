@@ -13,7 +13,11 @@ from tools.discord_provisioning.live_spec import (
 
 def test_live_spec_has_unique_logical_keys_and_supported_types() -> None:
     validate_spec()
-    keys = [item.key for item in (*ROLES, *CATEGORIES, *CHANNELS)]
+    keys = (
+        [item.key for item in ROLES]
+        + [item.key for item in CATEGORIES]
+        + [item.key for item in CHANNELS]
+    )
     assert len(keys) == len(set(keys))
     assert {channel.kind for channel in CHANNELS} == {"text", "forum", "voice"}
 
@@ -24,9 +28,13 @@ def test_only_approved_forums_enter_case_lifecycle() -> None:
     assert all(channel.kind == "forum" for channel in CHANNELS if channel.managed_case)
 
 
-def test_live_spec_contains_no_cxx_role_or_channel() -> None:
-    names = [role.name for role in ROLES] + [channel.name for channel in CHANNELS]
-    assert not any(re.fullmatch(r"C\d\d", name) for name in names)
+def test_live_spec_contains_exactly_the_sixteen_class_identity_roles() -> None:
+    role_names = [role.name for role in ROLES]
+    channel_names = [channel.name for channel in CHANNELS]
+    assert [name for name in role_names if re.fullmatch(r"C\d\d", name)] == [
+        f"C{number:02d}" for number in range(1, 17)
+    ]
+    assert not any(re.fullmatch(r"C\d\d", name) for name in channel_names)
 
 
 def test_dump_and_course_bot_are_not_mutable_role_specs() -> None:

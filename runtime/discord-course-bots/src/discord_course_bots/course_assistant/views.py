@@ -36,7 +36,7 @@ class KeywordModal(discord.ui.Modal, title="設定這篇文章"):
             await _ephemeral_error(interaction, "只有原發文者可以設定這篇文章。")
             return
         await interaction.response.send_message(
-            "請選擇是否允許後台以 AI 分析本篇貼文的文字內容。",
+            "請選擇是否允許教學團隊以 AI 分析本篇文字，用於整理常見問題與改善教學。",
             view=AIPermissionView(
                 self.service,
                 thread_id=self.thread_id,
@@ -141,7 +141,7 @@ class DraftSetupView(discord.ui.View):
             return
         draft = self.service.repo.get_draft(channel.id)
         if draft is None:
-            await _ephemeral_error(interaction, "找不到草稿；可能已經完成設定。")
+            await _ephemeral_error(interaction, "這篇文章已完成設定或草稿已失效。")
             return
         if int(draft["author_id"]) != interaction.user.id:
             await _ephemeral_error(interaction, "只有原發文者可以設定這篇文章。")
@@ -151,7 +151,7 @@ class DraftSetupView(discord.ui.View):
         )
 
     @discord.ui.button(
-        label="我沒有問題了，刪除貼文",
+        label="刪除這篇草稿",
         style=discord.ButtonStyle.danger,
         custom_id="course:draft:delete:v1",
     )
@@ -183,7 +183,8 @@ class DraftSetupView(discord.ui.View):
         await interaction.response.send_message(
             "**資料與隱私說明**\n"
             "- 可見範圍：目前 Forum 頻道成員。\n"
-            "- AI 選項只控制文字正文是否可交由 AI 分析。\n"
+            "- AI 選項只控制文字正文是否可由教學團隊交給 AI 分析，"
+            "用途是整理常見問題與改善教學。\n"
             "- 成案時只保存案件所需資料與 Discord 附件參照。\n"
             "- 是否允許 AI 分析會逐案記錄，不會沿用到其他案件。",
             ephemeral=True,

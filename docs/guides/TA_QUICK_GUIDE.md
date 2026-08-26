@@ -2,7 +2,8 @@
 
 > 這是試用前操作指南，不是授課單位核准的正式 SOP。Remote Linux 已是唯一 writer，production v6
 > observation 已於 2026-08-24 PASS；candidate v10 仍須通過 deployment smoke、白帳號 E2E 與 rollback
-> readiness。Portal 動態提交、email 與正式學生試用尚未放行。
+> readiness。Portal join／lookup 與 email verification 已在候選版完成，但正式 GAS sender、
+> production session 與學生試用尚未放行。
 
 ## 一般案件 triage
 
@@ -15,11 +16,12 @@
 
 ## Private Support
 
-- 只允許 owner 與 explicit teaching-team participants，不用公開 case number。
-- 只能在受保護 representation 或 backend 處理；原型預設是 backend-only fixture，未驗證正式 Discord private mechanism。
-- 分析與內容匯出預設 deny；不得為了 demo 或調試而解除。
-- 升級時只新增必要參與者，並觸發必要的 metadata-only audit。
-- 關閉後仍要依保留 review hook 檢視；原型的 30 日是 review trigger，不是已核准的保留期限。
+- 頻道只允許 requester、Bot、TA、教師與明示授權的 system admin；正式使用前以白帳號驗證 ACL。
+- 教學團隊真正回覆後 48 小時無學生回應才進入 `IDLE`；再 48 小時無回應才自動結案。
+- 自動結案會先凍結 requester 發言、執行 `private down` 對應的 dump job 並驗證 manifest；只有
+  `VERIFIED` 才能刪除 Discord 頻道與清除 operational DB 內的正文、連結及 requester ID。
+- 匯出或刪除失敗時保留頻道，使用 `/ops attention-*` 接管；已安全刪除後再求助則以
+  `/ops replacement-case` 建立新 Private case。
 
 ## 匿名回覆
 
@@ -45,5 +47,6 @@
 
 - `/ops status` 只用來看 queue 深度與 safe error code，不代表問題已解決。
 - 不直接用 `sqlite3 UPDATE` 隱藏失敗紀錄，也不盲目重跑可能已完成的 Discord／email side effect。
-- v10 後續會提供 system admin 專用的 attention list／inspect／retry／replacement-case／resolve 操作；指令真正部署前仍由 owner 依 incident runbook 處理。
-- 完成人工接管指令時，必須同步更新本指南與 [事故及安全退回手冊](../security/INCIDENT-AND-SAFE-FALLBACK-RUNBOOK.md)，並補 idempotency、權限與 audit 測試。
+- v10 候選版提供 system admin 專用的 `/ops attention-list`、`attention-inspect`、
+  `attention-retry`、`attention-resolve` 與 `/ops replacement-case`；只操作 allowlisted queue
+  欄位並留下 audit，不接受任意 SQL。

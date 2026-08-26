@@ -157,6 +157,44 @@ function initialize(root: HTMLElement): void {
         });
         const csrfToken = csrfTokenFromCookie();
         if (!sessionResponse.ok || !csrfToken) throw new Error("session");
+        const identityEmail =
+          values.identityType === "STUDENT"
+            ? values.ntuEmail
+            : values.guestEmail;
+        const emailStartResponse = await fetch(`${form.action}/email/start`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRF-Token": csrfToken,
+          },
+          body: new URLSearchParams({
+            identityType: values.identityType,
+            email: identityEmail,
+          }).toString(),
+        });
+        if (!emailStartResponse.ok) throw new Error("email-start");
+        const started = (await emailStartResponse.json()) as {
+          challengeId?: string;
+        };
+        if (!started.challengeId) throw new Error("email-challenge");
+        const verificationCode = window.prompt(
+          `驗證碼已寄到 ${identityEmail}。請輸入六位數驗證碼：`,
+        );
+        if (!verificationCode) throw new Error("email-cancelled");
+        const emailVerifyResponse = await fetch(`${form.action}/email/verify`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRF-Token": csrfToken,
+          },
+          body: new URLSearchParams({
+            challengeId: started.challengeId,
+            code: verificationCode.trim(),
+          }).toString(),
+        });
+        if (!emailVerifyResponse.ok) throw new Error("email-verify");
         const response = await fetch(form.action, {
           method: "POST",
           credentials: "same-origin",
@@ -164,7 +202,10 @@ function initialize(root: HTMLElement): void {
             "Content-Type": "application/x-www-form-urlencoded",
             "X-CSRF-Token": csrfToken,
           },
-          body: new URLSearchParams(request).toString(),
+          body: new URLSearchParams({
+            ...request,
+            emailVerificationId: started.challengeId,
+          }).toString(),
         });
         if (!response.ok) throw new Error("submit");
         form.hidden = true;

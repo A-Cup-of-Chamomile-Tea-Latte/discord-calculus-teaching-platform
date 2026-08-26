@@ -45,4 +45,4 @@ Task 18 在`activation-code.schema.json`新增optional `binding`、`permissionPr
 
 ## 2026-07 Case ID decision
 
-`caseNumber` 採 `Cxx-<6 random chars>-MMDD-HHMM[-P]`。`C99` 是非標準班級／特殊身份；token 使用獨立安全亂數，不得從姓名、學號、Email、Discord ID 或 internal UUID 推導。`case-id-mapping.schema.json` 是受保護 working-store contract，public projection 不得包含 `internalCaseId`。舊 `CALC-000421` fixture label 與 Private `null` 只屬 prototype v1 資料；本次 fixture baseline 直接更新為新格式，沒有 production data migration。
+`caseNumber` 採 `Cxx-<6 random chars>-MMDD-HHMM[-P]`；Guest 公開案件採 `Guest-<6 random chars>-MMDD-HHMM`，不得再以 `C00` 或 `C99` 表示 Guest。`C99…-P` 只保留給 Private Support；token 使用獨立安全亂數，不得從姓名、學號、Email、Discord ID 或 internal UUID 推導。`case-id-mapping.schema.json` 是受保護 working-store contract，public projection 不得包含 `internalCaseId`。舊 `CALC-000421` fixture label 與 Private `null` 只屬 prototype v1 資料；本次 fixture baseline 直接更新為新格式，沒有 production data migration。

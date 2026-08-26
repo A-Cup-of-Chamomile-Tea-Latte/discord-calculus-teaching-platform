@@ -15,7 +15,7 @@ TOKEN_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 TOKEN_LENGTH = 6
 COURSE_TIMEZONE = ZoneInfo("Asia/Taipei")
 CASE_NUMBER_PATTERN = re.compile(
-    r"^C(?P<class_code>[0-9]{2})-"
+    r"^(?:(?:C(?P<class_code>[0-9]{2}))|(?P<guest>Guest))-"
     r"(?P<token>[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6})-"
     r"(?P<month>[0-9]{2})(?P<day>[0-9]{2})-"
     r"(?P<hour>[0-9]{2})(?P<minute>[0-9]{2})"
@@ -27,13 +27,14 @@ CASE_NUMBER_PATTERN = re.compile(
 class CaseNumberParts:
     """Parsed public fields; none of them contains an internal or actor identifier."""
 
-    class_code: str
+    class_code: str | None
     token: str
     month: int
     day: int
     hour: int
     minute: int
     private: bool = False
+    guest: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,7 +97,10 @@ def generate_random_token() -> str:
 
 
 def _validate_parts(parts: CaseNumberParts) -> None:
-    if not re.fullmatch(r"[0-9]{2}", parts.class_code):
+    if parts.guest:
+        if parts.class_code is not None or parts.private:
+            raise ValueError("Guest case numbers cannot contain a class or Private suffix")
+    elif parts.class_code is None or not re.fullmatch(r"[0-9]{2}", parts.class_code):
         raise ValueError("class_code must be exactly two digits; use 99 for special identities")
     if not re.fullmatch(rf"[{TOKEN_ALPHABET}]{{{TOKEN_LENGTH}}}", parts.token):
         raise ValueError("token must contain six uppercase non-ambiguous characters")
@@ -112,8 +116,9 @@ def format_case_number(parts: CaseNumberParts) -> str:
 
     _validate_parts(parts)
     suffix = "-P" if parts.private else ""
+    prefix = "Guest" if parts.guest else f"C{parts.class_code}"
     return (
-        f"C{parts.class_code}-{parts.token}-"
+        f"{prefix}-{parts.token}-"
         f"{parts.month:02d}{parts.day:02d}-{parts.hour:02d}{parts.minute:02d}{suffix}"
     )
 
@@ -132,6 +137,7 @@ def parse_case_number(value: str) -> CaseNumberParts:
         hour=int(match.group("hour")),
         minute=int(match.group("minute")),
         private=match.group("private") is not None,
+        guest=match.group("guest") is not None,
     )
     _validate_parts(parts)
     return parts
@@ -152,8 +158,9 @@ def mask_case_number(value: str) -> str:
 
     parts = parse_case_number(value)
     suffix = "-P" if parts.private else ""
+    prefix = "Guest" if parts.guest else f"C{parts.class_code}"
     return (
-        f"C{parts.class_code}-{parts.token[:2]}****-"
+        f"{prefix}-{parts.token[:2]}****-"
         f"{parts.month:02d}{parts.day:02d}-{parts.hour:02d}{parts.minute:02d}{suffix}"
     )
 
@@ -184,7 +191,12 @@ class CaseIdIssuer:
         self._max_attempts = max_attempts
 
     def issue(
-        self, *, class_code: str, created_at: datetime, private: bool = False
+        self,
+        *,
+        class_code: str | None = None,
+        created_at: datetime,
+        private: bool = False,
+        guest: bool = False,
     ) -> CaseIdMapping:
         if created_at.tzinfo is None or created_at.utcoffset() is None:
             raise ValueError("created_at must be timezone-aware")
@@ -200,6 +212,7 @@ class CaseIdIssuer:
                     hour=local_time.hour,
                     minute=local_time.minute,
                     private=private,
+                    guest=guest,
                 )
             )
             if self._repository.contains_case_number(case_number):

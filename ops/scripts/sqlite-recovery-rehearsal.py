@@ -14,6 +14,16 @@ from pathlib import Path
 from typing import Any
 
 
+def candidate_schema_version() -> int:
+    repository_source = (
+        Path(__file__).resolve().parents[2] / "runtime" / "discord-course-bots" / "src"
+    )
+    sys.path.insert(0, str(repository_source))
+    from discord_course_bots.migrations import MIGRATIONS  # noqa: PLC0415
+
+    return MIGRATIONS[-1].version
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -86,8 +96,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--expected-target-schema",
         type=int,
-        default=11,
-        help="Require the candidate migration to reach this schema version (default: 11).",
+        default=candidate_schema_version(),
+        help="Require the candidate migration to reach this schema version (default: code head).",
     )
     parser.add_argument("--keep", action="store_true")
     return parser.parse_args()

@@ -9,7 +9,9 @@
 | Method | Path | 用途 | 安全邊界 |
 | --- | --- | --- | --- |
 | `GET` | `/api/join`（或 lookup route） | 由已授權 session seed 短效 CSRF cookie | 嚴格 `Origin` allowlist；session cookie 由外部 auth provider 管理，CSRF cookie `SameSite=Strict` |
-| `POST` | `/api/join` | 建立或去重加入申請 | session、`X-CSRF-Token`、JSON body allowlist、每 session／IP rate limit |
+| `POST` | `/api/join/email/start` | 建立 session/email-bound 六位數 challenge 並排入獨立 GAS sender | NTU/聯絡 Email server validation、PBKDF2 code hash、10 分鐘 expiry、rate limit |
+| `POST` | `/api/join/email/verify` | 驗證 challenge | 最多五次、session binding、metadata-only audit |
+| `POST` | `/api/join` | 消耗已驗證 challenge，建立或去重加入申請 | session、`X-CSRF-Token`、body allowlist、每 session／IP rate limit |
 | `POST` | `/api/cases/lookup` | 一次查一個一般或 `-P` 案號 | session、`X-CSRF-Token`、每 session／IP rate limit；不提供 list、polling 或內容 |
 
 加入 endpoint 只回傳通用 `ACCEPTED`；duplicate 不回顯目前申請、Email、Discord ID 或權限。案件查詢只回傳 `case-status-lookup-response.schema.json` 的 allowlist 欄位，Discord URL 只接受 `https://`。
@@ -18,7 +20,7 @@
 
 ## Storage boundary
 
-backend 只透過既有 `Repository` 寫入 SQLite。加入申請使用 v8 的 `join_applications`、`join_application_events` 與既有 Course Manager review queue；案件查詢使用既有 content-free `safe_case_projection`。Browser 不取得 token、SQLite path、row 或 writer access。
+backend 只透過既有 `Repository` 寫入與 Bot 相同的 canonical SQLite。加入申請使用 `join_applications`、`join_application_events`、v12 email challenge/outbox 與既有 Course Manager review queue；案件查詢使用 content-free `safe_case_projection`。Browser 不取得 token、SQLite path、row 或 writer access。
 
 session 是由外部 authenticated same-origin provider 發出的短效簽章 cookie；目前 local implementation 提供 `SignedSessionAuthorizer` 驗證器與 test issuer，不自行替瀏覽器建立登入身分。CSRF seed 是對 `/api/join` 或 `/api/cases/lookup` 的 `GET`，不是登入 endpoint。deployment 前必須由 owner 確認 session provider、單 instance／sticky session，或提供受保護的 shared session store；不能把 local fixture receipt 當 production evidence。
 
@@ -27,7 +29,7 @@ session 是由外部 authenticated same-origin provider 發出的短效簽章 co
 - 注入正式 session secret、same-origin allowlist、durable audit sink、TLS cookie 與 bounded provider rate-limit 設定。
 - 以白帳號驗證加入、duplicate、waiting、approve、reject、archive／restore 與 Discord DM。
 - 以白帳號驗證一般／Private status lookup 的最小揭露與 Discord ACL；不以案號作唯一授權憑證。
-- 先取得 production v6 consistent backup，另在副本演練 v6 → v10、rollback 與 row-count receipt。
+- 先取得 production v6 consistent backup，另在副本演練 v6 → schema v13、rollback 與 row-count receipt。
 - deployment smoke、rollback readiness 與明示 deploy authorization 仍是 human gate。
 
-未完成上述 gate 前，不應設定 `PUBLIC_JOIN_APPLICATION_ENDPOINT`、`PUBLIC_CASE_STATUS_ENDPOINT` 或 `PUBLIC_PORTAL_SESSION_ENDPOINT` 到 public build，也不應開放動態 submission／lookup。若通過，三者預期為 `/api/join`、`/api/cases/lookup`、`/api/join`（最後一個只作 CSRF seed）。
+未完成上述 gate 前，不應設定 `PUBLIC_JOIN_APPLICATION_ENDPOINT`、`PUBLIC_CASE_STATUS_ENDPOINT` 或 `PUBLIC_PORTAL_SESSION_ENDPOINT` 到 public build，也不應開放動態 submission／lookup。若通過，三者預期為 `/api/join`、`/api/cases/lookup`、`/api/join`（最後一個只作 CSRF seed）；Email start/verify 由 join client 以同站相對路徑呼叫。

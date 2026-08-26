@@ -17,8 +17,16 @@ def strip_system_prefix(title: str) -> str:
     return _PREFIX_RE.sub("", strip_close_prefix(title)).strip()
 
 
-def canonical_title(module_code: str, class_code: str, keyword: str, body: str) -> str:
+def canonical_title(
+    module_code: str, class_code: str | None, keyword: str, body: str, *, guest: bool = False
+) -> str:
     clean_body = strip_system_prefix(body) or "未命名問題"
+    if guest:
+        if class_code:
+            raise ValueError("Guest 標題不得包含班別。")
+        return f"[Guest][{keyword}] {clean_body}"[:100]
+    if not class_code:
+        raise ValueError("正式學生標題必須包含班別。")
     return f"[{module_code} | C{class_code}][{keyword}] {clean_body}"[:100]
 
 

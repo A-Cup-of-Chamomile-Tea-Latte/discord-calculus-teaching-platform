@@ -188,6 +188,51 @@ def test_permanent_failure_and_error_code_validation(tmp_path: Path) -> None:
     assert row["error"] == "DISCORD_FORBIDDEN"
 
 
+def test_owner_manual_attention_can_inspect_retry_and_resolve_without_content(
+    tmp_path: Path,
+) -> None:
+    repo = queued_repository(tmp_path / "manual-attention.sqlite3")
+    claim = repo.claim_private_dump_job(worker_id="worker", now=NOW)
+    assert claim is not None
+    assert repo.fail_private_dump_job(
+        channel_id=101,
+        claim_token=claim.claim_token,
+        error_code="DISCORD_FORBIDDEN",
+        retryable=False,
+        now=NOW,
+    )
+
+    items = repo.list_manual_attention()
+    assert items == [
+        {
+            "kind": "PRIVATE_DUMP",
+            "itemKey": "101",
+            "attempts": 1,
+            "errorCode": "DISCORD_FORBIDDEN",
+            "updatedAt": repo.get_private_dump_job(101)["updated_at"],
+        }
+    ]
+    inspected = repo.inspect_manual_attention("PRIVATE_DUMP", "101")
+    assert inspected is not None
+    assert set(inspected) == {
+        "kind",
+        "itemKey",
+        "status",
+        "terminal",
+        "attempts",
+        "errorCode",
+        "updatedAt",
+        "lastOwnerAction",
+        "lastReasonCode",
+    }
+    assert repo.retry_manual_attention(
+        "PRIVATE_DUMP", "101", actor_id=999, reason_code="OWNER_RETRY"
+    )
+    retried = repo.get_private_dump_job(101)
+    assert retried["status"] == "PENDING"
+    assert retried["error"] is None
+
+
 def test_migration_three_preserves_pending_legacy_job(tmp_path: Path) -> None:
     database_path = tmp_path / "legacy-v2.sqlite3"
     repo = queued_repository(database_path)

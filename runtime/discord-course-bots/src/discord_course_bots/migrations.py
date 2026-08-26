@@ -758,6 +758,67 @@ def _apply_email_delivery_outbox_v11(connection: sqlite3.Connection) -> None:
         connection.execute(statement)
 
 
+EMAIL_VERIFICATION_V12_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS email_verification_challenges (
+        challenge_id TEXT PRIMARY KEY,
+        session_fingerprint TEXT NOT NULL,
+        destination_hash TEXT NOT NULL,
+        email_kind TEXT NOT NULL CHECK(email_kind IN ('INSTITUTIONAL', 'CONTACT')),
+        code_salt TEXT NOT NULL,
+        code_hash TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN (
+            'PENDING', 'VERIFIED', 'CONSUMED', 'EXPIRED', 'LOCKED'
+        )),
+        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+        verified_at TEXT,
+        consumed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS email_verification_session_status
+    ON email_verification_challenges(session_fingerprint, status, expires_at)
+    """,
+)
+
+
+def _apply_email_verification_v12(connection: sqlite3.Connection) -> None:
+    for statement in EMAIL_VERIFICATION_V12_STATEMENTS:
+        connection.execute(statement)
+
+
+MANUAL_ATTENTION_V13_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS manual_attention_actions (
+        action_id TEXT PRIMARY KEY,
+        queue_kind TEXT NOT NULL,
+        item_key TEXT NOT NULL,
+        action TEXT NOT NULL CHECK(action IN ('RETRY', 'RESOLVE', 'REPLACEMENT_CASE')),
+        actor_id INTEGER NOT NULL,
+        reason_code TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS manual_attention_item_time
+    ON manual_attention_actions(queue_kind, item_key, created_at)
+    """,
+)
+
+
+def _apply_manual_attention_v13(connection: sqlite3.Connection) -> None:
+    columns = _column_names(connection, "private_open_requests")
+    if "replacement_for_case_id" not in columns:
+        connection.execute(
+            "ALTER TABLE private_open_requests ADD COLUMN replacement_for_case_id TEXT"
+        )
+    for statement in MANUAL_ATTENTION_V13_STATEMENTS:
+        connection.execute(statement)
+
+
 MIGRATIONS = (
     Migration(
         1,
@@ -832,6 +893,21 @@ MIGRATIONS = (
         "\n".join(statement.strip() for statement in EMAIL_DELIVERY_OUTBOX_V11_STATEMENTS)
         + "\nplaintext delivery fields scrubbed on terminal state; v1",
         _apply_email_delivery_outbox_v11,
+    ),
+    Migration(
+        12,
+        "portal-email-verification-challenges-v12",
+        "\n".join(statement.strip() for statement in EMAIL_VERIFICATION_V12_STATEMENTS)
+        + "\nPBKDF2 code hash; session and destination binding; one-time consumption; v1",
+        _apply_email_verification_v12,
+    ),
+    Migration(
+        13,
+        "owner-manual-attention-controls-v13",
+        "private_open_requests replacement_for_case_id;\n"
+        + "\n".join(statement.strip() for statement in MANUAL_ATTENTION_V13_STATEMENTS)
+        + "\nallowlisted retry resolve replacement audit; v1",
+        _apply_manual_attention_v13,
     ),
 )
 

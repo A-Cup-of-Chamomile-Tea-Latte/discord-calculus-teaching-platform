@@ -46,6 +46,8 @@ def test_fresh_database_has_versioned_migration_ledger(tmp_path: Path) -> None:
         "course_role_jobs",
         "course_alias_allocations",
         "email_delivery_outbox",
+        "email_verification_challenges",
+        "manual_attention_actions",
     }
 
 

@@ -92,12 +92,16 @@ export interface CaseLookupAdapter {
 }
 
 export function normalizeCaseNumber(value: string): string {
-  return value.trim().toUpperCase().replace(/\s+/g, "");
+  const normalized = value.trim().toUpperCase().replace(/\s+/g, "");
+  return normalized.startsWith("GUEST-")
+    ? `Guest-${normalized.slice(6)}`
+    : normalized;
 }
 
 export function isCaseNumberWellFormed(value: string): boolean {
+  if (value.startsWith("Guest-") && value.endsWith("-P")) return false;
   const match =
-    /^C[0-9]{2}-[A-HJ-NP-Z2-9]{6}-([0-9]{2})([0-9]{2})-([0-9]{2})([0-9]{2})(?:-P)?$/.exec(
+    /^(?:C[0-9]{2}|Guest)-[A-HJ-NP-Z2-9]{6}-([0-9]{2})([0-9]{2})-([0-9]{2})([0-9]{2})(?:-P)?$/.exec(
       value,
     );
   if (!match) return false;

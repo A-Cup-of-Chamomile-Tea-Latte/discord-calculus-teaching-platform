@@ -44,6 +44,15 @@ def test_c99_special_identity_is_supported() -> None:
     assert validate_case_number(case_number)
 
 
+def test_guest_case_number_has_distinct_prefix_and_no_private_suffix() -> None:
+    case_number = "Guest-R8N6WX-0907-2007"
+    parts = parse_case_number(case_number)
+    assert parts.guest is True
+    assert parts.class_code is None
+    assert format_case_number(parts) == case_number
+    assert mask_case_number(case_number) == "Guest-R8****-0907-2007"
+
+
 @pytest.mark.parametrize(
     "value",
     [

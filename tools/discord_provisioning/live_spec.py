@@ -29,12 +29,16 @@ class ChannelSpec:
     managed_case: bool = False
 
 
-ROLES = (
+CLASS_ROLES: tuple[RoleSpec, ...] = tuple(
+    RoleSpec(f"role.class_{number:02d}", f"C{number:02d}") for number in range(1, 17)
+)
+
+ROLES: tuple[RoleSpec, ...] = (
     RoleSpec("role.admin", "Admin"),
     RoleSpec("role.staff", "Staff / TA"),
     RoleSpec("role.verified_member", "Verified Member"),
     RoleSpec("role.guest", "Guest"),
-)
+) + CLASS_ROLES
 
 CATEGORIES = (
     CategorySpec("category.information", "資訊 / Information"),
@@ -155,7 +159,11 @@ GUIDELINES_CONTENT = """- 請依各頻道用途發文，避免重複洗版。
 
 
 def validate_spec() -> None:
-    resources = [item.key for item in (*ROLES, *CATEGORIES, *CHANNELS)]
+    resources = (
+        [item.key for item in ROLES]
+        + [item.key for item in CATEGORIES]
+        + [item.key for item in CHANNELS]
+    )
     if len(resources) != len(set(resources)):
         raise ValueError("duplicate logical key in live provisioning spec")
     names_by_kind: dict[str, set[str]] = {}
@@ -170,8 +178,9 @@ def validate_spec() -> None:
     actual_managed = {item.key for item in CHANNELS if item.managed_case}
     if actual_managed != MANAGED_FORUM_KEYS:
         raise ValueError("managed_case flags do not match the approved three forums")
-    if any(re.fullmatch(r"C\d\d", role.name) for role in ROLES):
-        raise ValueError("Cxx roles are forbidden")
+    class_roles = [role for role in ROLES if re.fullmatch(r"C\d\d", role.name)]
+    if [role.name for role in class_roles] != [f"C{number:02d}" for number in range(1, 17)]:
+        raise ValueError("live spec must contain exactly C01 through C16")
 
 
 validate_spec()
