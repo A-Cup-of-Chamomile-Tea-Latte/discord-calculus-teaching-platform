@@ -19,6 +19,11 @@ npm run check
 npm run build
 ```
 
+Root npm scripts use `tools/run-python.mjs`: they prefer `PYTHON`, an active
+virtual environment, then the repository `.venv`. Git worktrees also resolve
+the main checkout's shared `.venv`, so `npm run check` does not depend on a
+global `python` shim or repeated manual `PATH` overrides.
+
 在 CI 或需要嚴格依 `package-lock.json` 安裝時，使用 `npm ci` 取代 `npm install`。Windows PowerShell 啟用指令為 `.venv\\Scripts\\Activate.ps1`。
 
 ## 本機 Portal

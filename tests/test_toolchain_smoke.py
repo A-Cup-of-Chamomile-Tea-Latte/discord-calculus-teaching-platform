@@ -1,7 +1,20 @@
+import json
 from pathlib import Path
 
 from bots.common.toolchain_smoke import runtime_mode
 from tools.quality.check_secrets import candidate_files, scan_file, scan_repository
+
+
+def test_root_npm_scripts_use_the_portable_python_launcher() -> None:
+    root = Path(__file__).resolve().parents[1]
+    package = json.loads((root / "package.json").read_text(encoding="utf-8"))
+    python_scripts = ("format", "format:check", "lint", "typecheck", "test:py", "secrets")
+
+    assert (root / "tools/run-python.mjs").is_file()
+    for name in python_scripts:
+        command = package["scripts"][name]
+        assert "node tools/run-python.mjs" in command
+        assert " python -m " not in f" {command} "
 
 
 def test_python_baseline_uses_fixture_mode() -> None:

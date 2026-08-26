@@ -118,4 +118,6 @@ npm run verify:public --workspace @calculus/portal -- \
 - 網站維護者：[Portal 開發指南](apps/portal/docs/DEVELOPMENT.md) → [GitHub Pages 指南](apps/portal/docs/GITHUB_PAGES.md)
 - 系統維護者：[文件總覽](docs/README.md) → [設定總覽](docs/CONFIGURATION.md) → [操作員流程](docs/OPERATOR_WORKFLOW.md)
 
-完整專案檢查需要 Python 3.12–3.14。環境安裝、完整測試與 fixture 資料流示範請看[本機開發指南](docs/architecture/DEVELOPMENT.md)和 [Fixture demo](docs/FIXTURE_DEMO.md)。
+完整專案檢查需要 Python 3.12–3.14。安裝好根目錄 `.venv` 後，npm scripts
+會自動使用它（包含 Git worktree），不需要另外建立全域 `python` shim。
+環境安裝、完整測試與 fixture 資料流示範請看[本機開發指南](docs/architecture/DEVELOPMENT.md)和 [Fixture demo](docs/FIXTURE_DEMO.md)。
