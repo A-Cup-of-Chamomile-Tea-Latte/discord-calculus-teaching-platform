@@ -1,8 +1,13 @@
 # v10 Release Safety Runbook
 
-狀態：`AUTHORIZED / RELEASE_STAGED / PRODUCTION_V6_UNCHANGED`。v10 release `3411aff` 與 ADDITIVE
-request 已在 remote staging；等待一次 root-owned deployer 更新。尚未重啟、live migrate、套用 Discord
-mapping 或修改 production DB。
+狀態：`SECURITY_REVIEWED / RELEASE_STAGED / PRODUCTION_V6_UNCHANGED`。舊 `3411aff` request 已可逆封存；
+目前 staging request 指向修補後的 exact commit，release ID 與 SHA-256 以 remote `request.txt` 為準。
+restricted deployer 已就緒，但尚未執行；沒有重啟、live migrate、套用 Discord mapping 或修改
+production DB。
+
+本輪安全決策：移除未納管的 `GET /api/cases/status` 旁路；草稿刪除失敗只回固定訊息；Private
+Support 在無唯一班級 mapping 時保留受控 module metadata fallback。Private 頻道 ACL 仍只由 Discord
+overwrites 決定，不由 module metadata 決定。48＋48 代表自動結案，不代表自動刪除頻道。
 
 ## 0. 固定邊界
 
@@ -72,9 +77,11 @@ python3 ops/scripts/validate-v10-mapping.py \
 
 ## 4. Owner deploy decision 與單一路徑部署
 
-只有 PM／課程 owner 明示本次 v10 deploy 授權後，才可準備 request；沒有授權時停在本節之前：
+Release 與 request 可先在非 production staging 完成 checksum 固定；只有 production backup rehearsal、
+mapping gate 與 PM／課程 owner 對該 exact release 的明示 deploy 授權全部通過後，才可執行 restricted
+deployer：
 
-1. 複製已驗證的 exact release archive 與 dependency lock 至固定 inbox。
+1. 核對固定 inbox 中 exact release archive、dependency lock、release ID 與 SHA-256。
 2. 以 `ops/scripts/prepare-calculus-discord-deploy-request.sh` 產生四欄 request：release、archive SHA-256、target schema `10`、migration class `ADDITIVE`。
 3. 由既有 root-owned `/usr/local/sbin/calculus-discord-deploy` 執行唯一 production cutover；不直接執行 archive 內任意 script，不切換 `/opt/calculus-discord/current`。
 4. Deployer 先驗證 current schema／ledger、release checksum、builder workspace 與 verified-copy migration；全部通過後才短暫停止三服務。
