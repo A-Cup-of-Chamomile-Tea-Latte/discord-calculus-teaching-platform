@@ -18,16 +18,19 @@ overwrites 決定，不由 module metadata 決定。Private 在 48＋48 自動�
 
 ## 1. Host owner 單次 prepare
 
-Codex／PM 先提供 exact release 中六個 critical files 的 SHA-256；朋友先用非 sudo `sha256sum -c`
-核對。全部 PASS 後，朋友只執行下列一個 root command 一次：
+Codex／PM 提供 exact Git archive、standalone bootstrap 與兩者的 SHA-256；朋友先用非 sudo
+`sha256sum -c` 核對。將兩檔放進固定 `incoming` 後，朋友只執行下列一個 root command 一次：
 
 ```bash
-sudo env PREPARE_V13_HOST=PREPARE-V13-HOST \
-  /home/ding/calculus-discord-staging/releases/<exact-release>/ops/scripts/v13-host-owner-prepare.sh \
-  /home/ding/calculus-discord-staging/releases/<exact-release>
+sudo env BOOTSTRAP_V13_RELEASE=BOOTSTRAP-V13-RELEASE \
+  bash /home/ding/calculus-discord-staging/incoming/v13-friend-bootstrap.sh \
+  /home/ding/calculus-discord-staging/incoming/v13-release-<exact-release>.tar \
+  <archive-sha256> <exact-release>
 ```
 
-這個 command 在任何 root mutation 前先檢查 exact path、critical files、archive tree、dependency lock、
+Bootstrap 以單一 file descriptor 驗證 archive 是 regular file、SHA-256、Git commit、path traversal、檔案型別、
+數量與大小，再 atomic stage 成 owner-only release。接著 owner prepare 在任何 host mutation 前先檢查
+exact path、critical files、archive tree、dependency lock、
 deployer old/new/unknown 狀態、sudoers、users、directories、三服務 active／enabled／service user、runtime
 env owner/mode/必填值、`BOT_OWNER_IDS` bootstrap，以及 production DB owner/mode/integrity/foreign keys／
 schema v6／migration names+checksums、fresh health／既有 failure queues、磁碟空間與 inode。只接受已知舊

@@ -5,7 +5,7 @@
   "candidateSchema": 13,
   "productionSchema": 6,
   "candidateSecurityReview": "PASS_WORKTREE_DEPLOYMENT_HARDENING_REVIEWED",
-  "candidateQualityGate": "WORKTREE_PORTAL_61_CONFIG_3_GAS_70_PYTHON_330_PASS_BUILD_PASS_AUDIT_0_SECRET_SCAN_PASS",
+  "candidateQualityGate": "WORKTREE_PORTAL_61_CONFIG_3_GAS_70_PYTHON_331_PASS_BUILD_PASS_AUDIT_0_SECRET_SCAN_PASS",
   "productionModifiedByThisProcedure": false,
   "deployExecuted": false,
   "productionBackupRehearsal": "BLOCKED_NO_PRODUCTION_BACKUP_IN_WORKSPACE",

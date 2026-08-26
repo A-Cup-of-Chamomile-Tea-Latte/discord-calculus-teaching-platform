@@ -10,6 +10,7 @@ INSTALLER = PROJECT_ROOT / "ops/scripts/install-calculus-discord-deployer.sh"
 PREPARER = PROJECT_ROOT / "ops/scripts/prepare-calculus-discord-deploy-request.sh"
 REPAIRER = PROJECT_ROOT / "ops/scripts/phase2c-repair-restricted-deployer.sh"
 HOST_PREPARER = PROJECT_ROOT / "ops/scripts/v13-host-owner-prepare.sh"
+FRIEND_BOOTSTRAP = PROJECT_ROOT / "ops/scripts/v13-friend-bootstrap.sh"
 SUDOERS = PROJECT_ROOT / "ops/sudoers/calculus-discord-deploy"
 DEPENDENCY_LOCK = PROJECT_ROOT / "ops/requirements/discord-runtime.txt"
 SUPERSEDED_MUTATORS = (
@@ -20,7 +21,14 @@ SUPERSEDED_MUTATORS = (
 
 
 def test_deployment_scripts_are_executable_and_parse_as_bash() -> None:
-    for script in (DEPLOYER, INSTALLER, PREPARER, REPAIRER, HOST_PREPARER):
+    for script in (
+        DEPLOYER,
+        INSTALLER,
+        PREPARER,
+        REPAIRER,
+        HOST_PREPARER,
+        FRIEND_BOOTSTRAP,
+    ):
         assert os.access(script, os.X_OK)
         subprocess.run(["bash", "-n", script], check=True)
 
@@ -113,3 +121,18 @@ def test_superseded_phase2c_mutators_refuse_before_old_logic() -> None:
         lines = script.read_text(encoding="utf-8").splitlines()
         assert lines[1] == "printf 'phase2c_error=SUPERSEDED_USE_V13_HOST_OWNER_PREPARE\\n' >&2"
         assert lines[2] == "exit 2"
+
+
+def test_friend_bootstrap_validates_exact_archive_then_only_prepares_host() -> None:
+    source = FRIEND_BOOTSTRAP.read_text(encoding="utf-8")
+    assert "BOOTSTRAP_V13_RELEASE:-" in source
+    assert "ARCHIVE_PATH_REFUSED" in source
+    assert "os.O_NOFOLLOW" in source
+    assert "hashlib.file_digest" in source
+    assert 'bundle.pax_headers.get("comment"' in source
+    assert 'bundle.extractall(destination, filter="data")' in source
+    assert "PREPARE_V13_HOST=PREPARE-V13-HOST" in source
+    assert "deploy_executed=NO" in source
+    assert "systemctl stop" not in source
+    assert "systemctl start" not in source
+    assert "/usr/local/sbin/calculus-discord-deploy" not in source
