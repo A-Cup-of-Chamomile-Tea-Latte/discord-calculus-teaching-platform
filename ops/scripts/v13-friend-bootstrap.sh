@@ -24,7 +24,7 @@ fail() {
 [[ $(hostname) == jerrymk-workstation ]] || fail WRONG_HOST
 [[ $release_id =~ ^[a-f0-9]{12}$ ]] || fail RELEASE_ID_INVALID
 [[ $expected_sha256 =~ ^[a-f0-9]{64}$ ]] || fail ARCHIVE_SHA256_INVALID
-[[ $archive == "$staging_root/incoming/v13-release-$release_id.tar" ]] ||
+[[ $archive == "$staging_root/v13-release-$release_id.tar" ]] ||
   fail ARCHIVE_PATH_REFUSED
 id ding >/dev/null 2>&1 || fail DEPLOY_USER_MISSING
 for command in chown chmod find hostname id install mv python3 rm stat; do
@@ -35,7 +35,7 @@ release_root=$staging_root/releases
 destination=$release_root/$release_id
 incoming=$destination.incoming
 [[ ! -e $destination && ! -e $incoming ]] || fail RELEASE_DESTINATION_NOT_EMPTY
-install -d -o ding -g ding -m 0700 "$staging_root/incoming" "$release_root"
+install -d -o ding -g ding -m 0700 "$release_root"
 install -d -o root -g root -m 0700 "$incoming"
 cleanup_bootstrap() {
   local result=$?

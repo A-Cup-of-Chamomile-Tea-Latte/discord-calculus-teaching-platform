@@ -19,12 +19,12 @@ overwrites 決定，不由 module metadata 決定。Private 在 48＋48 自動�
 ## 1. Host owner 單次 prepare
 
 Codex／PM 提供 exact Git archive、standalone bootstrap 與兩者的 SHA-256；朋友先用非 sudo
-`sha256sum -c` 核對。將兩檔放進固定 `incoming` 後，朋友只執行下列一個 root command 一次：
+`sha256sum -c` 核對。將兩檔放進既有 staging root 後，朋友只執行下列一個 root command 一次：
 
 ```bash
 sudo env BOOTSTRAP_V13_RELEASE=BOOTSTRAP-V13-RELEASE \
-  bash /home/ding/calculus-discord-staging/incoming/v13-friend-bootstrap.sh \
-  /home/ding/calculus-discord-staging/incoming/v13-release-<exact-release>.tar \
+  bash /home/ding/calculus-discord-staging/v13-friend-bootstrap.sh \
+  /home/ding/calculus-discord-staging/v13-release-<exact-release>.tar \
   <archive-sha256> <exact-release>
 ```
 
