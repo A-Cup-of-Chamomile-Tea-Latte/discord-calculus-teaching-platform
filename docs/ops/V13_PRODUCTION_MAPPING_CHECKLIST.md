@@ -1,4 +1,4 @@
-# v10 Production Mapping Checklist
+# v13 Deployment Mapping Checklist
 
 狀態：`PENDING_OWNER_INPUT`。本表只核對 logical shape 與缺值；不讀取或保存既有 Discord resource IDs、使用者 IDs 或 secrets，也不代表已套用 Discord。
 
@@ -51,7 +51,7 @@
 
 ## 驗證方式
 
-1. 先執行 `python3 ops/scripts/validate-v10-mapping.py config/release/v10-production-mapping.template.json --allow-pending`，確認 class coverage 與 class→Module 不漂移。
+1. 先執行 `python3 ops/scripts/validate-v13-mapping.py config/release/v13-production-mapping.template.json --allow-pending`，確認 class coverage 與 class→Module 不漂移。
 2. Owner 以 secure runtime／owner-only mapping 提供值後，重跑同一 validator；未填欄位、非 17–20 位數字 snowflake、重複資源或錯誤 Guild 必須 fail closed。
 3. 以 read-only inventory／resolved-member simulation 驗證學生、其他班學生、該班 TA、其他班 TA、staff、guest 與兩個 bot 的 view／post／manage 邊界。
 4. 產生 add／modify／remove diff 與 rollback plan，交由 owner 審閱；本任務不執行 Discord apply。

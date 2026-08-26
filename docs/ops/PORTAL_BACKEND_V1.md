@@ -2,7 +2,7 @@
 
 狀態：`IMPLEMENTED_LOCAL / NOT_DEPLOYED`
 
-這是 candidate v10 的最小 same-origin backend 邊界。它不處理 CNAME、repository owner、公開 URL、hosting、OAuth provider 或 rollout；未注入正式設定時，public build 仍維持 fail closed。
+這是 v13 deployment candidate 的最小 same-origin backend 邊界。它不處理 CNAME、repository owner、公開 URL、hosting、OAuth provider 或 rollout；未注入正式設定時，public build 仍維持 fail closed。
 
 ## Routes
 

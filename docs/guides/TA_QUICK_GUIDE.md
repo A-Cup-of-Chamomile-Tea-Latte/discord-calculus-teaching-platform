@@ -1,7 +1,7 @@
 # 助教快速指南
 
 > 這是試用前操作指南，不是授課單位核准的正式 SOP。Remote Linux 已是唯一 writer，production v6
-> observation 已於 2026-08-24 PASS；candidate v10 仍須通過 deployment smoke、白帳號 E2E 與 rollback
+> observation 已於 2026-08-24 PASS；v13 deployment 仍須通過 deployment smoke、白帳號 E2E 與 rollback
 > readiness。Portal join／lookup 與 email verification 已在候選版完成，但正式 GAS sender、
 > production session 與學生試用尚未放行。
 
@@ -18,7 +18,7 @@
 
 - 頻道只允許 requester、Bot、TA、教師與明示授權的 system admin；正式使用前以白帳號驗證 ACL。
 - 教學團隊真正回覆後 48 小時無學生回應才進入 `IDLE`；再 48 小時無回應才自動結案。
-- 自動結案會先凍結 requester 發言、執行 `private down` 對應的 dump job 並驗證 manifest；只有
+- 自動結案，或手動結案滿 48 小時，會先凍結 requester 發言、執行 Private dump job 並驗證 manifest；只有
   `VERIFIED` 才能刪除 Discord 頻道與清除 operational DB 內的正文、連結及 requester ID。
 - 匯出或刪除失敗時保留頻道，使用 `/ops attention-*` 接管；已安全刪除後再求助則以
   `/ops replacement-case` 建立新 Private case。
@@ -47,6 +47,6 @@
 
 - `/ops status` 只用來看 queue 深度與 safe error code，不代表問題已解決。
 - 不直接用 `sqlite3 UPDATE` 隱藏失敗紀錄，也不盲目重跑可能已完成的 Discord／email side effect。
-- v10 候選版提供 system admin 專用的 `/ops attention-list`、`attention-inspect`、
+- v13 deployment candidate 提供 system admin 專用的 `/ops attention-list`、`attention-inspect`、
   `attention-retry`、`attention-resolve` 與 `/ops replacement-case`；只操作 allowlisted queue
   欄位並留下 audit，不接受任意 SQL。

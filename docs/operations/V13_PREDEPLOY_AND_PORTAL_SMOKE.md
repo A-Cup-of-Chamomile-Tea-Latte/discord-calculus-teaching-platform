@@ -1,6 +1,6 @@
-# v10 predeploy and Portal smoke runbook
+# v13 deployment preflight and Portal smoke runbook
 
-本文件只涵蓋 v10 上線前 gate 與同站 Portal API smoke。它不變更 CNAME、hosting、rollout
+本文件只涵蓋 v13 deployment 上線前 gate 與同站 Portal API smoke。它不變更 CNAME、hosting、rollout
 或 production deployment。
 
 ## Canonical data path
@@ -41,12 +41,12 @@ Manager role 高於 16 個 class roles，再決定是否 apply。
 
 ## Gate 3: one explicit deploy decision
 
-Gate 1 與 Gate 2 的 receipts 都通過後，由 owner 明示一次 `DEPLOY v10` 或 `DO NOT DEPLOY`。
+Gate 1 與 Gate 2 的 receipts 都通過後，由 owner 明示一次 `DEPLOY v13` 或 `DO NOT DEPLOY`。
 沒有這句明示授權就停止，不更新 service、不 migrate production DB。
 
 ## Post-deploy white-account and Portal smoke
 
-Bot v10 active 後才執行：
+v13 deployment active 後才執行：
 
 1. 白帳號走 Student email start -> 六位數驗證 -> join submission -> reviewer bind/approve。
 2. 驗證只收到一次 Email，Course Manager 套用 `Verified Member` 與唯一 `Cxx` role。

@@ -1,7 +1,7 @@
 # Discord Course Bots — Canonical tracked runtime
 
 這是 Discord Bot 的 canonical tracked runtime 與目前 production candidate。Remote Linux 的已驗證
-production baseline 仍是 schema v6；v10 product candidate 已整合到 schema v11，但尚未部署。任何 forward
+production baseline 仍是 schema v6；v13 deployment candidate 已整合到 schema v13，但尚未部署。任何 forward
 都必須先用 production consistent backup 演練 migration，並取得另外的部署授權。
 
 ## 已實作
@@ -12,7 +12,7 @@ production baseline 仍是 schema v6；v10 product candidate 已整合到 schema
 - 偵測白名單 Forum 的新文章。
 - 公開起始設定訊息；只有原作者可設定或按「刪除這篇草稿」。
 - 私人關鍵字輸入 + AI Yes/No 選擇。
-- 正式成案、初始快照、案號、DM；DM 失敗時只記錄 Email fallback 待處理，不假裝已寄信。
+- 正式成案、初始快照、案號、DM；DM 失敗時進人工接管，不改寄 Email、不假裝已通知。
 - 固定 `[M{n} | C{classCode}][關鍵字]` 前綴與離線後校正；班別從 Discord class role 唯一判斷，Module 從設定取得。
 - `/case close` 與「繼續詢問」。
 - `/private open` 建立受限 Private Support 頻道；案號使用 `C99…-P`。
@@ -26,7 +26,7 @@ production baseline 仍是 schema v6；v10 product candidate 已整合到 schema
 
 - 邀請權限只有 View Channel + Read Message History。
 - `probe`：一次性登入、列出可見頻道與權限後離線。
-- `online`：處理 Private Support 到期時的 verified export；v10 production 必須保持此服務在線。
+- `online`：處理 Private Support 到期時的 verified export；v13 deployment 必須保持此服務在線。
 - `export-public`：只匯出已登錄的公開 Forum 案件。
 - `export-private`：只匯出已登錄的 Private Support 案件。
 - Private dump queue 使用原子 claim、唯一 token、15 分鐘 lease、5 分鐘心跳、指數退避與最多五次嘗試；只有持有目前 claim token 的 worker 可以完成或標記失敗。

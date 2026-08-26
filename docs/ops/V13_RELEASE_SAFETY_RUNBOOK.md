@@ -1,4 +1,4 @@
-# v10 Release Safety Runbook
+# v13 Deployment Safety Runbook
 
 狀態：`SECURITY_REVIEWED / RELEASE_STAGED / PRODUCTION_V6_UNCHANGED`。舊 `3411aff` request 已可逆封存；
 目前 staging request 指向修補後的 exact commit，release ID 與 SHA-256 以 remote `request.txt` 為準。
@@ -7,13 +7,14 @@ production DB。
 
 本輪安全決策：移除未納管的 `GET /api/cases/status` 旁路；草稿刪除失敗只回固定訊息；Private
 Support 在無唯一班級 mapping 時保留受控 module metadata fallback。Private 頻道 ACL 仍只由 Discord
-overwrites 決定，不由 module metadata 決定。48＋48 代表自動結案，不代表自動刪除頻道。
+overwrites 決定，不由 module metadata 決定。Private 在 48＋48 自動結案，或手動結案滿 48 小時後，
+先執行 verified dump；只有 manifest 驗證成功才刪除受限頻道。
 
 ## 0. 固定邊界
 
 - Production 仍是 remote Linux、schema v6；SQLite 是唯一 operational authority。
 - 唯一 production writer 必須是 remote 的三個 systemd services：`calculus-course-assistant.service`、`calculus-dump-bot.service`、`calculus-data-bridge.service`。Mac writer 必須維持停止。
-- v10 product candidate 目標為 schema v11；migration 必須在 consistent backup 的可拋棄副本完成後，才可進入 owner 的 deploy decision。
+- v13 deployment 目標為 schema v13；migration 必須在 consistent backup 的可拋棄副本完成後，才可進入 owner 的 deploy decision。
 - 不把 raw SQLite rows、案件內容、學生／TA／教師 IDs、secrets 或附件放入 receipt、Git 或聊天。
 
 ## 1. Preflight：只讀核對
@@ -22,9 +23,9 @@ overwrites 決定，不由 module metadata 決定。48＋48 代表自動結案�
 
 ```bash
 DB=/var/lib/calculus-discord/runtime.sqlite3
-BACKUP=/var/lib/calculus-discord/backups/v10-preflight.sqlite3
-WORK=/var/lib/calculus-discord/staging/v10-release-safety
-RECEIPT=/var/lib/calculus-discord/receipts/v10-release-safety.json
+BACKUP=/var/lib/calculus-discord/backups/v13-preflight.sqlite3
+WORK=/var/lib/calculus-discord/staging/v13-release-safety
+RECEIPT=/var/lib/calculus-discord/receipts/v13-release-safety.json
 
 readlink -f /opt/calculus-discord/current
 for unit in calculus-course-assistant.service calculus-dump-bot.service calculus-data-bridge.service; do
@@ -49,11 +50,11 @@ chmod 0600 "$BACKUP"
 python3 ops/scripts/sqlite-recovery-rehearsal.py \
   "$BACKUP" "$WORK" \
   --expected-source-schema 6 \
-  --expected-target-schema 11 \
+  --expected-target-schema 13 \
   >"$RECEIPT"
 ```
 
-`PASS` 必須同時滿足：backup 可讀、source／backup／restore `integrity_check=ok`、source schema v6、source ledger 1–6 完整、candidate ledger 1–10 完整、所有既有 table row counts 不變、migration 只發生在副本、rollback copy 與 pre-migration backup 等價、workspace 可寫且資料庫 owner-only、source checksum 在演練前後不變。Receipt 僅含 schema、count、health、mode 與 SHA-256。
+`PASS` 必須同時滿足：backup 可讀、source／backup／restore `integrity_check=ok`、source schema v6、source ledger 1–6 完整、candidate ledger 1–13 完整、所有既有 table row counts 不變、migration 只發生在副本、rollback copy 與 pre-migration backup 等價、workspace 可寫且資料庫 owner-only、source checksum 在演練前後不變。Receipt 僅含 schema、count、health、mode 與 SHA-256。
 
 演練結束後不保留副本：
 
@@ -68,12 +69,12 @@ find "$WORK" -mindepth 1 -maxdepth 1 -type d -exec rm -rf -- {} +
 先執行不含真實 IDs 的 mapping shape 檢查：
 
 ```bash
-python3 ops/scripts/validate-v10-mapping.py \
-  config/release/v10-production-mapping.template.json \
+python3 ops/scripts/validate-v13-mapping.py \
+  config/release/v13-production-mapping.template.json \
   --allow-pending
 ```
 
-只有 owner 以受控 runtime 設定提供 guild、course／visitor role、C01–C16 class roles、三個 managed forums、Private category 與 reviewer／system-admin grants 後，才可將 receipt 改為 `PASS`。真實值不得回填 tracked template；mapping 的必填項與已知缺值見 `docs/ops/V10_PRODUCTION_MAPPING_CHECKLIST.md`。
+只有 owner 以受控 runtime 設定提供 guild、course／visitor role、C01–C16 class roles、三個 managed forums、Private category 與 reviewer／system-admin grants 後，才可將 receipt 改為 `PASS`。真實值不得回填 tracked template；mapping 的必填項與已知缺值見 `docs/ops/V13_PRODUCTION_MAPPING_CHECKLIST.md`。
 
 ## 4. Owner deploy decision 與單一路徑部署
 
@@ -82,10 +83,10 @@ mapping gate 與 PM／課程 owner 對該 exact release 的明示 deploy 授權�
 deployer：
 
 1. 核對固定 inbox 中 exact release archive、dependency lock、release ID 與 SHA-256。
-2. 以 `ops/scripts/prepare-calculus-discord-deploy-request.sh` 產生四欄 request：release、archive SHA-256、target schema `10`、migration class `ADDITIVE`。
+2. 以 `ops/scripts/prepare-calculus-discord-deploy-request.sh` 產生四欄 request：release、archive SHA-256、target schema `13`、migration class `ADDITIVE`。
 3. 由既有 root-owned `/usr/local/sbin/calculus-discord-deploy` 執行唯一 production cutover；不直接執行 archive 內任意 script，不切換 `/opt/calculus-discord/current`。
 4. Deployer 先驗證 current schema／ledger、release checksum、builder workspace 與 verified-copy migration；全部通過後才短暫停止三服務。
-5. Deployer 保存 pre-deploy rollback DB，再以單一 writer 完成 v6 → v10，atomic 切換 release。
+5. Deployer 保存 pre-deploy rollback DB，再以單一 writer 完成 v6 → v13，atomic 切換 release。
 6. 依固定順序啟動並等 fresh health：course assistant → dump bot → data bridge。
 
 ## 5. Deployment smoke 與 manual attention
@@ -116,4 +117,4 @@ sqlite3 "$DB" "SELECT 'discord_lifecycle', COUNT(*) FROM discord_lifecycle_jobs 
 
 ## 7. Backup retention
 
-Pre-deploy rollback DB、checksum receipt 與 deploy／rollback audit 必須保留到 owner 明示 v10 smoke、白帳號 E2E、rollback readiness 與 observation window 已接受。保留期限尚未被治理 owner 明確核准，因此本 release 不自動刪除 backup；未指定 retention owner 或期限即 `FAIL_CLOSED`。
+Pre-deploy rollback DB、checksum receipt 與 deploy／rollback audit 必須保留到 owner 明示 v13 smoke、白帳號 E2E、rollback readiness 與 observation window 已接受。Owner 已決定：小型 Private export 可暫存 remote；大型附件先拉回本地並驗證完整接收，再刪 remote copy。

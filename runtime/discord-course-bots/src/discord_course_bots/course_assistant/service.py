@@ -10,7 +10,7 @@ import discord
 from discord_course_bots.domain.keyword import normalize_keyword
 from discord_course_bots.domain.titles import canonical_title, closed_title, cycle_title
 from discord_course_bots.jobs import CourseRoleClaim, DiscordLifecycleClaim, PrivateOpenClaim
-from discord_course_bots.repository import Repository
+from discord_course_bots.repository import Repository, canonical_case_status
 from discord_course_bots.settings import CourseAssistantSettings
 
 from .interaction_throttle import InteractionThrottle
@@ -434,6 +434,12 @@ class CourseService:
         if job is None:
             raise RuntimeError("LIFECYCLE_JOB_MISSING")
         case = self.repo.get_case_by_thread(int(job["thread_id"]))
+        if str(job["transition"]) == "AUTO_CLOSE" and (
+            case is None or canonical_case_status(str(case["status"])) != "AUTO_CLOSED"
+        ):
+            # A student may reopen between scheduler enqueue and side-effect execution.
+            # Completing the stale job without touching Discord prevents deleting a live case.
+            return
         is_private_auto_close = (
             case is not None
             and str(case["visibility"]) == "PRIVATE"

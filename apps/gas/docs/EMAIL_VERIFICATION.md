@@ -1,6 +1,6 @@
 # 電子郵件驗證與 delivery boundary
 
-Task 19 的 provider-neutral domain service 與純記憶體 mock 仍保留。v10 candidate 另加入尚未部署的 production delivery boundary：SQLite durable outbox 是唯一 delivery authority，owner-only 獨立 GAS 只負責呼叫 `MailApp`；Sheet-bound GAS 不寄驗證信，也沒有 public Web App route。
+Task 19 的 provider-neutral domain service 與純記憶體 mock 仍保留。v13 deployment candidate 另加入尚未部署的 production delivery boundary：SQLite durable outbox 是唯一 delivery authority，owner-only 獨立 GAS 只負責呼叫 `MailApp`；Sheet-bound GAS 不寄驗證信，也沒有 public Web App route。Email 僅用於加入申請驗證；Public／Private 案件通知維持 Discord DM-only。
 
 ## 身分語意
 

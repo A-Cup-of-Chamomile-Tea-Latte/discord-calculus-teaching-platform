@@ -1,13 +1,13 @@
 {
   "status": "FAIL_CLOSED_PRODUCTION_BACKUP_REQUIRED",
-  "candidateSchema": 10,
+  "candidateSchema": 13,
   "productionSchema": 6,
   "candidateSecurityReview": "PASS_WITH_PRIVATE_METADATA_FALLBACK_ACCEPTED",
-  "candidateQualityGate": "PYTHON_300_PASS_RUFF_PASS_SECRET_SCAN_PASS",
+  "candidateQualityGate": "PORTAL_61_CONFIG_3_GAS_70_PYTHON_316_PASS_BUILD_PASS_SECRET_SCAN_PASS",
   "productionModified": false,
   "deployExecuted": false,
   "productionBackupRehearsal": "BLOCKED_NO_PRODUCTION_BACKUP_IN_WORKSPACE",
-  "localRecoveryTooling": "READY_WITH_STRICT_V6_TO_V10_GATES",
+  "localRecoveryTooling": "READY_WITH_STRICT_V6_TO_V13_GATES",
   "mapping": "PENDING_OWNER_INPUT",
   "whiteAccount": "READY_FOR_POST_DEPLOY_E2E_NOT_RUN",
   "runbook": "RELEASE_STAGED_DEPLOY_DECISION_PENDING_AFTER_GATES",
@@ -19,7 +19,6 @@
     "production consistent backup copy",
     "production Discord mapping values and ACL verification",
     "reviewer/system-admin secure runtime grants",
-    "backup retention owner and accepted retention window",
-    "PM/owner explicit deploy authorization for the staged replacement candidate"
+    "PM/owner explicit v13 deploy authorization for the staged exact candidate"
   ]
 }

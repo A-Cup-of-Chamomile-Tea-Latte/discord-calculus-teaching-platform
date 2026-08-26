@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the shape of the v10 production mapping without printing IDs."""
+"""Validate the shape of the v13 deployment mapping without printing IDs."""
 
 from __future__ import annotations
 

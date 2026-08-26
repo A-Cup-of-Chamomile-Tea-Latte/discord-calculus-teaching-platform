@@ -2,7 +2,7 @@
 
 > **歷史初次 cutover 文件。** Remote Linux cutover 與 production v6 的 24 小時 observation 已於
 > 2026-08-24 完成；不得重跑本文件的 Mac → Remote cutover 步驟。現行 v10 換版只使用
-> [`V10_RELEASE_SAFETY_RUNBOOK.md`](../../ops/V10_RELEASE_SAFETY_RUNBOOK.md) 與 root-owned restricted deployer。
+> [`V13_RELEASE_SAFETY_RUNBOOK.md`](../../ops/V13_RELEASE_SAFETY_RUNBOOK.md) 與 root-owned restricted deployer。
 
 ## 前置必須全部 PASS
 

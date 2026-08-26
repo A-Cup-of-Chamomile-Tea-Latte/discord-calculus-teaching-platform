@@ -14,7 +14,7 @@ User creates post in configured Forum
 → rename thread with system prefix
 → save initial snapshot + case row
 → delete setup message
-→ DM case number, or record pending Email fallback
+→ enqueue Discord DM with case number; failure enters manual attention
 ```
 
 ## Close and reopen
@@ -50,13 +50,13 @@ Local administrator runs probe/export
 Private Support 的 online worker 只處理已由授權操作建立的本機 job：
 
 ```text
-closed Private Support job is queued
+auto-closed Private Support, or manually closed for 48 hours, is queued
 → one worker atomically claims it with a unique token and expiring lease
 → heartbeat renews the live claim during export
 → fetch registered closed channel and write files
 → verify manifest and hashes
 → token-checked transition to VERIFIED
-→ deletion remains a separate explicit state transition
+→ delete only after VERIFIED; otherwise retain the channel for manual attention
 ```
 
 暫時性失敗會清除 claim、設定 bounded exponential backoff 並回到 `PENDING`；永久錯誤或

@@ -539,13 +539,19 @@ class Repository:
         changed: list[sqlite3.Row] = []
         with self.transaction() as db:
             rows = db.execute(
-                "SELECT * FROM cases WHERE status = 'IDLE' AND idle_at <= ?", (cutoff,)
+                """
+                SELECT * FROM cases
+                WHERE (status = 'IDLE' AND idle_at <= ?)
+                   OR (visibility = 'PRIVATE' AND status = 'CLOSED' AND closed_at <= ?)
+                """,
+                (cutoff, cutoff),
             ).fetchall()
             for row in rows:
+                previous_status = canonical_case_status(str(row["status"]))
                 result = db.execute(
                     """UPDATE cases SET status = 'AUTO_CLOSED', closed_at = ?, updated_at = ?
-                       WHERE case_id = ? AND status = 'IDLE'""",
-                    (at, at, str(row["case_id"])),
+                       WHERE case_id = ? AND status = ?""",
+                    (at, at, str(row["case_id"]), str(row["status"])),
                 )
                 if result.rowcount != 1:
                     continue
@@ -554,7 +560,7 @@ class Repository:
                     case_id=str(row["case_id"]),
                     case_number=str(row["case_number"]),
                     event_type="AUTO_CLOSE",
-                    previous_status="IDLE",
+                    previous_status=previous_status,
                     new_status="AUTO_CLOSED",
                     occurred_at=at,
                     source_kind="SCHEDULER",
@@ -581,10 +587,10 @@ class Repository:
                 changed.append(row)
         return changed
 
-    def close_case(self, thread_id: int) -> sqlite3.Row | None:
+    def close_case(self, thread_id: int, *, now: datetime | None = None) -> sqlite3.Row | None:
         changed = False
         with self.transaction() as db:
-            now = utc_now_iso()
+            at = (now or datetime.now(UTC)).astimezone(UTC).isoformat()
             before = db.execute("SELECT * FROM cases WHERE thread_id = ?", (thread_id,)).fetchone()
             if before is None or canonical_case_status(str(before["status"])) not in {
                 "TRACKED",
@@ -598,7 +604,7 @@ class Repository:
                 SET status = 'CLOSED', closed_at = ?, updated_at = ?
                 WHERE thread_id = ? AND status IN ('TRACKED', 'IDLE')
                 """,
-                (now, now, thread_id),
+                (at, at, thread_id),
             )
             if result.rowcount == 1:
                 changed = True
@@ -614,7 +620,7 @@ class Repository:
                     event_type="CLOSE",
                     previous_status=previous_status,
                     new_status="CLOSED",
-                    occurred_at=now,
+                    occurred_at=at,
                     project_public=str(before["visibility"]) == "PUBLIC",
                 )
                 self._enqueue_discord_lifecycle_job(
@@ -627,13 +633,13 @@ class Repository:
                         cycle_title(str(row["base_title"]), int(row["reopen_count"])),
                         automatic=False,
                     ),
-                    created_at=now,
+                    created_at=at,
                 )
                 if str(before["visibility"]) == "PRIVATE":
                     db.execute(
                         "UPDATE private_support SET status = 'CLOSED', closed_at = ?, "
                         "updated_at = ? WHERE channel_id = ? AND status != 'DELETED'",
-                        (now, now, thread_id),
+                        (at, at, thread_id),
                     )
         return self.get_case_by_thread(thread_id) if changed else None
 

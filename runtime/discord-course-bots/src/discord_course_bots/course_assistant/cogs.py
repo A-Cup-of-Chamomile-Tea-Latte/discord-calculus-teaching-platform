@@ -322,7 +322,8 @@ class CaseCog(commands.Cog):
         from .views import CloseConfirmView
 
         await interaction.response.send_message(
-            "確定要結束這個隱密支援案件嗎？頻道與資料會保留，也可以重新開啟。",
+            "確定要結束這個隱密支援案件嗎？結案後 48 小時內仍可重新開啟；"
+            "逾時會先完成 Private dump 驗證，再刪除受限頻道。",
             view=CloseConfirmView(
                 self.service,
                 actor_id=interaction.user.id,
@@ -705,7 +706,7 @@ class DraftLifecycleCog(commands.Cog):
                             )
                         except discord.HTTPException:
                             LOGGER.info(
-                                "Draft reminder DM failed for %s; Email fallback pending",
+                                "Draft reminder DM failed for %s; no email fallback",
                                 draft["author_id"],
                             )
                     self.service.repo.mark_draft_reminded(thread.id)

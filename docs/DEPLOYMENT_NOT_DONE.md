@@ -14,7 +14,8 @@
   claim／apply／ack／duplicate-safe round-trip 均已通過。
 - Google Auth Platform 已切到 External／Production；owner credential 可 refresh 並通過 owner-only `scripts.run`。
 - Remote cutover 已完成；現行 v6 baseline 的 24 小時 observation 已於 2026-08-24 17:16 PASS。
-- Portal backend、email、正式身分 authority 與學生試用仍未完成。
+- Portal backend、加入驗證信 delivery boundary 與正式身分流程已在 v13 deployment candidate
+  完成；production session／GAS 設定、secure mapping 與學生試用仍待最終 gate。
 
 完整收據見 [實作狀態](IMPLEMENTATION_STATUS.md) 與 [`project-exchange/18_PHASE_2C_24H_HOST_PRODUCTION_INTEGRATION_REPORT_2026-08-19.md`](../project-exchange/18_PHASE_2C_24H_HOST_PRODUCTION_INTEGRATION_REPORT_2026-08-19.md)。
 
@@ -22,13 +23,13 @@
 
 | 領域 | 現況 | 下一個必要 gate |
 | --- | --- | --- |
-| Discord | Remote 三服務 production baseline v6；repository 有尚未部署的 Bot candidate v10 | production 設定映射、白帳號 ACL regression 與另行部署 gate |
-| SQLite | production v6；repository v10；schema-shaped v6 暫存副本的 v6 → v10 rehearsal PASS | production consistent backup rehearsal 與另行 deploy 授權 |
+| Discord | Remote 三服務 production baseline v6；repository 有尚未部署的 v13 deployment candidate | production 設定映射、白帳號 ACL regression 與另行部署 gate |
+| SQLite | production v6；repository schema v13；schema-shaped v6 暫存副本的 v6 → v13 rehearsal PASS | production consistent backup rehearsal 與另行 deploy 授權 |
 | GAS／Sheets | 5 個人用頁、5 個機器頁；owner-only 雙向 `scripts.run` smoke PASS | candidate release 前安全核對；status digest 另行決定 |
 | Linux host | systemd cutover 完成；remote 是唯一 writer；v6 observation PASS | candidate forward gate |
-| Portal | 公開／reviewer artifact 分離；public 未接線功能 fail closed | same-origin backend、查詢授權與 abuse controls |
-| Email／身分 | domain logic 與 mock tests | 正式 provider、身分依據、rate limit 與保留政策 |
-| Private Support | 分流與 deny-by-default 規則已有 | 正式受保護機制、ACL regression 與保留政策 |
+| Portal | same-origin join／one-case lookup candidate 已完成；未注入 production runtime 時 fail closed | production session／origin／audit values 與白帳號 E2E |
+| Email／身分 | 加入驗證 outbox、PBKDF2 challenge 與 owner-only GAS provider candidate 已完成 | GAS deployment／properties 與真實驗證信 smoke |
+| Private Support | ACL、48＋48、手動結案 48 小時、verified dump／delete 與 replacement case 已完成 | production ACL／dump receipt |
 | 教學分析 | 不在自動流程 | 學生同意、去識別化、人工 release gate 與核准目的 |
 
 ## 不可跳過的關卡
@@ -36,7 +37,7 @@
 1. 授課教師／課程 owner 核准試用範圍、責任人與備援流程。
 2. 決定資料告知、同意、撤回、保留、刪除、附件與 Private Support 規則。
 3. 完成 Portal 查詢的 AuthN／AuthZ、rate limit、Private Support 隔離與一般錯誤回覆。
-4. 以 production v6 consistent backup 的獨立副本演練 repository candidate v10，核對 backup readability、integrity、ledger、row counts 與 rollback。
+4. 以 production v6 consistent backup 的獨立副本演練 v13 deployment candidate，核對 backup readability、integrity、ledger、row counts 與 rollback。
 5. 完成 production Discord 設定與白帳號端到端驗收；任何 candidate deploy 需另行明示授權。
 6. 新 release gate 通過後，才決定是否進入小規模試用；CNAME、公開網址與 rollout 可稍後處理。
 

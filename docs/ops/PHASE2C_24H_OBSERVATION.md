@@ -7,7 +7,7 @@
 - 狀態：`PASS`
 - Production authority：remote SQLite
 - Production writer：remote Linux only
-- Production schema：v6；repository candidate v10 尚未部署
+- Production schema：v6；repository v13 deployment candidate 尚未部署
 
 ## Final receipt
 
@@ -65,8 +65,8 @@ v5 → v6、Public smoke 與安全狀態核對後，才從 2026-08-23 17:12 重�
 - [x] Projection queue、私人匯出 queue 與 manual attention 均歸零，沒有 critical failure。
 - [x] Production schema 保持 v6，沒有在 observation 中換版。
 - [ ] OAuth refresh、GAS／Compact Sheet 與 daily backup 沒有在 17:12 最終 checkpoint 另外執行寫入式
-  smoke；既有收據未出現異常，但這些項目必須在 candidate v10 的 release gate 以安全方式再確認。
-- [ ] Production v6 consistent backup 副本的 v6 → v10 rehearsal、backup readability、integrity、ledger、
+  smoke；既有收據未出現異常，但這些項目必須在 v13 deployment release gate 以安全方式再確認。
+- [ ] Production v6 consistent backup 副本的 v6 → v13 rehearsal、backup readability、integrity、ledger、
   row counts 與 rollback readiness 屬於下一個 release gate，不由本次 v6 PASS 代替。
 
 ## 停止線
@@ -78,6 +78,6 @@ Mac writer。
 ## PASS 後
 
 Phase 2C v6 baseline 已完成。Bound GAS status digest、Portal、CNAME 與其他新功能不屬於本觀察
-窗口；candidate v10 也沒有因本次 PASS 自動取得部署授權。
+窗口；v13 deployment 也沒有因本次 PASS 自動取得部署授權。
 
-這個 24 小時窗只是現行 Production v6 baseline 的最後收據，不是以後每次換版的固定冷卻期。Candidate v10 若獲授權部署，以 production consistent backup rehearsal、部署後 smoke、白帳號 E2E 與 rollback readiness 作主 gate；需額外觀察時，以最長約 8 小時的過夜窗口為原則。v6 窗口不為 v10 功能背書，但也不因此強制 v10 重等 24 小時。
+這個 24 小時窗只是現行 Production v6 baseline 的最後收據，不是以後每次換版的固定冷卻期。v13 deployment 若獲授權，以 production consistent backup rehearsal、部署後 smoke、白帳號 E2E 與 rollback readiness 作主 gate；需額外觀察時，以最長約 8 小時的過夜窗口為原則。v6 窗口不為 v13 deployment 功能背書，也不因此強制再等 24 小時。

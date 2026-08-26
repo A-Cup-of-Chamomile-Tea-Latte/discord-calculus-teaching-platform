@@ -8,29 +8,30 @@
 - public artifact 只保留 5 個允許頁面；未接線的加入與案件查詢 fail closed。
 - Bot candidate 對齊五態、48＋48、C01–C16／C99 案號、Course Manager 五態與 Discord DM。
 - 舊 Portal 與 Private dump 入口進入可逆 archive／inactive stage，不與現行設計並列。
-- 本機品質閘已通過；現行 production v6 的 24 小時 observation 也已另行 PASS，但兩者都不等同 candidate v10 deploy。
+- 本機品質閘已通過；現行 production v6 的 24 小時 observation 也已另行 PASS，但兩者都不等同 v13 deployment 授權。
 
 ## 已完成 checkpoint：Production v6 observation
 
 - 2026-08-24 17:12 後的 owner-only `/ops status` 顯示三服務健康、schema v6、queue 與 manual attention 歸零。
 - Remote／Mac 唯讀核對確認 remote 持續是唯一 writer，三個 services active／enabled，受限部署入口仍就緒。
-- Phase 2C v6 baseline 於 2026-08-24 17:16 判定 PASS；這不是 candidate v10 的部署核准。
+- Phase 2C v6 baseline 於 2026-08-24 17:16 判定 PASS；這不是 v13 deployment 的部署核准。
 
 ## 1. Candidate migration 與 release safety
 
-目前：舊 `3411aff` request 已可逆封存，修補後的 `target_schema=10`／`ADDITIVE` request 已在 remote
-staging；restricted deployer 已就緒。production 仍是 v6；先完成 backup rehearsal 與正式 mapping，
-再對 remote request 中的 exact release 做一次明示 deploy decision。
+目前：舊 request 已可逆封存；本機 v13 deployment candidate 已凍結，remote staging request
+仍須更新為新的 exact release 與 `target_schema=13`。restricted deployer 已就緒；production 仍是 v6。
+先完成 backup rehearsal 與正式 mapping，再對 exact release 做一次明示 deploy decision。
 
-1. 取得 production v6 consistent backup；只在獨立副本演練 v6 → v10。
-2. 核對 backup readability、ledger 1–10、integrity、row counts、rollback 與有界 retention。
+1. 取得 production v6 consistent backup；只在獨立副本演練 v6 → v13。
+2. 核對 backup readability、ledger 1–13、integrity、row counts、rollback 與已決定的 retention。
 3. 填入 course role、visitor role、C01–C16 class role、class→Module、Private category 與 reviewer/admin 映射。
 4. 形成固定 smoke／rollback runbook；沒有新的明示部署授權，不寫入 production。
 
 ## 2. Portal 動態能力（本機候選已完成，正式接線仍是 gate）
 
 - `POST /api/join` 與 `POST /api/cases/lookup` 已完成同源 middleware、session authorization、CSRF、rate limit、generic failure response、SQLite adapter、Course Manager queue、content-free projection 與 metadata-only audit。
-- Portal backend tests 19/19 PASS；Portal check 前次 0 diagnostics；Portal Vitest 前次 61/61 PASS；以 `/api/join`、`/api/cases/lookup`、`/api/join`（CSRF seed）設定的 public artifact build 前次 PASS。本輪未變更 Portal frontend。
+- Portal Vitest 61/61 PASS、Astro 0 diagnostics；same-origin email start／verify、`/api/join` 與
+  `/api/cases/lookup` 均納入完整回歸。Public artifact build PASS。
 - 這些是 repository／local receipts，不是 production deploy、真實 OAuth、Discord ACL 或 public URL evidence。
 
 ### 加入申請
@@ -51,7 +52,7 @@ staging；restricted deployer 已就緒。production 仍是 v6；先完成 backu
   Private ACL、DM、案件查詢與 Discord 新手流程。
 - 完成資料告知、保留／刪除、Private ACL regression、事故責任與 rollback。
 - 上述 gate 無異常後，才向 owner 要一次明示部署核准；若沒有實際風險，不重複詢問或額外等待。
-- v10 換版後不強制再等 24 小時。以 deployment smoke、白帳號 E2E 與 rollback readiness 作主 gate；
+- v13 deployment 後不強制再等 24 小時。以 deployment smoke、白帳號 E2E 與 rollback readiness 作主 gate；
   只有具體穩定性疑慮時才啟動最多約 8 小時的 checkpoint observation。
 
 ## 暫緩的外部決策

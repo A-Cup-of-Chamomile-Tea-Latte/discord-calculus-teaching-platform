@@ -1,6 +1,6 @@
 # 加入申請與 Course Manager 審核
 
-狀態：`V10_BACKEND_IMPLEMENTED / NOT_DEPLOYED`
+狀態：`V13_DEPLOYMENT_BACKEND_IMPLEMENTED / NOT_DEPLOYED`
 
 更新日期：2026-08-27
 
@@ -55,4 +55,4 @@ Portal 的本機 `staff` 身份代表教學審核者，`admin` 代表系統管�
 
 - owner GAS push 與白帳號收信測試。
 - production v6 consistent backup rehearsal、secure Discord mapping preview/receipt。
-- 一次明示 v10 deploy authorization；未授權前不 migration、不重啟 service。
+- 一次明示 v13 deploy authorization；未授權前不 migration、不重啟 service。

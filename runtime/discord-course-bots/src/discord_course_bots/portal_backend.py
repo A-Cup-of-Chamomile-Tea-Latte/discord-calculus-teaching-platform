@@ -1,6 +1,6 @@
 """Authenticated same-origin Portal endpoints.
 
-This module is deliberately a small boundary around the canonical v10 SQLite
+This module is deliberately a small boundary around the canonical v13 SQLite
 repository.  The browser never receives a repository row, Discord credential,
 or internal identifier.  The HTTP layer only accepts one join submission or
 one case-number lookup per request.

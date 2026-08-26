@@ -12,28 +12,28 @@ Last repository／AI handoff reconciliation: 2026-08-26（Asia/Taipei）
 | Production writer | Remote Linux 是唯一 production writer；Mac writers 已停止 |
 | Production runtime | 三個 systemd services；2026-08-24 17:16 唯讀核對均 active／enabled，owner-only 狀態摘要均為 `HEALTHY` |
 | Production DB | Remote SQLite schema v6；lifecycle 使用 durable queue／stage resume／retry／idempotency |
-| Observation | 現行 v6 baseline 的 24 小時 observation 已於 2026-08-24 17:16 PASS；remote 持續是唯一 writer，三類 queue 與 manual attention 均為 0。此收據不替 candidate v10 背書 |
-| Repository candidate | `3411aff` 已被安全修補候選版取代；新 ADDITIVE request 已在 remote staging，restricted deployer 已就緒但尚未執行 |
+| Observation | 現行 v6 baseline 的 24 小時 observation 已於 2026-08-24 17:16 PASS；remote 持續是唯一 writer，三類 queue 與 manual attention 均為 0。此收據不替 v13 deployment 背書 |
+| Repository candidate | v13 deployment candidate 已在隔離分支凍結；remote staging request 尚待更新 exact release，restricted deployer 已就緒但尚未執行 |
 | Google | SQLite 是 operational authority；Sheets 是 compact projection，不是第二套主資料庫 |
 | Portal | 公開／reviewer artifact 分離；學生面收斂為靜態資訊入口與已完成本機驗證的最小 backend，尚未部署 |
-| Portal backend | same-origin join／one-case lookup 已在 runtime candidate 實作並通過 19 個安全／failure-mode tests；正式 session provider、durable audit sink、origin 與 rollout 尚未接線，public build 預設仍 fail closed |
-| Email | 尚未啟用；加入與案件結果採 Discord DM |
+| Portal backend | same-origin email start／verify、join／one-case lookup 已在 runtime candidate 實作；正式 session provider、durable audit sink、origin 與 rollout 尚未接線，public build 預設仍 fail closed |
+| Email | 只用於加入申請地址驗證；SQLite durable outbox 與 owner-only GAS provider candidate 已完成，尚未部署／寄真實測試信；Public／Private 案件通知維持 Discord DM-only |
 
 ## Repository integration checkpoint
 
 - 案件狀態統一為 `OPEN`、`TRACKED`、`IDLE`、`CLOSED`、`AUTO_CLOSED`；`REOPEN` 是 lifecycle event，不是長期狀態。
 - 計時採 48＋48 小時，且只在教學團隊真的回覆後啟動；「接手案件」不再冒充回覆。
-- 案號採 `C{classCode}-{token}-{MMDD}-{HHmm}`；Private Support 固定 `C99…-P`。
+- 學生案號採 `C{classCode}-{token}-{MMDD}-{HHmm}`；Guest 採 `Guest-{token}-{MMDD}-{HHmm}`；Private Support 固定 `C99…-P`。
 - Forum 標題採 `[M{n} | C{classCode}][mainTag] userTitle`，班別與 Module 從正式設定取得。
 - 加入申請後端重驗 NTU Mail、選填 Gmail、C01–C16 與 Discord username；Course Manager 使用兩級權限、五態審核、Discord DM 與持久暱稱配置。
 - Private Support 由 Discord `/private open` 取得同一套主標籤與 AI 選擇，再建立受限頻道；圖片留在 Discord，SQLite 只保存必要案件狀態與 Discord 參照。
 - Private Support 無唯一班級 mapping 時使用受控 module metadata fallback；這不改變 Discord overwrites。ACL 仍只允許提出者、Bot 與授權教學團隊。
-- 舊 Private dump 互動入口已停用；歷史資料與 migration 保留，未草率刪除。
+- Private 在 48＋48 自動結案或手動結案滿 48 小時後，先 verified dump 再刪頻道；失敗保留頻道並進人工接管，已刪除案件可建立 replacement case。
 - public case lookup 只允許 content-free projection：案號、類型、狀態、更新時間、是否已回覆與 Discord 連結。
 - Portal backend v1 已建立 `POST /api/join` 與 `POST /api/cases/lookup`；使用外部 signed session、CSRF cookie、same-origin／Host allowlist、JSON／form allowlist、rate limit、generic errors 與 metadata-only audit。Browser 不持有 SQLite 或 Discord credential。
-- 2026-08-26 修補候選版通過 Python 300、Ruff、format 與 secret scan；Portal backend 單檔 19 tests。
-  public artifact 前次收據仍為 5 頁／54 個 base-safe references，本輪未變更 Portal frontend。
-- schema-shaped v6 暫存副本已演練到 v10：ledger 1–10 完整、`integrity_check=ok`、核心 row counts 不變。這不取代 production consistent backup rehearsal。
+- v13 deployment candidate 通過 Portal 61、Config 3、GAS 70、Python 316、Ruff、format、mypy、
+  secret scan 與完整 build；production npm dependencies 0 vulnerabilities。
+- schema-shaped v6 暫存副本已演練到 v13：ledger 1–13 完整、`integrity_check=ok`、核心 row counts 不變。這不取代 production consistent backup rehearsal。
 
 ## Portal 現況
 
@@ -54,7 +54,7 @@ Last repository／AI handoff reconciliation: 2026-08-26（Asia/Taipei）
 
 ## 尚未完成
 
-1. 在 production DB consistent backup 的獨立副本演練 v6 → v10，核對 backup readability、integrity、ledger、row counts 與 rollback；通過後仍須另行授權才可部署。
+1. 在 production DB consistent backup 的獨立副本演練 v6 → v13，核對 backup readability、integrity、ledger、row counts 與 rollback；通過後仍須另行授權才可部署。
 2. 將已完成本機驗證的 Portal same-origin 加入申請與單案查詢 backend 接到受核准的 session／audit／origin runtime；完成白帳號 E2E 與 Private 最小揭露驗收後才開放。
 3. 完成 production Discord role／category／class-module 設定映射與白帳號端到端驗收。
 4. 2026-08-25 授權屬舊候選版；修補後 exact release 需在 backup／mapping gate 通過後再取得一次明示

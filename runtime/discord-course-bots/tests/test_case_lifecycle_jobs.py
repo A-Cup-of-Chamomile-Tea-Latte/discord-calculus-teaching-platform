@@ -164,6 +164,39 @@ def _auto_closed_private(repo: Repository) -> object:
     return lifecycle_claim
 
 
+def _manually_closed_private(repo: Repository) -> object:
+    repo.begin_private_open_request(
+        interaction_id="private-manual",
+        guild_id=10,
+        requester_id=3,
+        ai_content_permission=True,
+    )
+    repo.complete_private_open_request(
+        interaction_id="private-manual",
+        channel_id=56,
+        jump_url="https://discord.com/channels/10/56",
+        requester_id=3,
+        ai_content_permission=True,
+    )
+    moment = datetime(2026, 8, 27, tzinfo=UTC)
+    repo.record_case_activity(56, actor_id=9, is_staff=True, occurred_at=moment)
+    assert repo.close_case(56, now=moment) is not None
+    close_claim = repo.claim_discord_lifecycle_job("manual-close-worker")
+    assert close_claim is not None
+    assert repo.get_discord_lifecycle_job(close_claim.job_id)["transition"] == "CLOSE"
+    assert repo.complete_discord_lifecycle_job(close_claim.job_id, close_claim.claim_token)
+
+    assert not repo.auto_close_due_cases(48 * 3600, now=moment + timedelta(hours=47, minutes=59))
+    assert repo.get_case_by_thread(56)["status"] == "CLOSED"
+    changed = repo.auto_close_due_cases(48 * 3600, now=moment + timedelta(hours=48, seconds=1))
+    assert len(changed) == 1
+    assert repo.get_case_by_thread(56)["status"] == "AUTO_CLOSED"
+    lifecycle_claim = repo.claim_discord_lifecycle_job("manual-retention-worker")
+    assert lifecycle_claim is not None
+    assert repo.get_discord_lifecycle_job(lifecycle_claim.job_id)["transition"] == "AUTO_CLOSE"
+    return lifecycle_claim
+
+
 @pytest.mark.asyncio
 async def test_private_auto_close_waits_for_verified_dump_then_deletes_and_scrubs(
     tmp_path: Path,
@@ -199,3 +232,53 @@ async def test_private_auto_close_waits_for_verified_dump_then_deletes_and_scrub
     assert case["jump_url"] is None
     assert repo.get_private_support(55)["status"] == "DELETED"
     assert repo.get_private_dump_job(55)["status"] == "DELETED"
+
+
+@pytest.mark.asyncio
+async def test_manually_closed_private_waits_48_hours_then_uses_verified_dump(
+    tmp_path: Path,
+) -> None:
+    repo = Repository(tmp_path / "private-manual-close.sqlite3")
+    lifecycle_claim = _manually_closed_private(repo)
+    requester = MagicMock(spec=discord.Member)
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.id = 56
+    channel.guild.get_member.return_value = requester
+    channel.overwrites_for.return_value = discord.PermissionOverwrite(send_messages=True)
+    channel.set_permissions = AsyncMock()
+    channel.send = AsyncMock(return_value=SimpleNamespace(id=506))
+    channel.delete = AsyncMock()
+    bot = MagicMock()
+    bot.get_channel.return_value = channel
+    service = CourseService(bot, MagicMock(), repo)
+
+    with pytest.raises(PrivateDumpPending):
+        await service.apply_discord_lifecycle_job(lifecycle_claim)
+    dump_claim = repo.claim_private_dump_job(worker_id="dump-worker")
+    assert dump_claim is not None
+    assert repo.complete_private_dump(56, dump_claim.claim_token, "manifest.json")
+    await service.apply_discord_lifecycle_job(lifecycle_claim)
+
+    channel.delete.assert_awaited_once()
+    assert repo.get_private_support(56)["status"] == "DELETED"
+
+
+@pytest.mark.asyncio
+async def test_stale_private_auto_close_job_cannot_delete_a_reopened_case(tmp_path: Path) -> None:
+    repo = Repository(tmp_path / "private-stale-auto-close.sqlite3")
+    lifecycle_claim = _auto_closed_private(repo)
+    reopened = repo.record_case_activity(55, actor_id=3, is_staff=False)
+    assert reopened is not None
+    assert reopened["status"] == "TRACKED"
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.send = AsyncMock()
+    channel.delete = AsyncMock()
+    bot = MagicMock()
+    bot.get_channel.return_value = channel
+    service = CourseService(bot, MagicMock(), repo)
+
+    await service.apply_discord_lifecycle_job(lifecycle_claim)
+
+    channel.send.assert_not_awaited()
+    channel.delete.assert_not_awaited()
+    assert repo.get_private_dump_job(55) is None

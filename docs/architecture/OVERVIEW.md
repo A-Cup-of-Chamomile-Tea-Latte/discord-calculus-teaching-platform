@@ -41,7 +41,7 @@ flowchart LR
 
 Remote Linux 上的 `course_assistant`、`dump_bot` 與 `data_bridge` 是 production systemd services；Mac writers 已停止。SQLite 的案件異動與 outbox 在同一個 transaction 寫入；Google 暫時不可用時，Discord 不必停寫。Standalone GAS 只接受 owner 的 Apps Script Execution API 呼叫，不提供公開 Web App endpoint。
 
-已驗證 production baseline 是 schema v6，其 24 小時 observation 已於 2026-08-24 17:16 PASS；repository candidate 整合到 v10，但尚未部署。Portal 的公開資訊可靜態輸出；加入申請與案件查詢 backend 未接線時一律 fail closed。
+已驗證 production baseline 是 schema v6，其 24 小時 observation 已於 2026-08-24 17:16 PASS；repository v13 deployment candidate 已整合到 schema v13，但尚未部署。Portal 的公開資訊可靜態輸出；加入申請與案件查詢 backend 未接線時一律 fail closed。
 
 ## 元件與信任邊界
 
@@ -60,7 +60,7 @@ Portal 使用 Astro、TypeScript 與 static output。它負責學生可閱讀的
 
 - `Case`／`CaseLookupResponse`：內部案件與公開 allowlist 投影分離。
 - Production SQLite migration v6：durable Discord lifecycle、service health、projection stream 與可靠 outbox。
-- Repository candidate migration v7–v10：Portal case runtime、Course Manager join review、持久 nickname allocation 與 Private 共用標籤設定；尚未部署。
+- Repository candidate migrations v7–v13：Portal case runtime、Course Manager join review、持久 nickname allocation、Private 共用標籤、email challenge 與人工接管；尚未部署。
 - `ProjectionEnvelope`：Bridge 的 preview／apply 契約，包含 schema 版本、來源與 checksum。
 - `ExportManifest`／`ThreadExport`：管理者明確啟動的受控 dump／follow 紀錄。
 - `SanitizedThread`：同意過濾、case-local pseudonym 與結構化 placeholder；仍須人工複核。
