@@ -130,6 +130,32 @@ def test_private_entry_allows_commands_but_rejects_member_content() -> None:
     assert overwrites[dump].view_channel is False  # type: ignore[index]
 
 
+def test_private_entry_uses_member_override_without_mutating_managed_bot_role() -> None:
+    provisioner = object.__new__(LiveProvisioner)
+    provisioner.guild = MagicMock(spec=discord.Guild)
+    provisioner.guild.default_role = MagicMock(spec=discord.Role)
+    provisioner.course = MagicMock(spec=discord.Member)
+    provisioner.course.top_role = MagicMock(spec=discord.Role)
+    provisioner.dump = MagicMock(spec=discord.Member)
+    provisioner.dump.top_role = MagicMock(spec=discord.Role)
+    provisioner.roles = {
+        "role.admin": MagicMock(spec=discord.Role),
+        "role.staff": MagicMock(spec=discord.Role),
+        "role.verified_member": MagicMock(spec=discord.Role),
+        "role.guest": MagicMock(spec=discord.Role),
+    }
+    spec = next(item for item in CHANNELS if item.key == "channel.private_support_entry")
+
+    overwrites = provisioner.private_entry_overwrites(spec)
+
+    member = overwrites[provisioner.course]
+    managed_role = overwrites[provisioner.course.top_role]
+    assert member.manage_channels is True
+    assert member.manage_messages is True
+    assert managed_role.manage_channels is True
+    assert managed_role.manage_messages is None
+
+
 def test_private_entry_targeted_commands_are_explicitly_allowlisted() -> None:
     for command in ("plan-private-entry", "ensure-private-entry"):
         args = parse_args([command, "--guild-id", "123"])

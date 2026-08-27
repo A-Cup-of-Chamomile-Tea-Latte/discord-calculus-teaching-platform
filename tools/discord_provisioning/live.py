@@ -1209,16 +1209,7 @@ class LiveProvisioner:
             actions.append("CREATE_CHANNEL")
             actions.extend(("SET_EXACT_OVERWRITES", "CREATE_AND_PIN_INSTRUCTION"))
         else:
-            desired = desired_overwrites(
-                spec,
-                everyone=self.guild.default_role,
-                admin=self.roles["role.admin"],
-                staff=self.roles["role.staff"],
-                verified=self.roles["role.verified_member"],
-                guest=self.roles["role.guest"],
-                course=self.course.top_role,
-                dump=self.dump.top_role,
-            )
+            desired = self.private_entry_overwrites(spec)
             if channel.category_id != category.id:
                 actions.append("MOVE_TO_PRIVATE_SUPPORT_CATEGORY")
             if channel.topic != spec.topic:
@@ -1293,6 +1284,25 @@ class LiveProvisioner:
                 label="pin Private Support entry message",
             )
             self.operations.record("updated", "message.private_support_entry.pin", message.id)
+
+    def private_entry_overwrites(
+        self, spec: ChannelSpec
+    ) -> dict[discord.Role | discord.Member, discord.PermissionOverwrite]:
+        desired = desired_overwrites(
+            spec,
+            everyone=self.guild.default_role,
+            admin=self.roles["role.admin"],
+            staff=self.roles["role.staff"],
+            verified=self.roles["role.verified_member"],
+            guest=self.roles["role.guest"],
+            course=self.course,
+            dump=self.dump.top_role,
+        )
+        # Discord-managed integration roles cannot be edited by their own bot.
+        # Preserve the category's already-verified Course Manager role boundary,
+        # then use a direct member overwrite for the entry-only capabilities.
+        desired[self.course.top_role] = _overwrite(**COURSE_CASE)
+        return desired
 
     def update_private_entry_runtime_config(self) -> None:
         channel_id = self.channels["channel.private_support_entry"].id
@@ -1424,16 +1434,7 @@ class LiveProvisioner:
                 self.operations.record("updated", spec.key, channel.id)
 
         try:
-            overwrites = desired_overwrites(
-                spec,
-                everyone=self.guild.default_role,
-                admin=self.roles["role.admin"],
-                staff=self.roles["role.staff"],
-                verified=self.roles["role.verified_member"],
-                guest=self.roles["role.guest"],
-                course=self.course.top_role,
-                dump=self.dump.top_role,
-            )
+            overwrites = self.private_entry_overwrites(spec)
             await self.ensure_overwrites(channel, overwrites, spec.key)
             await self.ensure_private_entry_seed()
             errors = await self.private_entry_errors()
