@@ -4,9 +4,11 @@
 
 ## 建議
 
-第一階段可使用 GitHub Pages 的 project site，例如 `https://<account>.github.io/<repository>/`。它可以和既有的個人首頁 `https://<account>.github.io/` 共存，不必交給數學系主機；系網站日後只需放一個穩定入口連結。
+下一個 gate 是獨立 HTTPS synthetic staging，不是直接發布。staging 必須讓 static pages 與 `/api/` 位於同一 origin，並使用獨立 secret、synthetic SQLite、capture-only Email 與不可見的 production paths。
 
-目前 Portal 是 Astro static build，已有：
+若數學系只能提供連結、不能提供同源 `/api/` reverse proxy，完整 Portal 可放在朋友主機的受控 HTTPS origin，由統一教學網提供穩定入口。GitHub Pages project site 只能作為純靜態／link-only 選項；它不能執行 current session issuer 或 backend，也不能和另一個 origin 的 API 組成 connected Portal。
+
+目前 Portal 的 public shell 是 Astro static build，已有：
 
 - project-site base path 支援；
 - GitHub Actions build／test／artifact 工作流程；
@@ -43,7 +45,9 @@ GitHub Pages 只能承載公開靜態前端。正式註冊、OAuth callback、Di
 1. 可以在本機與 CI 建置／驗證 project-site artifact。
 2. 不 dispatch deploy workflow。
 3. 不將 reviewer artifact、任何本機身份資料或 Config Studio 公開。
-4. 待 repository visibility、正式網址與 backend origin 完成人工審核，再發布。
+4. 待正式網址、backend origin、same-origin topology 與系網部署權限完成人工審核，再發布。
+
+系網所需確認的完整介面與更新協議見 `../ops/DEPARTMENT_HANDOFF_GATE.md`。公開可觀察到的現行入口是 `https://www.math.ntu.edu.tw/~calc/Default.html`；這不代表 `/~calc/DC-platform-beta/` 已存在或已獲准，也不證明系網允許上傳、server runtime 或 reverse proxy。
 
 ## 其他選項
 

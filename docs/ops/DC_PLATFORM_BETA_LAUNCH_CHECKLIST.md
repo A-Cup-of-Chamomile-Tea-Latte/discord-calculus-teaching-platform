@@ -37,7 +37,7 @@
 | 對象 | 要負責的工作 | 不需要負責 |
 | --- | --- | --- |
 | 本專案 | Portal、API、Bot、Email queue、測試、部署包與操作文件 | 不把未驗證需求丟給系辦試錯 |
-| 數學系網管 | 建立 `~calc/DC-platform-beta/`、提供靜態檔更新方式，並告知是否允許該路徑連到外部 HTTPS API | 不維護 SQLite、不保管 Discord token、不修改課程程式 |
+| 數學系網管 | 確認可用的正式 path、提供靜態檔更新方式，並告知是否能將限定 `/api/` route reverse proxy 到受控 backend | 不維護 SQLite、不保管 Discord token、不修改課程程式 |
 | 朋友主機 | 執行 Portal backend、Bot、SQLite、Email worker，提供 HTTPS、備份與服務監控 | 不對外公開 SQLite 檔案或管理憑證 |
 | 系統管理員 | 開關 Beta、審核教學團隊、處理例外、查看 queue 與稽核結果 | 不逐筆手動寄驗證碼 |
 
@@ -51,7 +51,9 @@
 - 已有固定的後端 HTTPS 網域、健康檢查與測試帳號。
 - 清楚列出系辦只要回答的問題，不要求對方共同設計系統。
 
-屆時第一封信只問三件事：該目錄如何更新、是否允許將限定的 API 路徑連到外部 HTTPS 服務、網管需要我們提供哪些測試資料。若不允許路徑轉送，就改採瀏覽器直接連外部 API 的備案，不反覆要求系辦調整伺服器。
+屆時第一封信只問三件事：可用的正式位置如何更新、是否允許將限定的 API 路徑 reverse proxy 到受控 HTTPS backend、網管需要我們提供哪些測試資料。若不允許路徑轉送，就讓系網只連到由朋友主機承載的完整同源 Portal；不能讓系網 static page 在瀏覽器跨站直連 API，因為 current session／CSRF contract 採 strict same-origin。
+
+完整介面問題、artifact evidence 與可重複更新／回退協議見 `DEPARTMENT_HANDOFF_GATE.md`。
 
 ## 免費 Google 帳號的瓶頸
 
