@@ -3,83 +3,243 @@ import StatusBadge from "../../components/StatusBadge.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { withBase } from "../../lib/paths";
 
+const teamMembers = [
+  {
+    name: "林子晴",
+    account: "b11502001",
+    role: "助教／教師",
+    assignment: "C01、C02｜課程 Discord",
+    status: "使用中",
+  },
+  {
+    name: "陳彥廷",
+    account: "b11401017",
+    role: "助教／教師",
+    assignment: "C03、C04｜WebWork",
+    status: "使用中",
+  },
+  {
+    name: "黃奕安",
+    account: "r13521008",
+    role: "助教／教師",
+    assignment: "C05、C06｜隱密支援",
+    status: "使用中",
+  },
+  {
+    name: "吳佩蓉",
+    account: "r14522003",
+    role: "助教／教師",
+    assignment: "C07、C08｜案件輪值",
+    status: "首次登入待完成",
+  },
+  {
+    name: "許書維",
+    account: "calculus-admin",
+    role: "系統管理員",
+    assignment: "權限與例外處理",
+    status: "使用中",
+  },
+  {
+    name: "教學支援備援帳號",
+    account: "calculus-backup",
+    role: "系統管理員",
+    assignment: "備援與可逆封存",
+    status: "使用中",
+  },
+];
+
+const dashboardMetrics = [
+  { label: "待回答", value: "1" },
+  { label: "等待回覆", value: "1" },
+  { label: "同步警示", value: "1" },
+  { label: "團隊人數", value: String(teamMembers.length) },
+];
+
+const stateGroups = [
+  {
+    title: "案件流程",
+    states: [
+      "新案件",
+      "尚未回覆",
+      "TA 已接手",
+      "等待回覆",
+      "手動結案",
+      "自動結案",
+    ],
+  },
+  {
+    title: "內容與隱私",
+    states: ["含附件", "AI 允許", "AI 不允許", "隱密支援", "資料待補"],
+  },
+  {
+    title: "重新開啟與同步",
+    states: ["重新開啟中", "已重新開啟", "同步落後"],
+  },
+  {
+    title: "系統例外",
+    states: ["系統離線", "不存在案號"],
+  },
+];
+
 const queues = [
   {
-    title: "[M1 | C01][觀念] 極限的 ε–δ 要怎麼看",
+    title: "極限的 ε–δ 要怎麼看",
+    module: "M1",
+    classCode: "C01",
+    topic: "觀念",
     caseNumber: "C01-7K4M2Q-0702-1000",
     status: "OPEN" as const,
-    owner: "尚未指派",
+    owner: "尚未接手",
     sync: "剛剛",
   },
   {
-    title: "[M2 | C05][WebWork] 答案格式問題",
+    title: "答案格式問題",
+    module: "M2",
+    classCode: "C05",
+    topic: "WebWork",
     caseNumber: "C02-R8N6WX-0702-1100",
     status: "TRACKED" as const,
-    owner: "TA fixture",
+    owner: "林子晴",
     sync: "3 分鐘前",
   },
   {
-    title: "[M3 | C10][計算] 分部積分追問",
+    title: "分部積分追問",
+    module: "M3",
+    classCode: "C10",
+    topic: "計算",
     caseNumber: "C01-P3T7V9-0702-1200",
     status: "IDLE" as const,
-    owner: "TA fixture",
-    sync: "同步落後 12 分鐘",
+    owner: "陳彥廷",
+    sync: "落後 12 分鐘",
   },
   {
-    title: "[M4 | C14][討論] 級數收斂的直觀",
+    title: "級數收斂的直觀",
+    module: "M4",
+    classCode: "C14",
+    topic: "討論",
     caseNumber: "C01-H5J8Q4-0702-1300",
     status: "AUTO_CLOSED" as const,
-    owner: "TA fixture",
+    owner: "黃奕安",
     sync: "5 分鐘前",
   },
 ];
 ---
 
 <BaseLayout
-  title="教學團隊展示"
-  description="只使用虛構案件顯示待回答、等待學生、Idle、結案與同步狀態。"
+  title="教學團隊"
+  description="查看助教、教師與系統管理員名冊，以及目前需要留意的案件。"
   requiredRole="staff"
 >
-  <div class="shell stack section" style="--stack-gap: var(--space-6)">
-    <header class="reading-width">
-      <p><a href={withBase("")}>首頁</a> / 教學團隊展示</p>
-      <p class="eyebrow">Staff fixture dashboard</p>
-      <h1>教學團隊案件看板</h1>
-      <p>此頁沒有真實管理能力、學生資料、Email 或 Discord 操作。</p>
+  <div class="shell team-shell">
+    <header class="team-header">
+      <p><a href={withBase("")}>首頁</a> / 教學團隊</p>
+      <h1>教學團隊工作區</h1>
+      <p>人員、案件與需要留意的系統狀態集中在這裡。</p>
     </header>
 
-    <div class="cards grid grid--auto">
-      <article class="prototype-panel">
-        <p class="eyebrow">待回答</p>
-        <h2>1</h2>
-        <p>尚未由教學團隊接手。</p>
-      </article>
-      <article class="prototype-panel">
-        <p class="eyebrow">等待學生／Idle</p>
-        <h2>1</h2>
-        <p>已提醒；不代表正在監控真實 Email。</p>
-      </article>
-      <article class="prototype-panel">
-        <p class="eyebrow">已結案</p>
-        <h2>1</h2>
-        <p>手動與自動結案應分開統計。</p>
-      </article>
-      <article class="prototype-panel">
-        <p class="eyebrow">同步警示</p>
-        <h2>1</h2>
-        <p>超過本機展示門檻。</p>
-      </article>
-    </div>
+    <dl class="dashboard-summary" aria-label="工作區概況">
+      {
+        dashboardMetrics.map((metric) => (
+          <div>
+            <dt>{metric.label}</dt>
+            <dd>{metric.value}</dd>
+          </div>
+        ))
+      }
+    </dl>
 
-    <section aria-labelledby="queue-title">
-      <h2 id="queue-title">案件佇列</h2>
-      <div class="matrix-wrap">
+    <section aria-labelledby="members-title" class="team-section">
+      <div class="section-heading">
+        <div>
+          <h2 id="members-title">人員名冊</h2>
+          <p>共 6 人：4 位助教／教師、2 位系統管理員</p>
+        </div>
+        <a class="text-action" href={withBase("access/#account-management")}
+          >管理身份與權限</a
+        >
+      </div>
+
+      <div
+        class="table-wrap member-list"
+        tabindex="0"
+        aria-label="教學團隊人員名冊"
+      >
         <table>
           <thead>
             <tr>
-              <th scope="col">案件</th>
+              <th scope="col">人員</th>
+              <th scope="col">身份</th>
+              <th scope="col">負責範圍</th>
+              <th scope="col">帳號狀態</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              teamMembers.map((member) => (
+                <tr>
+                  <td>
+                    <span class="member-identity">
+                      <strong>{member.name}</strong>
+                      <small>{member.account}</small>
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      class:list={[
+                        "role-label",
+                        member.role === "系統管理員" && "role-label--admin",
+                      ]}
+                    >
+                      {member.role}
+                    </span>
+                  </td>
+                  <td>{member.assignment}</td>
+                  <td>
+                    <span
+                      class:list={[
+                        "account-status",
+                        member.status !== "使用中" && "account-status--pending",
+                      ]}
+                    >
+                      {member.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section aria-labelledby="queue-title" class="team-section">
+      <div class="section-heading queue-heading">
+        <div>
+          <h2 id="queue-title">案件佇列</h2>
+          <p>1 件待回答、1 件等待學生、1 件同步落後</p>
+        </div>
+        <a class="text-action" href="#case-reference">案件狀態說明</a>
+      </div>
+
+      <div class="table-wrap queue-list" tabindex="0" aria-label="案件佇列">
+        <table>
+          <colgroup>
+            <col class="queue-title-column" />
+            <col class="queue-meta-column" />
+            <col class="queue-meta-column" />
+            <col class="queue-topic-column" />
+            <col class="queue-status-column" />
+            <col class="queue-owner-column" />
+            <col class="queue-sync-column" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">案件標題</th>
+              <th scope="col">模組</th>
+              <th scope="col">班別</th>
+              <th scope="col">主題</th>
               <th scope="col">狀態</th>
-              <th scope="col">負責人</th>
+              <th scope="col">目前接手者</th>
               <th scope="col">同步</th>
             </tr>
           </thead>
@@ -89,9 +249,11 @@ const queues = [
                 <tr>
                   <td>
                     <strong>{item.title}</strong>
-                    <br />
                     <small>{item.caseNumber}</small>
                   </td>
+                  <td>{item.module}</td>
+                  <td>{item.classCode}</td>
+                  <td>{item.topic}</td>
                   <td>
                     <StatusBadge status={item.status} />
                   </td>
@@ -105,30 +267,368 @@ const queues = [
       </div>
     </section>
 
-    <p class="review-only">
-      真實負責人、轉交、工作量與每週摘要尚未接線；三年彙總只用來指出負載集中風險，不評估個人績效。
-    </p>
+    <section
+      id="case-reference"
+      class="state-reference"
+      aria-labelledby="state-reference-title"
+    >
+      <details>
+        <summary>
+          <span>
+            <strong id="state-reference-title">案件狀態說明</strong>
+            <small>依流程、隱私、同步與例外狀況分類</small>
+          </span>
+          <span aria-hidden="true">展開</span>
+        </summary>
+        <div class="state-groups">
+          {
+            stateGroups.map((group) => (
+              <section aria-labelledby={`state-${group.title}`}>
+                <h3 id={`state-${group.title}`}>{group.title}</h3>
+                <ul>
+                  {group.states.map((state) => (
+                    <li>{state}</li>
+                  ))}
+                </ul>
+              </section>
+            ))
+          }
+        </div>
+      </details>
+    </section>
   </div>
 </BaseLayout>
 
 <style>
-  .matrix-wrap {
-    overflow-x: auto;
-    border: var(--border-thin) solid var(--color-border);
-    border-radius: var(--radius-md);
+  .team-shell {
+    display: grid;
+    width: min(calc(100% - 2 * var(--space-4)), 72rem);
+    gap: clamp(2.5rem, 6vw, 4.5rem);
+    padding-block: clamp(2.5rem, 6vw, 5rem);
+  }
+
+  .team-header {
+    display: grid;
+    max-width: 46rem;
+    gap: var(--space-2);
+  }
+
+  .team-header h1,
+  .team-header p,
+  .section-heading h2,
+  .section-heading p {
+    margin: 0;
+  }
+
+  .team-section {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .dashboard-summary {
+    display: grid;
+    margin: 0;
+    border-block: var(--border-thin) solid var(--color-border-strong);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dashboard-summary div {
+    padding: var(--space-4);
+  }
+
+  .dashboard-summary div + div {
+    border-inline-start: var(--border-thin) solid var(--color-border);
+  }
+
+  .dashboard-summary dt {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+  }
+
+  .dashboard-summary dd {
+    margin: var(--space-1) 0 0;
+    color: var(--color-action);
+    font-size: var(--font-size-xl);
+    font-weight: 800;
+    line-height: 1.1;
+  }
+
+  .section-heading {
+    display: flex;
+    gap: var(--space-4);
+    align-items: end;
+    justify-content: space-between;
+  }
+
+  .section-heading > div {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .section-heading p {
+    color: var(--color-text-muted);
+  }
+
+  .text-action {
+    flex: 0 0 auto;
+    font-weight: 750;
+  }
+
+  .table-wrap {
+    overflow: auto;
+    border-block: var(--border-thin) solid var(--color-border-strong);
     background: var(--color-surface);
   }
 
   table {
     width: 100%;
+    min-width: 48rem;
     border-collapse: collapse;
   }
 
   th,
   td {
-    padding: var(--space-3);
+    padding: 0.72rem var(--space-3);
     border-bottom: var(--border-thin) solid var(--color-border);
     text-align: left;
-    vertical-align: top;
+    vertical-align: middle;
+  }
+
+  th {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    letter-spacing: 0.03em;
+  }
+
+  thead {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    background: var(--color-surface);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  tbody tr:hover {
+    background: var(--color-canvas);
+  }
+
+  td strong,
+  td small {
+    display: block;
+  }
+
+  td small {
+    margin-top: 0.2rem;
+    color: var(--color-text-muted);
+  }
+
+  .member-list {
+    max-height: 32rem;
+  }
+
+  .member-identity {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.2rem var(--space-2);
+  }
+
+  .member-identity small {
+    margin-top: 0;
+  }
+
+  .queue-list {
+    max-height: 34rem;
+  }
+
+  .queue-list table {
+    min-width: 70rem;
+  }
+
+  .queue-title-column {
+    width: 31%;
+  }
+
+  .queue-meta-column {
+    width: 4.5rem;
+  }
+
+  .queue-topic-column {
+    width: 6rem;
+  }
+
+  .queue-status-column {
+    width: 8rem;
+  }
+
+  .queue-owner-column {
+    width: 9rem;
+  }
+
+  .queue-sync-column {
+    width: 8.5rem;
+  }
+
+  .role-label,
+  .account-status {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: var(--font-size-sm);
+    font-weight: 750;
+    white-space: nowrap;
+  }
+
+  .role-label {
+    padding: 0.25rem 0.6rem;
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-canvas);
+  }
+
+  .role-label--admin {
+    border-color: var(--color-warning-border);
+    background: var(--color-warning-surface);
+  }
+
+  .account-status::before {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--color-success);
+    content: "";
+  }
+
+  .account-status--pending::before {
+    background: var(--color-warning-border);
+  }
+
+  .state-reference {
+    border-block: var(--border-thin) solid var(--color-border-strong);
+  }
+
+  .state-reference details {
+    background: var(--color-surface);
+  }
+
+  .state-reference summary {
+    display: flex;
+    min-height: 4.75rem;
+    padding: var(--space-4);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .state-reference summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .state-reference summary > span:first-child {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .state-reference summary strong {
+    font-size: var(--type-heading-sm);
+  }
+
+  .state-reference summary small,
+  .state-reference summary > span:last-child {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .state-reference details[open] summary > span:last-child {
+    font-size: 0;
+  }
+
+  .state-reference details[open] summary > span:last-child::before {
+    font-size: var(--font-size-sm);
+    content: "收合";
+  }
+
+  .state-groups {
+    display: grid;
+    padding: 0 var(--space-4) var(--space-4);
+    border-top: var(--border-thin) solid var(--color-border);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .state-groups section {
+    padding: var(--space-4);
+  }
+
+  .state-groups section:nth-child(even) {
+    border-inline-start: var(--border-thin) solid var(--color-border);
+  }
+
+  .state-groups section:nth-child(n + 3) {
+    border-top: var(--border-thin) solid var(--color-border);
+  }
+
+  .state-groups h3 {
+    margin-bottom: var(--space-2);
+  }
+
+  .state-groups ul {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    color: var(--color-text-muted);
+    list-style: none;
+  }
+
+  .state-groups li {
+    font-size: var(--font-size-sm);
+  }
+
+  @media (max-width: 46rem) {
+    .section-heading {
+      align-items: start;
+      flex-direction: column;
+    }
+
+    .member-list table,
+    .queue-list table {
+      min-width: 52rem;
+    }
+
+    .queue-list table {
+      min-width: 70rem;
+    }
+
+    .dashboard-summary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard-summary div:nth-child(odd) {
+      border-inline-start: 0;
+    }
+
+    .dashboard-summary div:nth-child(n + 3) {
+      border-top: var(--border-thin) solid var(--color-border);
+    }
+
+    .state-groups {
+      grid-template-columns: 1fr;
+    }
+
+    .state-groups section:nth-child(even) {
+      border-inline-start: 0;
+    }
+
+    .state-groups section + section {
+      border-top: var(--border-thin) solid var(--color-border);
+    }
   }
 </style>

@@ -53,7 +53,7 @@ npm run verify:pages --workspace @calculus/portal
 6. 檢查 `github-pages` environment，限制 default branch，視需要加入 required reviewer。
 7. 先觀察 push 觸發的 build-only workflow；確認 artifact 與 base-path verifier 全過。
 8. 由有權限的維護者手動 Run workflow，把 `deploy` 設為 `true`。
-9. 檢查首頁、404、導覽、三種 forms、cases 與 `_astro` assets 都位於 repository base path。
+9. 檢查首頁、加入、單案查詢、指南、404 與 `_astro` assets 都位於 repository base path；reviewer／封存 routes 不得出現在 public artifact。
 10. 設定監控、撤回／停用方式與 responsible owner；若發現敏感資料，立即 unpublish 並撤除不當 artifact。
 
 ## Custom-domain migration note

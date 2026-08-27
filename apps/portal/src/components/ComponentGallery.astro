@@ -13,13 +13,12 @@ const statuses = ["OPEN", "TRACKED", "IDLE", "CLOSED", "AUTO_CLOSED"] as const;
 <div class="gallery">
   <div class="shell stack section" style="--stack-gap: var(--space-7)">
     <header id="navigation" class="reading-width">
-      <p class="gallery__eyebrow">Local fixture gallery</p>
-      <h1>低擬真元件</h1>
-      <p>只驗證層級、可讀性、鍵盤操作與狀態語意；顏色、字型與品牌皆未定案。</p>
+      <h1>介面狀態檢查</h1>
+      <p>集中檢查按鈕、表單、提示訊息與案件狀態的顯示方式。</p>
     </header>
 
     <section id="status" class="stack" aria-labelledby="status-title">
-      <h2 id="status-title">案件狀態與 metadata</h2>
+      <h2 id="status-title">案件狀態與附加資訊</h2>
       <div class="cluster">
         {statuses.map((status) => <StatusBadge status={status} />)}
       </div>
@@ -34,10 +33,10 @@ const statuses = ["OPEN", "TRACKED", "IDLE", "CLOSED", "AUTO_CLOSED"] as const;
     </section>
 
     <section class="stack" aria-labelledby="alerts-title">
-      <h2 id="alerts-title">Alerts</h2>
-      <Alert title="一般提示">這是 fixture mode，不會連接正式服務。</Alert>
+      <h2 id="alerts-title">提示訊息</h2>
+      <Alert title="一般提示">這是本機測試，不會連接正式服務。</Alert>
       <Alert title="成功" tone="success"
-        >案件 fixture 已建立；沒有實際送出。</Alert
+        >本機互動已完成，沒有寫入正式資料。</Alert
       >
       <Alert title="請先確認" tone="warning"
         >正式課務資訊仍以 NTU COOL 為準。</Alert
@@ -48,22 +47,24 @@ const statuses = ["OPEN", "TRACKED", "IDLE", "CLOSED", "AUTO_CLOSED"] as const;
     </section>
 
     <section class="stack" aria-labelledby="cards-title">
-      <h2 id="cards-title">Cards and actions</h2>
+      <h2 id="cards-title">卡片與操作</h2>
       <div class="grid grid--auto">
-        <Card eyebrow="一般討論" title="直接在 Discord 發問">
+        <Card title="直接在 Discord 發問">
           <p>適合一般課程討論；請先閱讀全域帳號與 DM 隱私提醒。</p>
           <ButtonLink slot="footer" href="#forms">查看設定</ButtonLink>
         </Card>
-        <Card eyebrow="替代方案" title="透過網站代送">
-          <p>不想開啟 Discord 發文時，可使用 fixture 表單代送。</p>
+        <Card title="從網站提交加入申請">
+          <p>申請進入 Course Manager 審核；網站不代收題目或附件。</p>
           <ButtonLink slot="footer" href="#forms" variant="secondary"
-            >查看表單</ButtonLink
+            >查看控制項</ButtonLink
           >
         </Card>
-        <Card eyebrow="獨立保護" title="Private Support">
-          <p>不會出現在公開案件查詢，預設排除教學分析。</p>
+        <Card title="隱密支援">
+          <p>
+            在 Discord 使用 `/private open`；網站只能查詢不含內容的最小狀態。
+          </p>
           <ButtonLink slot="footer" href="#states" variant="quiet"
-            >了解 fallback</ButtonLink
+            >查看備援方式</ButtonLink
           >
         </Card>
       </div>
@@ -74,11 +75,11 @@ const statuses = ["OPEN", "TRACKED", "IDLE", "CLOSED", "AUTO_CLOSED"] as const;
       class="stack reading-width"
       aria-labelledby="forms-title"
     >
-      <h2 id="forms-title">Accessible form controls</h2>
+      <h2 id="forms-title">表單控制項</h2>
       <FormField
         forId="gallery-case-number"
-        label="一般案件編號"
-        hint="例如 C01-7K4M2Q-0702-1000；前後空白會被忽略。"
+        label="一般或隱密案件編號"
+        hint="例如 C01-7K4M2Q-0702-1000 或 C99-7K4M2Q-0702-1000-P。"
         required
       >
         <input
@@ -90,19 +91,20 @@ const statuses = ["OPEN", "TRACKED", "IDLE", "CLOSED", "AUTO_CLOSED"] as const;
         />
       </FormField>
       <FormField
-        forId="gallery-question"
-        label="問題內容"
-        hint="請勿填入真實個資。"
+        forId="gallery-discord-username"
+        label="Discord 使用者名稱"
+        hint="加入申請欄位示意；請勿填入真實資料。"
         required
       >
-        <textarea
-          id="gallery-question"
-          name="question"
-          aria-describedby="gallery-question-hint">這是一段虛構問題。</textarea
-        >
+        <input
+          id="gallery-discord-username"
+          name="discordUsername"
+          aria-describedby="gallery-discord-username-hint"
+          value="fixture.student"
+        />
       </FormField>
       <div class="cluster">
-        <button type="button">建立 fixture 確認</button>
+        <button type="button">提交本機預覽</button>
         <ButtonLink href="#states" variant="secondary">次要動作</ButtonLink>
         <ButtonLink href="#states" variant="quiet">安靜動作</ButtonLink>
         <ButtonLink href="#states" disabled>停用動作</ButtonLink>
@@ -110,31 +112,20 @@ const statuses = ["OPEN", "TRACKED", "IDLE", "CLOSED", "AUTO_CLOSED"] as const;
     </section>
 
     <section id="states" class="stack" aria-labelledby="states-title">
-      <h2 id="states-title">Loading, empty, error, success</h2>
+      <h2 id="states-title">載入與結果狀態</h2>
       <StatePanel kind="loading" title="正在查詢單一案件">
         <p>只執行這次明確查詢，不會在背景持續更新。</p>
       </StatePanel>
       <StatePanel kind="empty" title="尚未輸入案件編號">
         <p>輸入一般案件編號後即可開始。</p>
       </StatePanel>
-      <StatePanel kind="error" title="找不到可公開的一般案件">
-        <p>請檢查格式或稍後再試；這個訊息不會確認 Private Support 是否存在。</p>
+      <StatePanel kind="error" title="找不到案件狀態">
+        <p>請檢查格式或稍後再試；錯誤不會透露案件內容或內部 ID。</p>
         <button slot="action" type="button">重新輸入</button>
       </StatePanel>
-      <StatePanel kind="success" title="Fixture 查詢完成">
-        <p>已找到 C01-7K4M2Q-0702-1000；資料只來自本機 fixtures。</p>
+      <StatePanel kind="success" title="查詢完成">
+        <p>只顯示案號、類型、狀態、更新時間、是否回覆與 Discord 連結。</p>
       </StatePanel>
     </section>
   </div>
 </div>
-
-<style>
-  .gallery__eyebrow {
-    margin: 0;
-    color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-</style>

@@ -1,23 +1,23 @@
 # Implementation status
 
-Last repository／AI handoff reconciliation: 2026-08-26（Asia/Taipei）
+Last repository／AI handoff reconciliation: 2026-08-27（Asia/Taipei）
 
-> 本頁分開記錄「已驗證的 production」與「repository 候選版」。2026-08-24 的 Phase 2C 收尾只做
-> remote／Mac 唯讀核對，沒有部署、重啟服務或寫入 live data；本機 candidate 測試不冒充 production 狀態。
+> 本頁分開記錄「production core」與「尚未 rollout 的 Portal／Email」。v13 core 狀態來自遠端交接與
+> Discord metadata-only ops smoke；本機沒有直接登入朋友主機，Email／白帳號 E2E 也尚未完成。
 
 ## Canonical snapshot
 
 | 領域 | 現況 |
 | --- | --- |
 | Production writer | Remote Linux 是唯一 production writer；Mac writers 已停止 |
-| Production runtime | 三個 systemd services；2026-08-24 17:16 唯讀核對均 active／enabled，owner-only 狀態摘要均為 `HEALTHY` |
-| Production DB | Remote SQLite schema v6；lifecycle 使用 durable queue／stage resume／retry／idempotency |
-| Observation | 現行 v6 baseline 的 24 小時 observation 已於 2026-08-24 17:16 PASS；remote 持續是唯一 writer，三類 queue 與 manual attention 均為 0。此收據不替 v13 deployment 背書 |
-| Repository candidate | v13 deployment preparation 正在隔離分支收尾；exact commit／archive 尚未凍結，remote staging request 尚未更新 |
+| Production runtime | Active release `feab01757897`；三個 systemd services 依遠端交接均 active／enabled；Discord `/ops status` 與 `/ops attention-list` PASS |
+| Production DB | Remote SQLite schema 13；critical queues 與 manual attention 均為 0 |
+| Observation | v13 core 與 metadata-only ops smoke PASS；Email sender、白帳號 ACL／E2E 與 Portal rollout 仍是獨立 gate |
+| Repository candidate | Post-deploy maintenance 為 `f61219b31344`；未部署，不改變 production active release |
 | Google | SQLite 是 operational authority；Sheets 是 compact projection，不是第二套主資料庫 |
 | Portal | 公開／reviewer artifact 分離；學生面收斂為靜態資訊入口與已完成本機驗證的最小 backend，尚未部署 |
-| Portal backend | same-origin email start／verify、join／one-case lookup 已在 runtime candidate 實作；正式 session provider、durable audit sink、origin 與 rollout 尚未接線，public build 預設仍 fail closed |
-| Email | 只用於加入申請地址驗證；SQLite durable outbox 與 owner-only GAS provider candidate 已完成。Bound GAS 與 candidate 相同；standalone 尚未更新 email sender，也尚未寄真實測試信。Public／Private 案件通知維持 Discord DM-only |
+| Portal backend | exact v13 source 已有 same-origin join／Email verify／one-case lookup，post-deploy focused tests 21 PASS；正式 Portal service、session issuer、origin 與 rollout 尚未接線，public build 預設仍 fail closed |
+| Email | SQLite durable outbox 與 provider code 已存在；實寄與白帳號 E2E 尚未通過。Public／Private 案件通知維持 Discord DM-only |
 
 ## Repository integration checkpoint
 
@@ -55,12 +55,10 @@ Last repository／AI handoff reconciliation: 2026-08-26（Asia/Taipei）
 
 ## 尚未完成
 
-1. 在 production DB consistent backup 的獨立副本演練 v6 → v13，核對 backup readability、integrity、ledger、row counts 與 rollback；通過後仍須另行授權才可部署。
-2. 將已完成本機驗證的 Portal same-origin 加入申請與單案查詢 backend 接到受核准的 session／audit／origin runtime；完成白帳號 E2E 與 Private 最小揭露驗收後才開放。
-3. Production Discord role／category／class-module 的 live provisioning 與 secure ID capture 已完成；仍須由 host preflight 不輸出值地確認 `BOT_OWNER_IDS` bootstrap，部署後再做白帳號端到端驗收與 reviewer grant。
-4. 2026-08-25 授權屬舊候選版；修補後 exact release 需在 backup／mapping gate 通過後再取得一次明示
-   deploy decision。restricted deployer 的 staging migration、checksum、integrity、fresh health 與
-   rollback 任一失敗仍須 fail closed。若無實際穩定性風險，不另加等待窗口，必要時最多約 8 小時。
+1. 為 Portal 建立受控 production service，使用同一份 SQLite authority、獨立 audit DB、正式 session issuer 與 HTTPS same-origin proxy；這是新的 production mutation gate。
+2. 完成 Portal 白帳號 E2E、Private 最小揭露與 Email 實寄驗收後才開放 public endpoint。
+3. Production Discord role／category／class-module 的 live provisioning 與 secure ID capture 已完成；白帳號端到端驗收與 reviewer grant 仍待完成。
+4. Core deployment 已完成；Portal／Email 各自保留 rollout 與 rollback gate，不沿用 core PASS 代替驗收。
 5. Repository owner、公開 URL、backend origin、CNAME 與首次 Portal rollout 維持人工 gate，暫不阻擋上述上線前工程。
 
 詳細 runtime observation：`docs/ops/PHASE2C_24H_OBSERVATION.md`。

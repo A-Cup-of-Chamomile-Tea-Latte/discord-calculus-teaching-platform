@@ -1,3 +1,9 @@
+import {
+  LOCAL_TEST_WINDOW_KEY,
+  parseLocalTestWindow,
+  remainingTestWindowMinutes,
+} from "../lib/local-test-window";
+
 type JoinValues = Record<string, string>;
 
 function requiredElement<T extends Element>(
@@ -45,8 +51,22 @@ function validate(values: JoinValues): Record<string, string> {
     if (reasonLength < 10 || reasonLength > 500) {
       errors.guestReason = "請用 10–500 個字元簡短說明來訪原因。";
     }
+  } else if (values.identityType === "TEACHING_TEAM") {
+    const staffEmail = (values.staffEmail ?? "").toLowerCase();
+    if (
+      !emailPattern.test(staffEmail) ||
+      !/@(?:[a-z0-9-]+\.)*ntu\.edu\.tw$/.test(staffEmail)
+    ) {
+      errors.staffEmail = "請使用臺大信箱（@ntu.edu.tw 或其子網域）。";
+    }
+    if (!new Set(["TA", "INSTRUCTOR"]).has(values.staffRole ?? "")) {
+      errors.staffRole = "請選擇助教或教師。";
+    }
+    if (!/^(0[1-9]|1[0-6])$/.test(values.staffClassCode ?? "")) {
+      errors.staffClassCode = "請選擇主要負責的 C01–C16 班別。";
+    }
   } else {
-    errors.identityType = "請選擇臺大學生或訪客。";
+    errors.identityType = "請選擇臺大學生、訪客或教學團隊。";
   }
   if (values.rulesPrivacy !== "yes") {
     errors.rulesPrivacy = "請先確認已閱讀使用與隱私說明。";
@@ -103,6 +123,67 @@ function csrfTokenFromCookie(): string | null {
   return pair ? decodeURIComponent(pair.slice("portal_csrf=".length)) : null;
 }
 
+function requestVerificationCode(
+  dialog: HTMLDialogElement,
+  destination: string,
+): Promise<string | null> {
+  const form = requiredElement<HTMLFormElement>(
+    dialog,
+    "[data-email-verification-form]",
+  );
+  const input = requiredElement<HTMLInputElement>(
+    form,
+    '[name="verificationCode"]',
+  );
+  const copy = requiredElement<HTMLElement>(
+    form,
+    "[data-email-verification-copy]",
+  );
+  const error = requiredElement<HTMLElement>(
+    form,
+    "[data-email-verification-error]",
+  );
+  const cancelButton = requiredElement<HTMLButtonElement>(
+    form,
+    "[data-email-verification-cancel]",
+  );
+  form.reset();
+  copy.textContent = `驗證碼已排入寄送至 ${destination}，收到後請輸入六位數字。`;
+  error.hidden = true;
+  error.textContent = "";
+
+  return new Promise((resolve) => {
+    const finish = (value: string | null): void => {
+      form.removeEventListener("submit", submit);
+      cancelButton.removeEventListener("click", cancel);
+      dialog.removeEventListener("cancel", cancelDialog);
+      dialog.close();
+      resolve(value);
+    };
+    const submit = (event: SubmitEvent): void => {
+      event.preventDefault();
+      const code = input.value.trim();
+      if (!/^[0-9]{6}$/.test(code)) {
+        error.textContent = "請輸入信件中的六位數驗證碼。";
+        error.hidden = false;
+        input.focus();
+        return;
+      }
+      finish(code);
+    };
+    const cancel = (): void => finish(null);
+    const cancelDialog = (event: Event): void => {
+      event.preventDefault();
+      finish(null);
+    };
+    form.addEventListener("submit", submit);
+    cancelButton.addEventListener("click", cancel);
+    dialog.addEventListener("cancel", cancelDialog);
+    dialog.showModal();
+    input.focus();
+  });
+}
+
 function initialize(root: HTMLElement): void {
   const form = requiredElement<HTMLFormElement>(root, "form");
   const errorSummary = requiredElement<HTMLElement>(form, "[data-form-errors]");
@@ -142,6 +223,14 @@ function initialize(root: HTMLElement): void {
 
   if (!reviewMode && sessionEndpoint && form.action) {
     const state = root.querySelector<HTMLElement>("[data-join-backend-state]");
+    const verificationDialog = requiredElement<HTMLDialogElement>(
+      root,
+      "[data-email-verification-dialog]",
+    );
+    const submitButton = requiredElement<HTMLButtonElement>(
+      form,
+      'button[type="submit"]',
+    );
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const values = runValidation();
@@ -150,6 +239,12 @@ function initialize(root: HTMLElement): void {
         ...values,
         rulesPrivacy: values.rulesPrivacy === "yes" ? "yes" : "no",
       };
+      submitButton.disabled = true;
+      submitButton.textContent = "準備寄送驗證碼…";
+      if (state) {
+        state.hidden = false;
+        state.textContent = "正在建立 Email 驗證，請稍候。";
+      }
       try {
         const sessionResponse = await fetch(sessionEndpoint, {
           credentials: "same-origin",
@@ -178,10 +273,13 @@ function initialize(root: HTMLElement): void {
           challengeId?: string;
         };
         if (!started.challengeId) throw new Error("email-challenge");
-        const verificationCode = window.prompt(
-          `驗證碼已寄到 ${identityEmail}。請輸入六位數驗證碼：`,
+        submitButton.textContent = "等待 Email 驗證";
+        const verificationCode = await requestVerificationCode(
+          verificationDialog,
+          identityEmail,
         );
         if (!verificationCode) throw new Error("email-cancelled");
+        if (state) state.textContent = "正在確認驗證碼。";
         const emailVerifyResponse = await fetch(`${form.action}/email/verify`, {
           method: "POST",
           credentials: "same-origin",
@@ -191,7 +289,7 @@ function initialize(root: HTMLElement): void {
           },
           body: new URLSearchParams({
             challengeId: started.challengeId,
-            code: verificationCode.trim(),
+            code: verificationCode,
           }).toString(),
         });
         if (!emailVerifyResponse.ok) throw new Error("email-verify");
@@ -216,8 +314,12 @@ function initialize(root: HTMLElement): void {
       } catch {
         if (state) {
           state.hidden = false;
-          state.textContent = "目前無法送出申請，請稍後再試。";
+          state.textContent =
+            "Email 驗證或申請送出未完成。請確認驗證碼，稍後再試。";
         }
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "送出申請";
       }
     });
     return;
@@ -232,16 +334,78 @@ function initialize(root: HTMLElement): void {
     confirmation,
     "[data-join-reset]",
   );
+  const notice = requiredElement<HTMLElement>(
+    root,
+    "[data-test-registration-notice]",
+  );
+  const noticeTitle = requiredElement<HTMLElement>(
+    notice,
+    "[data-test-registration-title]",
+  );
+  const noticeDetail = requiredElement<HTMLElement>(
+    notice,
+    "[data-test-registration-detail]",
+  );
+  let showingConfirmation = false;
+
+  const activeTestWindow = () =>
+    parseLocalTestWindow(localStorage.getItem(LOCAL_TEST_WINDOW_KEY));
+  const renderTestWindow = (): void => {
+    const windowState = activeTestWindow();
+    if (!windowState) {
+      localStorage.removeItem(LOCAL_TEST_WINDOW_KEY);
+      notice.dataset.state = "closed";
+      noticeTitle.textContent = "測試註冊尚未開放";
+      noticeDetail.textContent =
+        "請由系統管理員在「教學團隊登入」開放 Beta 註冊。";
+      if (!showingConfirmation) form.hidden = true;
+      return;
+    }
+    const audienceText =
+      windowState.audience === "NTU_NETWORK"
+        ? "限臺大校內網路／SSL VPN；所有申請身分均可測試"
+        : "不限連線來源";
+    notice.dataset.state = "open";
+    if (windowState.mode === "CONTINUOUS") {
+      noticeTitle.textContent = "Beta 註冊持續開放中";
+      noticeDetail.textContent = `${audienceText}；將持續開放至管理員手動關閉。`;
+    } else {
+      const closesAt = new Intl.DateTimeFormat("zh-TW", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }).format(new Date(windowState.closesAt ?? 0));
+      noticeTitle.textContent = "Beta 註冊臨時開放中";
+      noticeDetail.textContent = `${audienceText}；將於 ${closesAt} 關閉，約剩 ${remainingTestWindowMinutes(windowState)} 分鐘。`;
+    }
+    if (!showingConfirmation) form.hidden = false;
+  };
+
+  renderTestWindow();
+  window.setInterval(renderTestWindow, 15_000);
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+    if (!activeTestWindow()) {
+      renderTestWindow();
+      return;
+    }
     const values = runValidation();
     if (!values) return;
 
+    const identityLabel =
+      values.identityType === "GUEST"
+        ? "訪客"
+        : values.identityType === "TEACHING_TEAM"
+          ? values.staffRole === "INSTRUCTOR"
+            ? "教師"
+            : "助教"
+          : "臺大學生";
     requiredElement<HTMLElement>(
       confirmation,
       "[data-confirmation-identity]",
-    ).textContent = values.identityType === "GUEST" ? "訪客" : "臺大學生";
+    ).textContent = identityLabel;
     requiredElement<HTMLElement>(
       confirmation,
       "[data-confirmation-username]",
@@ -252,7 +416,10 @@ function initialize(root: HTMLElement): void {
     ).textContent =
       values.identityType === "GUEST"
         ? values.guestEmail
-        : `C${values.classCode}`;
+        : values.identityType === "TEACHING_TEAM"
+          ? `${values.staffEmail}｜C${values.staffClassCode}`
+          : `C${values.classCode}`;
+    showingConfirmation = true;
     form.hidden = true;
     confirmation.hidden = false;
     confirmation.focus();
@@ -261,10 +428,13 @@ function initialize(root: HTMLElement): void {
   reset.addEventListener("click", () => {
     form.reset();
     clearErrors(form, errorSummary);
+    showingConfirmation = false;
     confirmation.hidden = true;
-    form.hidden = false;
     updateIdentity();
-    form.querySelector<HTMLElement>("input, select, textarea")?.focus();
+    renderTestWindow();
+    if (!form.hidden) {
+      form.querySelector<HTMLElement>("input, select, textarea")?.focus();
+    }
   });
 }
 

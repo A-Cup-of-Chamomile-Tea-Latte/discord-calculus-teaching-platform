@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canManageJoinReviewers,
   canReviewJoinApplication,
+  discordInviteUrl,
   duplicateApplicationDm,
   joinApplicantKey,
   nextJoinApplicationStatus,
@@ -58,5 +59,19 @@ describe("join application policy", () => {
     ).toBeUndefined();
     expect(sameOriginEndpointPath("//example.com/api/join")).toBeUndefined();
     expect(sameOriginEndpointPath("/api\\join")).toBeUndefined();
+  });
+
+  it("accepts only official Discord invite URLs", () => {
+    expect(discordInviteUrl("https://discord.gg/course-room")).toBe(
+      "https://discord.gg/course-room",
+    );
+    expect(discordInviteUrl("https://discord.com/invite/course_room")).toBe(
+      "https://discord.com/invite/course_room",
+    );
+    expect(discordInviteUrl("http://discord.gg/course-room")).toBeUndefined();
+    expect(discordInviteUrl("https://example.com/course-room")).toBeUndefined();
+    expect(
+      discordInviteUrl("https://discord.gg/course-room?tracking=1"),
+    ).toBeUndefined();
   });
 });

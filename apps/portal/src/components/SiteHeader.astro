@@ -31,7 +31,10 @@ const accessControlScript = `
 
 <header class="site-header">
   <div class="shell site-header__inner">
-    <a class="site-header__brand" href={homeHref}>微積分教學支援</a>
+    <div class="site-header__identity">
+      <a class="site-header__brand" href={homeHref}>微積分教學支援</a>
+      <span class="site-header__beta">測試版 Beta</span>
+    </div>
     <nav aria-label="主要導覽">
       <ul>
         {
@@ -51,9 +54,11 @@ const accessControlScript = `
     {
       showInternalAccess && (
         <div class="access-controls">
-          <div class="access-links access-links--guest" aria-label="內部登入">
-            <a href={`${accessHref}?role=staff`}>助教／教師</a>
-            <a href={`${accessHref}?role=admin`}>系統管理員</a>
+          <div
+            class="access-links access-links--guest"
+            aria-label="教學團隊登入"
+          >
+            <a href={accessHref}>教學團隊登入</a>
           </div>
           <div
             class="access-links access-links--signed-in"
@@ -88,9 +93,29 @@ const accessControlScript = `
 
   .site-header__brand {
     color: var(--color-text);
-    font-size: var(--font-size-lg);
+    font-size: clamp(1.45rem, 2.3vw, 1.85rem);
     font-weight: 800;
+    letter-spacing: 0.015em;
+    line-height: 1.15;
     text-decoration: none;
+  }
+
+  .site-header__brand:hover {
+    color: var(--color-action);
+  }
+
+  .site-header__identity {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .site-header__beta {
+    color: var(--color-accent);
+    font-size: var(--font-size-xs);
+    font-weight: 800;
+    letter-spacing: 0.04em;
   }
 
   nav {
@@ -135,7 +160,7 @@ const accessControlScript = `
     border-radius: 999px;
     background: transparent;
     color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
     font-weight: 750;
     text-decoration: none;
   }
@@ -174,7 +199,7 @@ const accessControlScript = `
   }
 
   [data-access-role-label]::before {
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
   }
 
   @media (min-width: 50rem) {

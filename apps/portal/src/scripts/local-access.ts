@@ -15,6 +15,13 @@ import {
   validSession,
   verifyLocalAccount,
 } from "../lib/local-access";
+import {
+  LOCAL_TEST_WINDOW_KEY,
+  createContinuousLocalTestWindow,
+  createLocalTestWindow,
+  parseLocalTestWindow,
+  remainingTestWindowMinutes,
+} from "../lib/local-test-window";
 
 const root = document.querySelector<HTMLElement>("[data-local-access]");
 const LOCAL_ACCESS_ARCHIVE_KEY = "calculus-local-access-archive-v1";
@@ -73,6 +80,60 @@ if (root) {
     }
   };
 
+  const testerWindow = root.querySelector<HTMLElement>("[data-tester-window]");
+  const renderTesterWindow = (): void => {
+    if (!testerWindow) return;
+    const session = readSession();
+    testerWindow.hidden = session?.role !== "admin";
+    if (testerWindow.hidden) return;
+
+    const state = parseLocalTestWindow(
+      localStorage.getItem(LOCAL_TEST_WINDOW_KEY),
+    );
+    const stateLabel = required<HTMLElement>("[data-test-window-state]");
+    const detail = required<HTMLElement>("[data-test-window-detail]");
+    const openButton = required<HTMLButtonElement>("[data-open-test-window]");
+    const continuousButton = required<HTMLButtonElement>(
+      "[data-open-continuous-window]",
+    );
+    const closeButton = required<HTMLButtonElement>("[data-close-test-window]");
+    const audienceControl = required<HTMLInputElement>(
+      "[data-test-window-audience]",
+    );
+    if (!state) {
+      localStorage.removeItem(LOCAL_TEST_WINDOW_KEY);
+      stateLabel.textContent = "尚未開放";
+      detail.textContent = "可開放 30 分鐘測試，或持續開放至管理員手動關閉。";
+      openButton.disabled = false;
+      continuousButton.disabled = false;
+      closeButton.disabled = true;
+      audienceControl.disabled = false;
+      return;
+    }
+    const audienceText =
+      state.audience === "NTU_NETWORK"
+        ? "限臺大校內網路／SSL VPN"
+        : "不限連線來源";
+    audienceControl.checked = state.audience === "NTU_NETWORK";
+    audienceControl.disabled = true;
+    if (state.mode === "CONTINUOUS") {
+      stateLabel.textContent = "持續開放中";
+      detail.textContent = `${audienceText}；將持續開放，直到管理員手動關閉。`;
+    } else {
+      const closesAt = new Intl.DateTimeFormat("zh-TW", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }).format(new Date(state.closesAt ?? 0));
+      stateLabel.textContent = "臨時開放中";
+      detail.textContent = `${audienceText}；將於 ${closesAt} 關閉，約剩 ${remainingTestWindowMinutes(state)} 分鐘。`;
+    }
+    openButton.disabled = true;
+    continuousButton.disabled = true;
+    closeButton.disabled = false;
+  };
+
   const startSession = (account: LocalAccount): void => {
     const session: LocalAccessSession = {
       accountHash: account.accountHash,
@@ -119,6 +180,7 @@ if (root) {
       });
     const adminOnly = required<HTMLElement>("[data-admin-only]");
     adminOnly.hidden = session.role !== "admin";
+    renderTesterWindow();
   };
 
   const existingSession = readSession();
@@ -187,6 +249,46 @@ if (root) {
       showView("bootstrap");
     },
   );
+
+  root
+    .querySelector<HTMLButtonElement>("[data-open-test-window]")
+    ?.addEventListener("click", () => {
+      if (readSession()?.role !== "admin") return;
+      const audience = required<HTMLInputElement>("[data-test-window-audience]")
+        .checked
+        ? "NTU_NETWORK"
+        : "ANY";
+      localStorage.setItem(
+        LOCAL_TEST_WINDOW_KEY,
+        JSON.stringify(createLocalTestWindow(Date.now(), undefined, audience)),
+      );
+      renderTesterWindow();
+    });
+
+  root
+    .querySelector<HTMLButtonElement>("[data-open-continuous-window]")
+    ?.addEventListener("click", () => {
+      if (readSession()?.role !== "admin") return;
+      const audience = required<HTMLInputElement>("[data-test-window-audience]")
+        .checked
+        ? "NTU_NETWORK"
+        : "ANY";
+      localStorage.setItem(
+        LOCAL_TEST_WINDOW_KEY,
+        JSON.stringify(createContinuousLocalTestWindow(Date.now(), audience)),
+      );
+      renderTesterWindow();
+    });
+
+  root
+    .querySelector<HTMLButtonElement>("[data-close-test-window]")
+    ?.addEventListener("click", () => {
+      if (readSession()?.role !== "admin") return;
+      localStorage.removeItem(LOCAL_TEST_WINDOW_KEY);
+      renderTesterWindow();
+    });
+
+  window.setInterval(renderTesterWindow, 15_000);
 
   required<HTMLFormElement>("[data-login-form]").addEventListener(
     "submit",

@@ -13,7 +13,7 @@ interface Props {
 
 const { title, description, currentPath = "", requiredRole } = Astro.props;
 const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
-const pageTitle = `${title}｜微積分教學支援`;
+const pageTitle = `${title}｜微積分教學支援｜測試版 Beta`;
 const accessSessionScript = `
   (() => {
     try {
@@ -56,7 +56,7 @@ const navItems = [
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
-    {requiredRole && <meta name="robots" content="noindex, nofollow" />}
+    <meta name="robots" content="noindex, nofollow" />
     <meta name="generator" content={Astro.generator} />
     <title>{pageTitle}</title>
     {!isPublicBuild && <script is:inline set:html={accessSessionScript} />}

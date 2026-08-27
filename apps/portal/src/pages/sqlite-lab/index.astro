@@ -13,7 +13,6 @@ import { withBase } from "../../lib/paths";
     <header class="lab-hero">
       <div class="shell lab-hero__grid">
         <div class="lab-hero__copy">
-          <p class="eyebrow">管理員工作區 · SQLite 基礎</p>
           <h1>先看懂，再操作 SQLite</h1>
           <p class="lab-hero__lead">
             這裡不是真實資料庫後台，而是一條可安全練習的學習路徑。
@@ -88,8 +87,7 @@ import { withBase } from "../../lib/paths";
           aria-labelledby="learning-brief-title"
         >
           <div>
-            <p class="eyebrow">學習路線</p>
-            <h2 id="learning-brief-title">先建立地圖，再試著查詢與判斷</h2>
+            <h2 id="learning-brief-title">學習順序</h2>
           </div>
           <ol class="outcome-list">
             <li>看懂哪些資料該放 SQLite，哪些不該。</li>
@@ -145,7 +143,7 @@ import { withBase } from "../../lib/paths";
         >
           <div class="lesson__heading">
             <p class="lesson__number">01 · 12 分鐘</p>
-            <h2 id="map-title">先建立整體地圖：資料不必都住在同一處</h2>
+            <h2 id="map-title">資料地圖</h2>
             <p>
               資料架構要把每種資料交給最合適的載體。點選下方節點，看它在本專案中的責任。
             </p>
@@ -207,7 +205,7 @@ import { withBase } from "../../lib/paths";
         >
           <div class="lesson__heading">
             <p class="lesson__number">02 · 12 分鐘</p>
-            <h2 id="structure-title">SQLite 是什麼：一個檔案與一組明確規則</h2>
+            <h2 id="structure-title">SQLite 的結構與規則</h2>
             <p>
               SQLite
               用結構（schema）定義欄位、型別與限制，再用交易（transaction）保護一組必須共同成立的寫入。
@@ -286,7 +284,7 @@ import { withBase } from "../../lib/paths";
         >
           <div class="lesson__heading">
             <p class="lesson__number">03 · 15 分鐘</p>
-            <h2 id="query-title">安全查詢實驗台：先用最少資料回答問題</h2>
+            <h2 id="query-title">唯讀查詢</h2>
             <p>
               這是瀏覽器內的合成資料模擬器，不會開啟任何真實資料庫。選一個範例，觀察它究竟讀了多少資訊。
             </p>
@@ -603,7 +601,7 @@ import { withBase } from "../../lib/paths";
         >
           <div class="lesson__heading">
             <p class="lesson__number">07 · 10 分鐘</p>
-            <h2 id="authenticity-title">雲端 → 本機：版本較新仍需要驗證</h2>
+            <h2 id="authenticity-title">雲端資料匯入</h2>
             <p>
               假設 Sheet 的 source version 是 12，本機是
               11。勾選你已完成的驗證，再嘗試接受這份投影。
@@ -686,7 +684,7 @@ import { withBase } from "../../lib/paths";
         >
           <div class="lesson__heading">
             <p class="lesson__number">08 · 15 分鐘</p>
-            <h2 id="mastery-title">整合驗收：把判斷用回本專案</h2>
+            <h2 id="mastery-title">整合驗收</h2>
             <p>
               六題聚焦實際專案判斷。答對五題，代表你已掌握本頁的主要框架，可以進入下一階段實作。
             </p>
@@ -779,7 +777,7 @@ import { withBase } from "../../lib/paths";
           </div>
 
           <div class="takeaway-sheet">
-            <p class="eyebrow">帶走這三句就夠了</p>
+            <h3>重點整理</h3>
             <ol>
               <li>SQLite 是有明確結構與交易保護的本機資料庫。</li>
               <li>
@@ -973,7 +971,8 @@ import { withBase } from "../../lib/paths";
 
   .lab-layout {
     display: grid;
-    gap: var(--space-7);
+    width: min(calc(100% - 2 * var(--space-6)), 88rem);
+    gap: clamp(var(--space-6), 4vw, 4rem);
     align-items: start;
   }
 
@@ -1690,7 +1689,7 @@ import { withBase } from "../../lib/paths";
 
   @media (min-width: 64rem) {
     .lab-layout {
-      grid-template-columns: 14rem minmax(0, 1fr);
+      grid-template-columns: minmax(14rem, 16rem) minmax(0, 1fr);
     }
 
     .course-rail {

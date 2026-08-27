@@ -6,7 +6,7 @@ const buildGates = [
   {
     label: "公開／內部路由分離",
     status: "DONE",
-    note: "公開 artifact 移除內部工具、舊路由與管理狀態頁。",
+    note: "公開發布檔移除內部工具、舊路由與管理狀態頁。",
   },
   {
     label: "學生資訊架構與文案",
@@ -16,76 +16,73 @@ const buildGates = [
   {
     label: "Course Manager 加入審核",
     status: "PENDING",
-    note: "資料模型與 reviewer UI 已建立；正式 Discord／SQLite adapter 尚未接線。",
+    note: "v13 已有資料模型與 API；Portal service、正式 session issuer、Email 寄送與白帳號 E2E 仍待驗收。",
   },
   {
-    label: "隱密支援 production 化",
+    label: "隱密支援正式化",
     status: "PENDING",
-    note: "現有 /private open 不先宣稱完成；需通過權限、關閉與匯出流程驗收。",
+    note: "現有 /private open 尚未完成；仍需驗收權限、關閉與匯出流程。",
   },
   {
-    label: "案件狀態查詢 backend",
+    label: "案件狀態查詢後端",
     status: "PENDING",
-    note: "前端已縮為最小欄位；正式單案 adapter、rate limit 與存取紀錄尚待完成。",
+    note: "v13 已完成最小欄位與 same-origin API；尚未以獨立服務接到 production SQLite，也沒有正式 session issuer。",
   },
   {
-    label: "Portal 公開發布",
+    label: "網站公開發布",
     status: "PENDING",
-    note: "repository、網址、backend origin 與首次 deploy 仍是人工 gate。",
+    note: "Beta 網址已定為數學系 /~calc/DC-platform-beta/；首次上傳、API 轉送與外部驗收尚未執行。",
   },
 ];
 
 const monitorCards = [
   {
-    label: "Production writer",
-    value: "Remote Linux",
-    note: "最新交接：唯一 writer；本頁未重新連線探測。",
+    label: "Production core",
+    value: "v13／schema 13",
+    note: "依 2026-08-27 遠端交接：active release feab01757897，三服務 active／enabled，critical queues 為 0。",
   },
   {
-    label: "Discord runtime",
-    value: "v6／觀察中",
-    note: "2026-08-23 17:12 的安全快照為三服務 HEALTHY、queue 0。",
+    label: "Discord ops smoke",
+    value: "已通過",
+    note: "/ops status 與 /ops attention-list 已通過；這不代表 Email 或白帳號 E2E 已通過。",
   },
   {
-    label: "Portal",
-    value: "建造中",
-    note: "public artifact 會逐批執行 build 與洩漏檢查。",
+    label: "公開網站",
+    value: "Beta 準備中",
+    note: "公開路徑已確定；交付前仍要完成正式建置、敏感資訊檢查與數學系端部署。",
   },
   {
-    label: "動態服務",
-    value: "尚未接線",
-    note: "加入申請與案件查詢不因靜態介面完成而自動啟用。",
+    label: "API／寄信服務",
+    value: "尚未正式部署",
+    note: "Portal backend service、session issuer、API 轉送與 GAS 實寄仍待完成；瀏覽器目前維持 fail closed。",
   },
 ];
 ---
 
 <BaseLayout
   title="建造與系統狀態"
-  description="專案 owner 使用的建造清單與長期監控入口。"
+  description="系統管理員使用的建置清單與監控入口。"
   requiredRole="admin"
 >
   <div class="shell stack section" style="--stack-gap: var(--space-7)">
     <header class="status-intro">
       <div>
         <p><a href={withBase("access/")}>內部工作區</a> / 建造與系統狀態</p>
-        <p class="eyebrow">Owner dashboard</p>
         <h1>建造與系統狀態</h1>
         <p>
-          現在是建造模式。等發布 gate 全部完成後，這一頁會轉成長期 monitor
-          dashboard，不再保留施工待辦。
+          v13 核心已上線；Portal 與 Email 仍在發布前驗收。全部通過後，這一頁只保留長期監控資訊。
         </p>
       </div>
-      <span class="mode-badge">建造模式</span>
+      <span class="mode-badge">Portal 驗收中</span>
     </header>
 
     <section aria-labelledby="snapshot-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">安全快照</p>
-          <h2 id="snapshot-title">目前可確認的系統輪廓</h2>
+          <h2 id="snapshot-title">目前系統狀態</h2>
           <p>
-            文件核對日期：2026-08-24。Live runtime 依 2026-08-23
-            17:12（Asia/Taipei）最新交接；本輪沒有重新連線探測。
+            頁面核對：2026-08-27。Production core 已是 v13；證據來自遠端交接與 Discord
+            ops smoke，本機沒有直接連線朋友主機。Portal 網址與 API 目前尚未部署。
           </p>
         </div>
       </div>
@@ -105,9 +102,8 @@ const monitorCards = [
     <section aria-labelledby="gates-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">建造清單</p>
-          <h2 id="gates-title">進入長期監控前的 gate</h2>
-          <p>完成介面不等於服務已上線；每一項都要有對應測試或人工驗收。</p>
+          <h2 id="gates-title">Portal 發布檢查</h2>
+          <p>v13 core 上線不等於 Portal 已接線；每一項仍要通過測試或人工驗收。</p>
         </div>
       </div>
       <ol class="gate-list">
@@ -140,12 +136,9 @@ const monitorCards = [
 
     <section class="transition-note" aria-labelledby="monitor-title">
       <div>
-        <p class="eyebrow">下一個模式</p>
-        <h2 id="monitor-title">全部勾選後：長期 monitor dashboard</h2>
+        <h2 id="monitor-title">完成建置後的監控內容</h2>
         <p>
-          屆時只保留服務健康與
-          freshness、待處理工作量、最近發布、備份／恢復驗證及人工注意事項；顯示安全摘要，不放學生內容、ID、路徑、錯誤原文或
-          secrets。
+          屆時只顯示服務健康狀態、資料更新時間、待處理工作量、最近發布、備份與還原驗證，以及需要人工注意的事項。不顯示學生內容、ID、檔案路徑、完整錯誤訊息或機密資料。
         </p>
       </div>
       <span aria-label="尚未切換">尚未啟用</span>
@@ -154,9 +147,8 @@ const monitorCards = [
     <details class="source-note">
       <summary>事實來源與更新規則</summary>
       <p>
-        Runtime 現況以 canonical repository、最新 AI 交接與 owner-only
-        <code>/ops status</code> 的安全摘要交叉核對。交接吸收後再更新本頁；舊快照移入封存
-        stage，不與現況並列。
+        系統現況以程式碼儲存庫、最新交接與僅限管理員使用的
+        <code>/ops status</code> 安全摘要交叉核對。更新本頁後，舊快照移入封存區，不與現況並列。
       </p>
     </details>
   </div>

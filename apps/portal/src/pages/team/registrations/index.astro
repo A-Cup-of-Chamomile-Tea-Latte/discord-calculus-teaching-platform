@@ -22,17 +22,17 @@ const applications = [
 
 <BaseLayout
   title="加入申請審核"
-  description="Course Manager 的學生與訪客加入申請審核骨架。"
+  description="審核學生與訪客的加入資格。"
   requiredRole="staff"
 >
-  <div class="shell stack section" style="--stack-gap: var(--space-6)">
-    <header class="reading-width">
+  <div
+    class="shell registrations-shell stack section"
+    style="--stack-gap: var(--space-6)"
+  >
+    <header class="registrations-header">
       <p><a href={withBase("access/")}>內部工作區</a> / 加入申請</p>
-      <p class="eyebrow">Course Manager</p>
-      <h1>加入申請審核</h1>
-      <p>
-        助教與教師可審核學生或訪客申請；系統管理員另外負責新增審核者、設定、例外處理與封存。
-      </p>
+      <h1>加入申請</h1>
+      <p>審核學生與訪客資格。系統管理員另可管理審核者、設定與封存紀錄。</p>
     </header>
 
     <section class="role-grid" aria-labelledby="role-title">
@@ -50,72 +50,94 @@ const applications = [
     <section aria-labelledby="queue-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">待審佇列</p>
-          <h2 id="queue-title">需要處理的申請</h2>
-          <p>以下是虛構資料；按鈕先用來審查操作層級，不會套用 Discord 權限。</p>
+          <h2 id="queue-title">待處理申請</h2>
+          <p>目前顯示 2 筆介面範例。</p>
         </div>
       </div>
-      <div class="application-list">
-        {
-          applications.map((application) => (
-            <article class="application-card" data-tone={application.tone}>
-              <div>
-                <p class="eyebrow">{application.status}</p>
-                <h3>{application.applicant}</h3>
-                <p>
-                  <>
+      <div
+        class="application-list"
+        tabindex="0"
+        aria-label="待處理申請介面範例"
+      >
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">申請人</th>
+              <th scope="col">申請資料</th>
+              <th scope="col">狀態</th>
+              <th scope="col">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              applications.map((application) => (
+                <tr data-tone={application.tone}>
+                  <td>
+                    <strong>{application.applicant}</strong>
                     <code>{application.discordUsername}</code>
-                    <br />
-                  </>
-                  {application.detail}
-                </p>
-              </div>
-              <div class="cluster" aria-label={`${application.applicant} 操作`}>
-                <button type="button" disabled>
-                  核准並套用權限
-                </button>
-                <button type="button" class="button button--secondary" disabled>
-                  等待加入伺服器
-                </button>
-                <button type="button" class="button button--quiet" disabled>
-                  拒絕
-                </button>
-              </div>
-            </article>
-          ))
-        }
+                  </td>
+                  <td>{application.detail}</td>
+                  <td>
+                    <span class="application-status">{application.status}</span>
+                  </td>
+                  <td>
+                    <div
+                      class="application-actions"
+                      aria-label={`${application.applicant} 操作`}
+                    >
+                      <button type="button" disabled>
+                        核准
+                      </button>
+                      <button
+                        type="button"
+                        class="button button--secondary"
+                        disabled
+                      >
+                        等待加入
+                      </button>
+                      <button
+                        type="button"
+                        class="button button--quiet"
+                        disabled
+                      >
+                        拒絕
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
       </div>
     </section>
 
     <section class="archive-stage" aria-labelledby="archive-title">
       <div>
-        <p class="eyebrow">可逆封存</p>
-        <h2 id="archive-title">已處理與準備清理</h2>
+        <h2 id="archive-title">可逆封存與清理</h2>
         <p>
-          已拒絕、重複或失效的申請先移到封存
-          stage；保留時間、操作者與原因，不直接刪除。
+          已拒絕、重複或失效的申請會先移到封存區，保留時間、操作者與原因，不直接刪除。
         </p>
       </div>
       <a class="button button--secondary" href="#archive-title">查看封存規則</a>
     </section>
-
-    <p class="review-only">
-      正式 adapter 必須在伺服器端核對 Discord 成員、執行去重、寫入
-      SQLite，並在完成後由 Course Manager 直接私訊結果；瀏覽器不可持有 Bot
-      token。
-    </p>
   </div>
 </BaseLayout>
 
 <style>
-  .role-grid,
-  .application-list {
+  .registrations-shell {
+    width: min(calc(100% - 2 * var(--space-4)), 72rem);
+  }
+
+  .registrations-header {
+    max-width: 56rem;
+  }
+
+  .role-grid {
     display: grid;
     gap: var(--space-4);
   }
 
-  .role-grid article,
-  .application-card,
   .archive-stage {
     padding: var(--space-4);
     border: var(--border-thin) solid var(--color-border);
@@ -123,10 +145,92 @@ const applications = [
     background: var(--color-surface);
   }
 
-  .application-card {
-    display: grid;
-    gap: var(--space-4);
-    border-inline-start: 0.35rem solid var(--color-accent);
+  .role-grid > h2 {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+  }
+
+  .role-grid article {
+    padding: var(--space-4);
+  }
+
+  .role-grid :is(h3, p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .application-list {
+    max-height: 34rem;
+    overflow: auto;
+    border-block: var(--border-thin) solid var(--color-border-strong);
+    background: var(--color-surface);
+  }
+
+  .application-list table {
+    width: 100%;
+    min-width: 70rem;
+    border-collapse: collapse;
+  }
+
+  .application-list thead {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    background: var(--color-surface);
+  }
+
+  .application-list :is(th, td) {
+    padding: 0.9rem var(--space-3);
+    border-bottom: var(--border-thin) solid var(--color-border);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .application-list th {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .application-list td:first-child {
+    width: 18rem;
+  }
+
+  .application-list td:nth-child(2) {
+    width: 20rem;
+  }
+
+  .application-list td:nth-child(3) {
+    width: 12rem;
+  }
+
+  .application-list td:last-child {
+    width: 24rem;
+  }
+
+  .application-list td strong,
+  .application-list td code {
+    display: block;
+  }
+
+  .application-list td code {
+    margin-top: 0.2rem;
+    color: var(--color-text-muted);
+  }
+
+  .application-status {
+    font-weight: 750;
+    white-space: nowrap;
+  }
+
+  .application-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+
+  .application-actions :global(button) {
+    min-height: 2.75rem;
+    padding: 0.55rem 0.8rem;
+    white-space: nowrap;
   }
 
   .archive-stage {
@@ -146,5 +250,6 @@ const applications = [
     .role-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
   }
 </style>

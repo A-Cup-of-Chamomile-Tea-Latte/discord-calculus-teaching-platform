@@ -9,14 +9,16 @@ import { withBase } from "../../lib/paths";
   description="在 Discord 提問、使用隱密支援、管理隱私與追蹤案件的完整指南。"
   currentPath="guide"
 >
-  <div class="shell stack section" style="--stack-gap: var(--space-7)">
-    <header class="guide-intro reading-width">
+  <div
+    class="shell guide-shell stack section"
+    style="--stack-gap: var(--space-7)"
+  >
+    <header class="guide-intro">
       <p><a href={withBase("")}>首頁</a> / 使用指南</p>
-      <p class="eyebrow">Discord 提問與隱私</p>
       <h1>在 Discord 提問</h1>
       <p>
-        公開問題直接發文；需要隱密協助時，請由 Course Manager
-        開啟專屬空間。兩種方式使用同一套案件流程，差別只在誰看得到。
+        公開問題直接在 Discord 發文；需要隱密協助時，由 Course Manager
+        開啟專屬空間。兩者的處理流程相同，只有可見範圍不同。
       </p>
     </header>
 
@@ -25,8 +27,7 @@ import { withBase } from "../../lib/paths";
     </Alert>
 
     <section aria-labelledby="public-title">
-      <p class="eyebrow">公開提問</p>
-      <h2 id="public-title">發一篇問題，剩下的交給 Bot 整理</h2>
+      <h2 id="public-title">公開提問流程</h2>
       <ol class="step-list">
         <li><strong>選擇討論區</strong><br />依問題內容進入合適的區域。</li>
         <li>
@@ -47,23 +48,19 @@ import { withBase } from "../../lib/paths";
     <section aria-labelledby="areas-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">提問區域</p>
-          <h2 id="areas-title">先看問題屬於哪一類</h2>
+          <h2 id="areas-title">選擇提問區域</h2>
         </div>
       </div>
       <div class="guide-cards">
         <article>
-          <span aria-hidden="true">∫</span>
           <h3>數學問題</h3>
           <p>微積分觀念、計算與解題方法。</p>
         </article>
         <article>
-          <span aria-hidden="true">⌘</span>
           <h3>課務與系統</h3>
           <p>WeBWorK、Gradescope、教材勘誤與課程系統。</p>
         </article>
         <article>
-          <span aria-hidden="true">↗</span>
           <h3>延伸討論</h3>
           <p>趣味題、課外延伸與值得保留的討論。</p>
         </article>
@@ -72,11 +69,10 @@ import { withBase } from "../../lib/paths";
 
     <section class="private-guide" aria-labelledby="private-title">
       <div>
-        <p class="eyebrow">隱密支援</p>
-        <h2 id="private-title">需要談個資、成績或不適合公開的內容？</h2>
+        <h2 id="private-title">隱密支援適用情況</h2>
         <p>
-          從 Discord 的指令選單建立隱密支援。Course Manager
-          會開啟只有你與授權教學團隊可見的空間；接著照公開提問相同的步驟貼問題、選類型與決定
+          在 Discord 指令選單建立隱密支援後，Course Manager
+          會開啟只有你與授權教學團隊可見的空間。接著照一般提問流程貼出問題、選擇類型並設定
           AI 同意。
         </p>
       </div>
@@ -90,8 +86,7 @@ import { withBase } from "../../lib/paths";
     <section class="privacy-grid" aria-labelledby="privacy-title">
       <div class="section-heading privacy-heading">
         <div>
-          <p class="eyebrow">隱私與同意</p>
-          <h2 id="privacy-title">三件容易混在一起的事</h2>
+          <h2 id="privacy-title">隱私與 AI 同意</h2>
         </div>
       </div>
       <article>
@@ -113,22 +108,21 @@ import { withBase } from "../../lib/paths";
       </article>
     </section>
 
-    <section class="reading-width" aria-labelledby="dm-title">
+    <section class="guide-prose" aria-labelledby="dm-title">
       <h2 id="dm-title">Discord 私訊與帳號安全</h2>
       <p>
         Course Manager
-        會用私訊傳送申請結果、案號與直達連結。若你不希望伺服器中的陌生成員私訊，請在
-        Discord 的隱私設定關閉「允許來自同一伺服器成員的私人訊息」；Bot
-        能否私訊仍可能受你的個人設定影響。
+        會以私訊傳送申請結果、案號與直達連結。若不希望其他伺服器成員私訊，可在
+        Discord 的隱私設定關閉「允許來自同一伺服器成員的私人訊息」。Bot
+        能否私訊仍受個人設定影響。
       </p>
       <p>
-        教學語音空間不錄音，也不自動轉錄。不要在公開頻道貼出他人的個資、成績或私人對話。
+        教學語音空間不錄音，也不自動轉錄。請勿在公開頻道張貼他人的個資、成績或私人對話。
       </p>
     </section>
 
     <section class="faq" aria-labelledby="faq-title">
-      <p class="eyebrow">常見問題</p>
-      <h2 id="faq-title">遇到這些情況怎麼辦？</h2>
+      <h2 id="faq-title">常見問題</h2>
       <details>
         <summary>沒有收到 Bot 私訊</summary>
         <p>
@@ -161,8 +155,18 @@ import { withBase } from "../../lib/paths";
 </BaseLayout>
 
 <style>
+  .guide-shell {
+    width: min(calc(100% - 2 * var(--space-4)), 72rem);
+  }
+
+  .guide-intro,
+  .guide-prose {
+    max-width: 60rem;
+  }
+
   .guide-intro > p:last-child {
-    font-size: var(--font-size-lg);
+    font-size: clamp(1.15rem, 1.4vw, 1.35rem);
+    text-wrap: pretty;
   }
 
   .guide-cards,
@@ -173,23 +177,33 @@ import { withBase } from "../../lib/paths";
 
   .guide-cards article,
   .privacy-grid article {
-    padding: var(--space-5);
-    border: var(--border-thin) solid var(--color-border);
-    border-radius: var(--radius-lg);
+    padding: var(--space-4);
     background: var(--color-surface);
-    box-shadow: var(--shadow-low);
   }
 
-  .guide-cards article > span {
-    display: grid;
-    width: 2.5rem;
-    height: 2.5rem;
-    margin-bottom: var(--space-4);
-    place-items: center;
-    border-radius: 50%;
-    background: var(--color-accent-soft);
-    color: var(--color-accent);
-    font-weight: 850;
+  .guide-cards {
+    border-block: var(--border-thin) solid var(--color-border-strong);
+  }
+
+  .guide-cards article + article {
+    border-top: var(--border-thin) solid var(--color-border);
+  }
+
+  .guide-cards :is(h3, p:last-child),
+  .privacy-grid :is(h3, p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .privacy-grid {
+    border-block: var(--border-thin) solid var(--color-border-strong);
+  }
+
+  .privacy-grid article {
+    padding-block: var(--space-5);
+  }
+
+  .privacy-grid article + article {
+    border-top: var(--border-thin) solid var(--color-border);
   }
 
   .private-guide {
@@ -210,6 +224,10 @@ import { withBase } from "../../lib/paths";
     grid-column: 1 / -1;
   }
 
+  .guide-prose p {
+    text-wrap: pretty;
+  }
+
   .faq details {
     padding-block: var(--space-3);
     border-bottom: var(--border-thin) solid var(--color-border);
@@ -228,6 +246,12 @@ import { withBase } from "../../lib/paths";
     .guide-cards,
     .privacy-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .guide-cards article + article,
+    .privacy-grid article + article {
+      border-top: 0;
+      border-inline-start: var(--border-thin) solid var(--color-border);
     }
 
     .private-guide {

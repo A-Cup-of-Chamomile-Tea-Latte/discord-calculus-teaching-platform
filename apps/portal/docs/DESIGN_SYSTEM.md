@@ -26,13 +26,13 @@
 - `StatePanel`：loading/empty/error/success；loading 有 `aria-live`/`aria-busy`，error 為 alert。
 - `FormField`：label、hint、optional/required、error slot；實際 control 必須用 `aria-describedby` 連到 hint/error。
 - `ButtonLink`：primary/secondary/quiet/disabled/external；disabled anchor 移除 href 並退出 tab order。
-- `ComponentGallery`：只使用 fixture copy 的輕量 gallery，Task 11 會掛到 `/components/`。
+- `ComponentGallery`：只存在 reviewer artifact 的輕量 v10 元件 gallery；public build 移除 `/components/`。
 
 ## Keyboard and focus
 
 - 全域 interactive elements 使用 `:focus-visible` 3px focus ring，與 semantic state border 分開。
 - Header/footer 使用 native links，表單使用 native controls/button；不以 `div` 模擬按鈕。
-- Skip link 在 focus 時出現；Task 11 BaseLayout 必須把它連到 `#main-content`。
+- Skip link 在 focus 時出現，並由 BaseLayout 連到 `#main-content`。
 - DOM order 就是 mobile reading order；desktop 只改 grid columns，不重排語意順序。
 
 ## Mobile-first and responsive rules
@@ -67,5 +67,5 @@ Loading、empty、error、success 也都有 heading、symbol 及具體下一步�
 ## Known integration limits
 
 - Astro compiler/build 已驗證 `.astro` 元件；目前 Portal diagnostics 為 0 errors、0 warnings、0 hints。
-- 尚未完成正式 backend、dark theme、institution logo 或 custom domain。
+- same-origin backend 已完成本機候選，但正式 session／audit／origin、rollout、institution logo 與 custom domain 尚未完成。
 - `FormField` 不自動修改 slotted control 的 ARIA；頁面作者必須連結 hint/error IDs，fixture forms tests 已覆蓋這項要求。

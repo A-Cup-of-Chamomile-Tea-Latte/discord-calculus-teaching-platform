@@ -4,10 +4,18 @@ import ButtonLink from "../components/ButtonLink.astro";
 import CaseSearch from "../components/CaseSearch.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { fixtureCaseLookupAdapter } from "../lib/fixture-case-adapter";
+import { sameOriginEndpointPath } from "../lib/join-application";
 import { withBase } from "../lib/paths";
 
 const caseStatuses = await fixtureCaseLookupAdapter.listCaseStatuses();
 const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
+const caseStatusEndpoint = sameOriginEndpointPath(
+  import.meta.env.PUBLIC_CASE_STATUS_ENDPOINT,
+);
+const sessionEndpoint = sameOriginEndpointPath(
+  import.meta.env.PUBLIC_PORTAL_SESSION_ENDPOINT,
+);
+const lookupConnected = Boolean(caseStatusEndpoint && sessionEndpoint);
 ---
 
 <BaseLayout
@@ -16,11 +24,10 @@ const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
 >
   <section class="hero">
     <div class="shell hero__content">
-      <p class="eyebrow">臺大微積分教學支援</p>
-      <h1>充實的課程，需要專業的後盾。</h1>
+      <h1>充實的課程，需要專業的後盾</h1>
       <p>
         加入課程
-        Discord，和同學、助教與教師一起處理數學問題、課務系統與值得延伸的討論。
+        Discord，和同學、助教與教師一起處理數學問題、課務疑問與延伸討論。
       </p>
       <div class="cluster">
         <ButtonLink href={withBase("join/")}>加入 Discord 伺服器</ButtonLink>
@@ -39,8 +46,7 @@ const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
     <section class="stack" aria-labelledby="start-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">從這裡開始</p>
-          <h2 id="start-title">找到你現在需要的入口</h2>
+          <h2 id="start-title">你要做什麼？</h2>
         </div>
       </div>
       <div class="action-grid action-grid--compact">
@@ -65,7 +71,6 @@ const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
     <section class="stack" aria-labelledby="lookup-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">案件查詢</p>
           <h2 id="lookup-title">已經有案號？</h2>
           <p>
             一般與隱密案件都從同一個地方查詢；網頁只顯示進度，不呈現提問內容。
@@ -75,12 +80,14 @@ const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
       <CaseSearch
         cases={isPublicBuild ? [] : caseStatuses}
         inputId="home-case-number"
-        enabled={!isPublicBuild}
+        enabled={!isPublicBuild || lookupConnected}
+        endpoint={caseStatusEndpoint}
+        sessionEndpoint={sessionEndpoint}
       />
     </section>
 
     <section class="platform-strip" aria-labelledby="platform-title">
-      <h2 id="platform-title">每個地方，只做它最擅長的事</h2>
+      <h2 id="platform-title">各服務的用途</h2>
       <div class="grid grid--auto">
         <p>
           <strong>各班 NTU COOL</strong><br />正式教材、作業、成績、期限與公告。
@@ -99,7 +106,7 @@ const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
   }
 
   .hero__content p:not(.eyebrow) {
-    max-width: 39rem;
+    max-width: 52rem;
     font-size: var(--font-size-lg);
   }
 
@@ -114,6 +121,12 @@ const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
   @media (min-width: 58rem) {
     .action-grid--compact {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 66rem) {
+    .hero__content h1 {
+      white-space: nowrap;
     }
   }
 </style>

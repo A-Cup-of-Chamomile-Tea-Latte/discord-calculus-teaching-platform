@@ -39,6 +39,36 @@ export function sameOriginEndpointPath(
   return path;
 }
 
+export function discordInviteUrl(value: string | undefined): string | undefined {
+  const candidate = value?.trim();
+  if (!candidate) return undefined;
+  try {
+    const url = new URL(candidate);
+    const host = url.hostname.toLowerCase();
+    const path = url.pathname.replace(/^\/+|\/+$/g, "");
+    const inviteCode =
+      host === "discord.gg"
+        ? path
+        : host === "discord.com" && path.startsWith("invite/")
+          ? path.slice("invite/".length)
+          : "";
+    if (
+      url.protocol !== "https:" ||
+      url.port ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      !/^[A-Za-z0-9_-]{2,64}$/.test(inviteCode)
+    ) {
+      return undefined;
+    }
+    return url.href;
+  } catch {
+    return undefined;
+  }
+}
+
 function normalized(value: string | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }

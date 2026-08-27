@@ -31,6 +31,10 @@ const archivedPages = [
   "discord-guide/index.html",
   "private-support/index.html",
 ];
+const publicApiActions = new Set([
+  `${normalizedBase}api/join`,
+  `${normalizedBase}api/cases/lookup`,
+]);
 const requiredPages = publicMode
   ? publicPages
   : [...publicPages, ...internalPages, ...archivedPages];
@@ -87,6 +91,21 @@ if (publicMode) {
         `public artifact contains internal access or tool code: ${relativePath}`,
       );
     }
+    if (relativePath.endsWith(".html")) {
+      const visibleText = contents
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+        .replace(/<[^>]+>/g, " ");
+      if (
+        /Reviewer build|reviewer-only|fixture confirmation|低擬真|尚未接線|本機展示|介面驗證|開發工具|technical spike/i.test(
+          visibleText,
+        )
+      ) {
+        throw new Error(
+          `public artifact contains development or review wording: ${relativePath}`,
+        );
+      }
+    }
   }
   for (const relativePath of ["index.html", "cases/index.html"]) {
     const contents = readFileSync(join(dist, relativePath), "utf8");
@@ -100,7 +119,8 @@ if (publicMode) {
   const sqliteLab = readFileSync(join(dist, "sqlite-lab/index.html"), "utf8");
   for (const requiredText of [
     "SQLite 學習實驗室",
-    "安全查詢實驗台",
+    "先看懂，再操作 SQLite",
+    "唯讀查詢",
     "交易（transaction）",
     "可靠工作佇列（reliable queue）",
     "雲端資料驗證關卡",
@@ -116,9 +136,9 @@ if (publicMode) {
   }
   const accessPage = readFileSync(join(dist, "access/index.html"), "utf8");
   for (const requiredText of [
-    "助教／管理員登入",
-    "建立第一位管理員",
-    "不是正式授權邊界",
+    "教學團隊登入",
+    "建立第一位系統管理員",
+    "這個靜態原型不是正式授權邊界",
   ]) {
     if (!accessPage.includes(requiredText)) {
       throw new Error(
@@ -150,8 +170,11 @@ for (const relativePath of htmlFiles) {
     /\b(href|src|action)="([^"]+)"/g,
   )) {
     referenceCount += 1;
+    const approvedApiAction =
+      publicMode && attribute === "action" && publicApiActions.has(reference);
     const allowed =
       reference.startsWith(normalizedBase) ||
+      approvedApiAction ||
       reference.startsWith("#") ||
       reference.startsWith("https://") ||
       reference.startsWith("mailto:") ||
@@ -161,7 +184,7 @@ for (const relativePath of htmlFiles) {
         `${relativePath}: ${attribute} is not base-safe: ${reference}`,
       );
     }
-    if (reference.startsWith(normalizedBase)) {
+    if (reference.startsWith(normalizedBase) && !approvedApiAction) {
       const withoutBase = reference
         .slice(normalizedBase.length)
         .split(/[?#]/, 1)[0];
@@ -181,6 +204,18 @@ for (const relativePath of htmlFiles) {
         );
       }
     }
+  }
+}
+
+const joinPage = readFileSync(join(dist, "join/index.html"), "utf8");
+for (const requiredText of [
+  "下載 Discord APP（推薦）",
+  "暫時使用網頁版",
+  "https://discord.com/download",
+  "https://discord.com/app",
+]) {
+  if (!joinPage.includes(requiredText)) {
+    throw new Error(`join/index.html: missing Discord entry ${requiredText}`);
   }
 }
 

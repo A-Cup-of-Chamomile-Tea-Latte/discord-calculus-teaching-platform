@@ -10,23 +10,19 @@ import { withBase } from "../../lib/paths";
 >
   <div class="access-shell shell" data-local-access>
     <header class="access-intro">
-      <p class="eyebrow">內部工作區</p>
-      <h1>教學審核者／系統管理員登入</h1>
+      <h1>教學團隊登入</h1>
       <p>
-        助教與教師使用教學審核者身份；第一位本機管理員就是最高權限的系統管理員。
-        學生與一般訪客不需登入。
+        助教與教師以教學審核者身份登入；第一位本機管理員擁有系統管理權限。學生與一般訪客不需登入。
       </p>
     </header>
 
     <section class="access-roles" aria-labelledby="access-roles-title">
       <h2 id="access-roles-title" class="visually-hidden">兩種內部權限</h2>
       <article>
-        <p class="eyebrow">教學審核者</p>
         <h3>助教／教師</h3>
         <p>審核學生與訪客申請、查看教學團隊與系統狀態。</p>
       </article>
       <article>
-        <p class="eyebrow">最高本機權限</p>
         <h3>系統管理員</h3>
         <p>包含教學審核權限，並可新增審核者、處理例外、設定與可逆封存。</p>
       </article>
@@ -34,7 +30,6 @@ import { withBase } from "../../lib/paths";
 
     <section class="access-card" data-access-view="bootstrap" hidden>
       <div>
-        <p class="eyebrow">首次初始化</p>
         <h2>建立第一位系統管理員</h2>
         <p>
           這個步驟只會在本機尚無帳號時出現。瀏覽器不保存明碼，只保存帳號摘要、salt
@@ -83,9 +78,8 @@ import { withBase } from "../../lib/paths";
         >
       </nav>
       <div>
-        <p class="eyebrow">本機身份</p>
         <h2><span data-login-role-label>系統管理員</span>登入</h2>
-        <p>這是本機展示用身份層，尚不是正式網站的伺服器端授權。</p>
+        <p>請使用已建立的本機帳號。</p>
       </div>
       <form data-login-form>
         <input type="hidden" name="expectedRole" />
@@ -125,7 +119,6 @@ import { withBase } from "../../lib/paths";
     </section>
 
     <section class="access-card" data-access-view="force-change" hidden>
-      <p class="eyebrow">首次登入</p>
       <h2>請先更改一次性密碼</h2>
       <p>助教帳號的初始密碼與帳號相同，更改後才會進入工作區。</p>
       <form data-force-change-form>
@@ -163,7 +156,6 @@ import { withBase } from "../../lib/paths";
     >
       <div class="account-heading">
         <div>
-          <p class="eyebrow">已登入</p>
           <h2><span data-current-role>內部</span>工作區</h2>
         </div>
         <button
@@ -174,6 +166,37 @@ import { withBase } from "../../lib/paths";
           登出
         </button>
       </div>
+
+      <section class="release-gate" data-tester-window hidden>
+        <div class="release-gate__heading">
+          <div>
+            <p class="eyebrow">DC Platform Beta</p>
+            <h3>註冊開放控制</h3>
+          </div>
+          <strong data-test-window-state>尚未開放</strong>
+        </div>
+        <p class="release-gate__detail" data-test-window-detail>
+          可開放 30 分鐘測試，或持續開放至管理員手動關閉。
+        </p>
+        <label class="release-gate__audience">
+          <input type="checkbox" data-test-window-audience checked />
+          <span>安全內測：限臺大校內網路／SSL VPN</span>
+        </label>
+        <p class="release-gate__note">
+          正式限制由入口伺服器依連線來源執行；本機只預覽開放狀態。學生、訪客與教學團隊都可測試。
+        </p>
+        <div class="cluster release-gate__actions">
+          <button type="button" data-open-test-window>臨時開放 30 分鐘</button>
+          <button type="button" data-open-continuous-window>持續開放</button>
+          <button
+            type="button"
+            class="button button--secondary"
+            data-close-test-window>關閉註冊</button
+          >
+          <a class="button button--quiet" href={withBase("join/")}>預覽註冊頁</a
+          >
+        </div>
+      </section>
 
       <div class="tool-links" aria-label="內部工具">
         <a href={withBase("team/registrations/")}>
@@ -188,16 +211,23 @@ import { withBase } from "../../lib/paths";
         <a href={withBase("sqlite-lab/")} data-role-card="admin">
           <strong>SQLite 學習</strong><span>管理員資料架構教程</span>
         </a>
-        <a href={withBase("scenarios/")} data-role-card="admin">
-          <strong>情境審查</strong><span>比對案件狀態與介面</span>
-        </a>
-        <a href={withBase("components/")} data-role-card="admin">
-          <strong>介面元件</strong><span>設計系統與狀態檢查</span>
+        <a href={withBase("team/#case-reference")} data-role-card="admin">
+          <strong>案件狀態說明</strong><span
+            >查看流程、隱私、同步與例外狀況</span
+          >
         </a>
         <a href="#account-management" data-role-card="admin">
           <strong>身份與權限</strong><span>新增教學審核者或系統管理員</span>
         </a>
       </div>
+
+      <details class="development-tools" data-role-card="admin">
+        <summary>開發工具</summary>
+        <a href={withBase("components/")}>
+          <strong>介面狀態檢查</strong>
+          <span>檢查按鈕、表單、提示訊息與案件狀態</span>
+        </a>
+      </details>
 
       <div class="account-forms" id="account-management">
         <form data-change-password-form>
@@ -282,7 +312,7 @@ import { withBase } from "../../lib/paths";
 <style>
   .access-shell {
     display: grid;
-    width: min(calc(100% - 2 * var(--space-4)), 54rem);
+    width: min(calc(100% - 2 * var(--space-4)), 72rem);
     padding-block: clamp(2.5rem, 7vw, 5rem);
     gap: var(--space-6);
   }
@@ -290,6 +320,12 @@ import { withBase } from "../../lib/paths";
   .access-intro {
     max-width: 38rem;
     text-align: center;
+    justify-self: center;
+  }
+
+  .access-roles {
+    width: 100%;
+    max-width: 60rem;
     justify-self: center;
   }
 
@@ -405,6 +441,50 @@ import { withBase } from "../../lib/paths";
     border-block: var(--border-thin) solid var(--color-border);
   }
 
+  .release-gate {
+    display: grid;
+    padding-block: var(--space-4);
+    border-block: var(--border-thin) solid var(--color-border);
+    gap: var(--space-4);
+  }
+
+  .release-gate__heading {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .release-gate__heading :is(p, h3) {
+    margin-bottom: 0;
+  }
+
+  .release-gate__heading > strong {
+    color: var(--color-accent);
+    white-space: nowrap;
+  }
+
+  .release-gate__detail,
+  .release-gate__note {
+    margin: 0;
+    color: var(--color-text-muted);
+  }
+
+  .release-gate__audience {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 750;
+  }
+
+  .release-gate__note {
+    font-size: var(--font-size-sm);
+  }
+
+  .release-gate__actions {
+    margin: 0;
+  }
+
   .tool-links a {
     display: grid;
     padding: var(--space-4) var(--space-3);
@@ -418,6 +498,31 @@ import { withBase } from "../../lib/paths";
   }
 
   .tool-links span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .development-tools {
+    border-bottom: var(--border-thin) solid var(--color-border);
+  }
+
+  .development-tools summary {
+    padding: var(--space-3) 0;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-weight: 750;
+  }
+
+  .development-tools a {
+    display: grid;
+    padding: 0 0 var(--space-4);
+    color: var(--color-text);
+    text-decoration: none;
+    gap: var(--space-1);
+  }
+
+  .development-tools span {
     color: var(--color-text-muted);
     font-size: var(--font-size-sm);
   }
@@ -452,6 +557,13 @@ import { withBase } from "../../lib/paths";
 
     .account-forms {
       grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 38rem) {
+    .release-gate__heading {
+      display: grid;
+      grid-template-columns: 1fr;
     }
   }
 </style>

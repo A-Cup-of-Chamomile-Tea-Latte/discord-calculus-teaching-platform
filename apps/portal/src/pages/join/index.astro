@@ -4,7 +4,10 @@ import { readFileSync } from "node:fs";
 import Alert from "../../components/Alert.astro";
 import FormField from "../../components/FormField.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { sameOriginEndpointPath } from "../../lib/join-application";
+import {
+  discordInviteUrl,
+  sameOriginEndpointPath,
+} from "../../lib/join-application";
 import { withBase } from "../../lib/paths";
 
 interface RegistrationSection {
@@ -49,6 +52,9 @@ const sessionEndpoint = sameOriginEndpointPath(
   import.meta.env.PUBLIC_PORTAL_SESSION_ENDPOINT,
 );
 const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
+const courseDiscordInvite = discordInviteUrl(
+  import.meta.env.PUBLIC_DISCORD_INVITE_URL,
+);
 ---
 
 <BaseLayout
@@ -72,6 +78,56 @@ const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
       <li><strong>3</strong><span>收到私訊</span></li>
     </ol>
 
+    <section class="discord-entry" aria-labelledby="discord-entry-title">
+      <div class="discord-entry__intro">
+        <h2 id="discord-entry-title">先加入課程 Discord</h2>
+        <p>
+          建議使用 Discord APP，通知與私訊比較不容易漏掉。加入等候區後，再回到本頁填寫課程身分。
+        </p>
+      </div>
+      {
+        courseDiscordInvite ? (
+          <a
+            class="button discord-entry__primary"
+            href={courseDiscordInvite}
+            target="_blank"
+            rel="noreferrer"
+          >
+            開啟課程邀請
+          </a>
+        ) : (
+          <p class="discord-entry__pending" role="status">
+            課程邀請將在 Beta 開放時提供。
+          </p>
+        )
+      }
+      <div class="discord-entry__alternatives">
+        <a
+          class="button button--secondary"
+          href="https://discord.com/download"
+          target="_blank"
+          rel="noreferrer"
+        >
+          下載 Discord APP（推薦）
+        </a>
+        <a
+          href="https://discord.com/app"
+          target="_blank"
+          rel="noreferrer"
+        >
+          暫時使用網頁版
+        </a>
+      </div>
+      <details class="discord-entry__help">
+        <summary>邀請沒有開啟，或開到錯的帳號？</summary>
+        <ul>
+          <li>先確認 Discord APP 已登入準備加入課程的帳號，再重新開啟邀請。</li>
+          <li>若 APP 沒有反應，可先用網頁版登入，再回來點一次課程邀請。</li>
+          <li>加入後應先看到課程等候區；尚未完成審核時看不到班級頻道是正常的。</li>
+        </ul>
+      </details>
+    </section>
+
     <Alert title="送出前，先確認 Discord 帳號">
       <p>
         請使用準備加入課程的帳號進入伺服器。若找不到成員，申請會保留在「等待加入伺服器」，不會被拒絕或刪除。
@@ -81,9 +137,7 @@ const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
     {
       !isPublicBuild && (
         <p class="review-only">
-          Reviewer
-          build：目前只驗證欄位與確認畫面，不會寫入正式申請佇列。正式接線前，公開
-          build 會停用送出。
+          目前是測試環境，只會檢查欄位並顯示確認畫面，不會送出申請。
         </p>
       )
     }
@@ -95,13 +149,29 @@ const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
       data-session-endpoint={sessionEndpoint ?? ""}
       aria-labelledby="join-form-title"
     >
+      {
+        !isPublicBuild && (
+          <div
+            class="test-registration-notice"
+            data-test-registration-notice
+            data-state="closed"
+            role="status"
+          >
+            <strong data-test-registration-title>測試註冊尚未開放</strong>
+            <span data-test-registration-detail>
+              請由系統管理員在「教學團隊登入」開放 Beta 註冊。
+            </span>
+          </div>
+        )
+      }
+
       <div>
-        <p class="eyebrow">加入申請</p>
-        <h2 id="join-form-title">告訴我們你的課程身分</h2>
+        <h2 id="join-form-title">填寫課程身分</h2>
       </div>
 
       <form
         class="prototype-form"
+        hidden={!isPublicBuild}
         novalidate
         action={applicationEndpoint}
         method="post"
@@ -120,14 +190,22 @@ const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
 
         <fieldset class="choice-group">
           <legend>申請身分 *</legend>
-          <label>
+          <label data-identity-choice="STUDENT">
             <input type="radio" name="identityType" value="STUDENT" checked />
             臺大學生
           </label>
-          <label>
+          <label data-identity-choice="GUEST">
             <input type="radio" name="identityType" value="GUEST" />
             訪客
           </label>
+          {
+            !isPublicBuild && (
+              <label data-identity-choice="TEACHING_TEAM">
+                <input type="radio" name="identityType" value="TEACHING_TEAM" />
+                助教／教師
+              </label>
+            )
+          }
           <p class="field-error" data-field-error="identityType" hidden></p>
         </fieldset>
 
@@ -298,6 +376,90 @@ const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
           </FormField>
         </div>
 
+        {
+          !isPublicBuild && (
+            <div
+              class="identity-fields"
+              data-identity-fields="TEACHING_TEAM"
+              hidden
+            >
+              <Alert title="教學團隊申請需由管理員核准">
+                <p>這裡只驗證申請流程；正式權限仍由系統管理員核准建立。</p>
+              </Alert>
+              <FormField
+                forId="join-staff-role"
+                label="教學身分"
+                hint="請選擇這學期在課程中的身分。"
+                required
+              >
+                <select
+                  id="join-staff-role"
+                  name="staffRole"
+                  aria-describedby="join-staff-role-hint join-staff-role-error"
+                >
+                  <option value="">請選擇</option>
+                  <option value="TA">助教</option>
+                  <option value="INSTRUCTOR">教師</option>
+                </select>
+                <p
+                  id="join-staff-role-error"
+                  class="field-error"
+                  data-field-error="staffRole"
+                  hidden
+                />
+              </FormField>
+              <FormField
+                forId="join-staff-email"
+                label="臺大信箱"
+                hint="可使用 @ntu.edu.tw 或臺大單位的子網域信箱。"
+                required
+              >
+                <input
+                  id="join-staff-email"
+                  name="staffEmail"
+                  type="email"
+                  inputmode="email"
+                  autocomplete="email"
+                  placeholder="name@ntu.edu.tw"
+                  aria-describedby="join-staff-email-hint join-staff-email-error"
+                />
+                <p
+                  id="join-staff-email-error"
+                  class="field-error"
+                  data-field-error="staffEmail"
+                  hidden
+                />
+              </FormField>
+              <FormField
+                forId="join-staff-class-code"
+                label="主要負責班別"
+                hint="先選一班驗證介面；正式權限可再由管理員調整。"
+                required
+              >
+                <select
+                  id="join-staff-class-code"
+                  name="staffClassCode"
+                  aria-describedby="join-staff-class-code-hint join-staff-class-code-error"
+                >
+                  <option value="">請選擇</option>
+                  {activeSections.map((section) => (
+                    <option value={section.classCode}>
+                      {section.moduleCode}－{section.canonicalClassLabel}－
+                      {instructorNames.get(section.instructorRef)}老師
+                    </option>
+                  ))}
+                </select>
+                <p
+                  id="join-staff-class-code-error"
+                  class="field-error"
+                  data-field-error="staffClassCode"
+                  hidden
+                />
+              </FormField>
+            </div>
+          )
+        }
+
         <label class="rules-check">
           <input type="checkbox" name="rulesPrivacy" value="yes" />
           <span>
@@ -330,6 +492,54 @@ const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
       }
 
       {
+        isPublicBuild && (
+          <dialog
+            class="email-verification-dialog"
+            data-email-verification-dialog
+            aria-labelledby="email-verification-title"
+          >
+            <form class="email-verification-form" data-email-verification-form>
+              <div>
+                <h2 id="email-verification-title">驗證 Email</h2>
+                <p data-email-verification-copy>
+                  六位數驗證碼寄出後，請在這裡輸入。
+                </p>
+              </div>
+              <label>
+                <span>六位數驗證碼</span>
+                <input
+                  name="verificationCode"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  minlength="6"
+                  maxlength="6"
+                  required
+                />
+              </label>
+              <p
+                class="field-error"
+                data-email-verification-error
+                role="alert"
+                hidden
+              />
+              <div class="form-actions">
+                <button type="submit">驗證並送出</button>
+                <button
+                  type="button"
+                  class="button button--secondary"
+                  data-email-verification-cancel
+                >
+                  取消
+                </button>
+              </div>
+            </form>
+          </dialog>
+        )
+      }
+
+      {
         !isPublicBuild && (
           <section
             class="fixture-confirmation"
@@ -337,7 +547,6 @@ const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
             tabindex="-1"
             hidden
           >
-            <p class="eyebrow">欄位驗證完成</p>
             <h2>申請資料格式已確認</h2>
             <dl>
               <div>
@@ -354,7 +563,7 @@ const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
               </div>
               <div>
                 <>
-                  <dt>班別／聯絡 Email</dt>
+                  <dt>班別／聯絡資料</dt>
                   <dd data-confirmation-detail />
                 </>
               </div>
@@ -434,6 +643,71 @@ const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
     box-shadow: var(--shadow-card);
   }
 
+  .discord-entry {
+    display: grid;
+    gap: var(--space-4);
+    padding: clamp(1rem, 4vw, 1.75rem);
+    border: var(--border-thin) solid var(--color-border);
+    border-inline-start: 0.4rem solid var(--color-accent);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .discord-entry__intro :is(h2, p:last-child),
+  .discord-entry__help ul {
+    margin-bottom: 0;
+  }
+
+  .discord-entry__primary {
+    justify-self: start;
+  }
+
+  .discord-entry__pending {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-weight: 750;
+  }
+
+  .discord-entry__alternatives {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  .discord-entry__help {
+    padding-top: var(--space-3);
+    border-top: var(--border-thin) solid var(--color-border);
+  }
+
+  .discord-entry__help summary {
+    cursor: pointer;
+    font-weight: 750;
+  }
+
+  .discord-entry__help ul {
+    padding-top: var(--space-3);
+  }
+
+  .test-registration-notice {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-block: var(--space-3);
+    border-block: var(--border-thin) solid var(--color-border);
+    color: var(--color-text-muted);
+    gap: var(--space-3);
+  }
+
+  .test-registration-notice strong {
+    color: var(--color-text);
+    white-space: nowrap;
+  }
+
+  .test-registration-notice[data-state="open"] strong {
+    color: var(--color-success-border);
+  }
+
   .identity-fields {
     display: grid;
     gap: var(--space-4);
@@ -471,5 +745,42 @@ const applicationConnected = Boolean(applicationEndpoint && sessionEndpoint);
 
   .rules-check a {
     margin-inline: 0.25em;
+  }
+
+  .email-verification-dialog {
+    width: min(calc(100% - 2 * var(--space-4)), 30rem);
+    padding: 0;
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: var(--shadow-card);
+  }
+
+  .email-verification-dialog::backdrop {
+    background: color-mix(in srgb, var(--color-text) 48%, transparent);
+  }
+
+  .email-verification-form {
+    display: grid;
+    padding: clamp(1.25rem, 5vw, 2rem);
+    gap: var(--space-4);
+  }
+
+  .email-verification-form label {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .email-verification-form input {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-lg);
+    letter-spacing: 0.2em;
+  }
+
+  @media (max-width: 38rem) {
+    .test-registration-notice {
+      display: grid;
+    }
   }
 </style>
