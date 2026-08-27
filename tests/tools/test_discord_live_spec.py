@@ -115,7 +115,7 @@ def test_private_entry_allows_commands_but_rejects_member_content() -> None:
         assert permission.create_public_threads is False
         assert permission.create_private_threads is False
         assert permission.attach_files is False
-    for operator in (admin, course):
+    for operator in (admin,):
         permission = overwrites[operator]  # type: ignore[index]
         assert permission.view_channel is True
         assert permission.send_messages is True
@@ -126,11 +126,14 @@ def test_private_entry_allows_commands_but_rejects_member_content() -> None:
     assert staff_permission.send_messages is True
     assert staff_permission.manage_messages is True
     assert staff_permission.manage_channels is False
+    course_permission = overwrites[course]  # type: ignore[index]
+    assert course_permission.manage_channels is True
+    assert course_permission.manage_messages is None
     assert overwrites[everyone].view_channel is False  # type: ignore[index]
     assert overwrites[dump].view_channel is False  # type: ignore[index]
 
 
-def test_private_entry_uses_member_override_without_mutating_managed_bot_role() -> None:
+def test_private_entry_preserves_existing_managed_bot_role_boundary() -> None:
     provisioner = object.__new__(LiveProvisioner)
     provisioner.guild = MagicMock(spec=discord.Guild)
     provisioner.guild.default_role = MagicMock(spec=discord.Role)
@@ -148,10 +151,8 @@ def test_private_entry_uses_member_override_without_mutating_managed_bot_role() 
 
     overwrites = provisioner.private_entry_overwrites(spec)
 
-    member = overwrites[provisioner.course]
     managed_role = overwrites[provisioner.course.top_role]
-    assert member.manage_channels is True
-    assert member.manage_messages is True
+    assert provisioner.course not in overwrites
     assert managed_role.manage_channels is True
     assert managed_role.manage_messages is None
 
@@ -225,12 +226,10 @@ async def test_targeted_ensure_does_not_enter_full_reconciliation(tmp_path) -> N
 
 
 @pytest.mark.asyncio
-async def test_private_entry_seed_creates_and_pins_instruction() -> None:
+async def test_private_entry_seed_creates_instruction_without_extra_permission() -> None:
     provisioner = object.__new__(LiveProvisioner)
     message = MagicMock(spec=discord.Message)
     message.id = 303
-    message.pinned = False
-    message.pin = AsyncMock()
     channel = MagicMock(spec=discord.TextChannel)
     channel.send = AsyncMock(return_value=message)
     provisioner.channels = {"channel.private_support_entry": channel}
@@ -241,7 +240,6 @@ async def test_private_entry_seed_creates_and_pins_instruction() -> None:
     await LiveProvisioner.ensure_private_entry_seed(provisioner)
 
     channel.send.assert_awaited_once()
-    message.pin.assert_awaited_once()
     provisioner.store.set.assert_called_once_with(
         "message.private_support_entry", 303, "message", "private-support-entry"
     )

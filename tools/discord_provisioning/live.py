@@ -394,7 +394,7 @@ def desired_overwrites(
         add(guest, PRIVATE_SUPPORT_ENTRY_MEMBER)
         add(admin, PRIVATE_SUPPORT_ENTRY_ADMIN)
         add(staff, PRIVATE_SUPPORT_ENTRY_STAFF)
-        add(course, PRIVATE_SUPPORT_ENTRY_ADMIN)
+        add(course, COURSE_CASE)
         add(dump, HIDDEN)
     elif spec.policy == "member_voice":
         voice_member = {
@@ -1207,7 +1207,7 @@ class LiveProvisioner:
         actions: list[str] = []
         if channel is None:
             actions.append("CREATE_CHANNEL")
-            actions.extend(("SET_EXACT_OVERWRITES", "CREATE_AND_PIN_INSTRUCTION"))
+            actions.extend(("SET_EXACT_OVERWRITES", "CREATE_INSTRUCTION"))
         else:
             desired = self.private_entry_overwrites(spec)
             if channel.category_id != category.id:
@@ -1219,12 +1219,12 @@ class LiveProvisioner:
 
             message_id = self.store.get_id("message.private_support_entry")
             if message_id is None:
-                actions.append("CREATE_AND_PIN_INSTRUCTION")
+                actions.append("CREATE_INSTRUCTION")
             else:
                 try:
                     message = await channel.fetch_message(message_id)
                 except discord.NotFound:
-                    actions.append("RECREATE_AND_PIN_INSTRUCTION")
+                    actions.append("RECREATE_INSTRUCTION")
                 except discord.HTTPException as exc:
                     raise ProvisioningError(
                         f"cannot inspect mapped Private Support entry message: {exc}"
@@ -1232,8 +1232,6 @@ class LiveProvisioner:
                 else:
                     if message.content != PRIVATE_SUPPORT_ENTRY_CONTENT:
                         actions.append("UPDATE_INSTRUCTION")
-                    if not message.pinned:
-                        actions.append("PIN_INSTRUCTION")
 
         return {
             "ok": True,
@@ -1278,31 +1276,19 @@ class LiveProvisioner:
                 label="edit Private Support entry message",
             )
             self.operations.record("updated", "message.private_support_entry", message.id)
-        if not message.pinned:
-            await retry(
-                lambda: message.pin(reason=REASON),
-                label="pin Private Support entry message",
-            )
-            self.operations.record("updated", "message.private_support_entry.pin", message.id)
-
     def private_entry_overwrites(
         self, spec: ChannelSpec
     ) -> dict[discord.Role | discord.Member, discord.PermissionOverwrite]:
-        desired = desired_overwrites(
+        return desired_overwrites(
             spec,
             everyone=self.guild.default_role,
             admin=self.roles["role.admin"],
             staff=self.roles["role.staff"],
             verified=self.roles["role.verified_member"],
             guest=self.roles["role.guest"],
-            course=self.course,
+            course=self.course.top_role,
             dump=self.dump.top_role,
         )
-        # Discord-managed integration roles cannot be edited by their own bot.
-        # Preserve the category's already-verified Course Manager role boundary,
-        # then use a direct member overwrite for the entry-only capabilities.
-        desired[self.course.top_role] = _overwrite(**COURSE_CASE)
-        return desired
 
     def update_private_entry_runtime_config(self) -> None:
         channel_id = self.channels["channel.private_support_entry"].id
@@ -1392,8 +1378,6 @@ class LiveProvisioner:
             else:
                 if entry_message.content != PRIVATE_SUPPORT_ENTRY_CONTENT:
                     errors.append("Private Support entry message content drifted")
-                if not entry_message.pinned:
-                    errors.append("Private Support entry message is not pinned")
         return errors
 
     async def ensure_private_entry(self) -> dict[str, object]:
@@ -1630,13 +1614,6 @@ class LiveProvisioner:
                 label="edit Private Support entry message",
             )
             self.operations.record("updated", "message.private_support_entry", entry_message.id)
-        if not entry_message.pinned:
-            await retry(
-                lambda: entry_message.pin(reason=REASON),
-                label="pin Private Support entry message",
-            )
-            self.operations.record("updated", "message.private_support_entry.pin", entry_message.id)
-
     def update_runtime_config(self) -> None:
         managed_ids = [
             self.channels[key].id for key in sorted(MANAGED_FORUM_KEYS) if key in self.channels
