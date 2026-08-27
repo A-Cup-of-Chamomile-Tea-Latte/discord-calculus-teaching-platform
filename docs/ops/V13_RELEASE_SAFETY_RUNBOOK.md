@@ -1,8 +1,10 @@
 # v13 Deployment Safety Runbook
 
-狀態：`LOCAL_GATES_PASS / FREEZE_VIA_EXTERNAL_RELEASE_EVIDENCE / HOST_OWNER_PREPARE_PENDING`。舊
-`3411aff` request 已可逆封存；只有 external release evidence 綁定的 exact clean commit、archive SHA-256
-與 host-owner prepare receipt 完成後，才建立新的 remote request。
+狀態：初次 v6→v13 deployment 已完成；本文件亦約束後續 schema 13 maintenance deployment。只有 exact
+clean commit、archive SHA-256 與 host-owner prepare receipt 完成後，才建立新的 remote request。
+
+Maintenance 固定使用同一 restricted deployer 的 `target_schema=13`、`migration_class=NONE`。Host checkpoint
+會在 production schema 13 的一致性備份副本執行 v13→v13 no-op rehearsal；不重跑 v6→v13 migration。
 
 本輪安全決策：移除未納管的 `GET /api/cases/status` 旁路；草稿刪除失敗只回固定訊息；Private
 Support 在無唯一班級 mapping 時保留受控 module metadata fallback。Private 頻道 ACL 仍只由 Discord
@@ -11,9 +13,9 @@ overwrites 決定，不由 module metadata 決定。Private 在 48＋48 自動�
 
 ## 0. 固定邊界
 
-- Production 仍是 remote Linux、schema v6；SQLite 是唯一 operational authority。
+- Production 是 remote Linux、schema v13；SQLite 是唯一 operational authority。
 - 唯一 production writer 必須是 remote 的三個 systemd services：`calculus-course-assistant.service`、`calculus-dump-bot.service`、`calculus-data-bridge.service`。Mac writer 必須維持停止。
-- v13 deployment 目標為 schema v13；migration 必須在 consistent backup 的可拋棄副本完成後，才可進入 owner 的 deploy decision。
+- Maintenance deployment 目標仍為 schema v13；no-op rehearsal 必須在 consistent backup 的可拋棄副本完成後，才可進入 deploy。
 - 不把 raw SQLite rows、案件內容、學生／TA／教師 IDs、secrets 或附件放入 receipt、Git 或聊天。
 
 ## 1. Host owner 單次 prepare
@@ -119,10 +121,10 @@ deployer：
 
 1. 核對 root-owned trusted release 中的 original archive、dependency lock、release ID、SHA-256 與
    friend preflight receipt；固定 inbox 只接受四欄 request，不接受第二份 user-owned archive。
-2. 以 `ops/scripts/prepare-calculus-discord-deploy-request.sh` 產生四欄 request：release、archive SHA-256、target schema `13`、migration class `ADDITIVE`；deployer 只接受經 rehearsal 的 exact v6→v13 chain，不接受任意 additive target。
+2. 以 `ops/scripts/prepare-calculus-discord-deploy-request.sh` 產生四欄 request：release、archive SHA-256、target schema `13`，初次 v6→v13 使用 `ADDITIVE`；schema 13 maintenance 使用 `NONE`。Deployer 不接受其他 schema 組合。
 3. 由既有 root-owned `/usr/local/sbin/calculus-discord-deploy` 執行唯一 production cutover；操作者不直接執行 archive 內任意 script，也不自行切換 `/opt/calculus-discord/current`。
-4. Deployer 先驗證 current schema／ledger、release checksum、builder workspace 與 verified-copy migration；全部通過後才短暫停止三服務。
-5. Deployer 保存 pre-deploy rollback DB，再以單一 writer 完成 v6 → v13，atomic 切換 release。
+4. Deployer 先驗證 current schema／ledger、release checksum、builder workspace 與 verified-copy rehearsal；全部通過後才短暫停止三服務。
+5. Deployer 保存 pre-deploy rollback DB；初次 deployment 以單一 writer 完成 v6→v13，maintenance 則維持 schema 13，之後 atomic 切換 release。
 6. 依固定順序啟動並等 fresh health：course assistant → dump bot → data bridge。
 
 ## 4. Deployment smoke 與 manual attention
@@ -151,7 +153,7 @@ sqlite3 "$DB" "SELECT 'discord_lifecycle', COUNT(*) FROM discord_lifecycle_jobs 
 1. 立即停止三個 remote services，確認 remote writer=0。
 2. 保留未修改的 pre-deploy rollback DB 與 receipt；不得把 migrated DB 當 rollback source。
 3. 由 restricted deployer restore 舊 release symlink 與 rollback DB，清除 WAL／SHM sidecar 後 atomic replace。
-4. 只有舊 symlink、rollback DB、`integrity_check`、schema v6、ledger 1–6 全部恢復後才啟動舊 release 的三服務。
+4. 只有舊 symlink、rollback DB、`integrity_check`、部署前 schema／ledger 全部恢復後才啟動舊 release 的三服務。
 5. 任一步失敗輸出 `rollback=FAILED_SERVICES_STOPPED` 並維持 services stopped，交由 host owner 處理；不得自行重試 destructive action。
 
 ## 6. Backup retention

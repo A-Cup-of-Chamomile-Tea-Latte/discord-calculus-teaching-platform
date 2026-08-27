@@ -23,7 +23,7 @@
 | Astro check                                    | 68 files，0 error／warning／hint                                                                                   |
 | Portal backend tests                           | 25 PASS                                                                                                            |
 | Portal／Email／staging／contract focused tests | 51 PASS（含 controlled real-provider runner 與 capture worker regression）                                         |
-| Python repository suite                        | 最新完整 gate 376 PASS                                                                                             |
+| Python repository suite                        | 最新完整 gate 377 PASS                                                                                             |
 | Discord 永久入口 focused suite                 | 27／27 PASS；白帳號 `/private open` 與動態 Private channel 建立真人 PASS                                            |
 | GAS MailApp adapter                            | unit tests PASS；immutable v14 受控實寄由 provider 接受，寄送前 quota 100，duplicate no-op，收件匣人工確認內容正確 |
 | Public build                                   | 預設 fail-closed 60、connected candidate 61 個 base-safe local references；各 5 public pages                       |
@@ -37,7 +37,7 @@ Portal backend 現已具備 local anonymous session issuer，分開 `JOIN`／`LO
 
 Owner 已於 2026-08-28 決定完整 Case ID 可作 content-free status lookup 的 bearer capability，不額外要求 user ID／OAuth。此決定只適用於最小唯讀狀態；未來若增加內容或案件操作，須另加身分驗證。Local synthetic composition 使用 temporary SQLite、獨立 audit DB、staging-only secret 與 capturing-only Email transport，一般與 Private lookup 均以假案件驗證；尚未部署 external staging。完整 contract 與停止條件見 `docs/ops/PORTAL_BACKEND_V1.md`。
 
-網站修改已整理成 `codex/portal-post-v13`。Implementation code head `08e4bba` 已包含 staging package hardening、GAS dual-scope bridge、Discord 永久入口與 Private Support 雙語訊息；雙語 Bot 訊息、Portal 變更都尚未 production deployment。
+網站修改已整理成 `codex/portal-post-v13`。Implementation code head `640236b` 已包含 staging package hardening、GAS dual-scope bridge、Discord 永久入口、Private Support 雙語訊息與 schema 13 maintenance checkpoint；雙語 Bot 訊息、Portal 變更都尚未 production deployment。
 
 ## 需要授權的下一步
 
