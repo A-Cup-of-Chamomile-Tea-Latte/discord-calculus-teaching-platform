@@ -286,30 +286,41 @@ class CourseService:
         if assigned is None:
             claimed = self.repo.claim_case(thread.id, actor.id)
             if claimed is None:
-                raise RuntimeError("請先接手案件，再進行結案。")
+                raise RuntimeError("請先接手案件，再進行結案。 / Claim the case before closing it.")
         elif int(assigned) != actor.id and not self.is_allowed_operator(actor):
-            raise PermissionError("只有案件負責人或系統管理員可以結案。")
+            raise PermissionError(
+                "只有案件負責人或系統管理員可以結案。 / "
+                "Only the assigned staff member or system admin may close it."
+            )
         if self.repo.has_unfinished_discord_lifecycle_job(str(case["case_id"])):
             raise RuntimeError("上一個案件操作仍在處理中，請稍後再試。")
         if self.repo.close_case(thread.id) is None:
-            raise RuntimeError("案件目前無法結案，請稍後再試。")
+            raise RuntimeError(
+                "案件目前無法結案，請稍後再試。 / This case cannot be closed right now."
+            )
         if str(case["visibility"]) == "PRIVATE":
             self.repo.close_private_support(thread.id)
 
     def claim_reopen(self, author_id: int, thread_id: int):
         case = self.repo.get_case_by_thread(thread_id)
         if case is None:
-            raise RuntimeError("找不到案件。")
+            raise RuntimeError("找不到案件。 / Case not found.")
         if int(case["author_id"]) != author_id:
-            raise PermissionError("只有原發文者可以繼續詢問。")
+            raise PermissionError(
+                "只有原發文者可以繼續詢問。 / Only the original requester may continue."
+            )
         if self.repo.has_unfinished_discord_lifecycle_job(str(case["case_id"])):
-            raise RuntimeError("結案仍在處理中；完成後即可繼續詢問。")
+            raise RuntimeError(
+                "結案仍在處理中；完成後即可繼續詢問。 / "
+                "Closing is still in progress. Try again when it finishes."
+            )
         updated = self.repo.reopen_case(thread_id)
         if updated is None:
             current = self.repo.get_case_by_thread(thread_id)
             if current is not None and str(current["status"]) in {"OPEN", "TRACKED", "IDLE"}:
                 raise CaseAlreadyOpenError(
-                    "案件目前已經開啟；請先繼續提問，待再次結案後才能重新開啟下一輪。"
+                    "案件目前已經開啟；請先繼續提問，待再次結案後才能重新開啟下一輪。 / "
+                    "This case is already open. Continue here until it is closed again."
                 )
             raise RuntimeError("案件無法重新開啟。")
         return updated
@@ -400,10 +411,14 @@ class CourseService:
             ai_content_permission=bool(row["ai_content_permission"]),
         )
         await channel.send(
-            f"隱密支援案件已建立。案號：`{completed['case_number']}`\n"
-            f"提出者：{requester.mention}\n"
-            f"允許 AI 分析文字內容：**{'是' if row['ai_content_permission'] else '否'}**\n\n"
-            "請直接在這裡貼上問題與圖片；只有您與授權教學團隊可見。",
+            f"隱密支援案件已建立 / Private Support case created\n"
+            f"案號 / Case ID：`{completed['case_number']}`\n"
+            f"提出者 / Requester：{requester.mention}\n"
+            "允許 AI 分析文字內容 / Allow AI text analysis："
+            f"**{'是 / Yes' if row['ai_content_permission'] else '否 / No'}**\n\n"
+            "請直接在這裡貼上問題與圖片；只有您與授權教學團隊可見。\n"
+            "Post your question and images here. Only you and authorized teaching staff "
+            "can see them.",
             allowed_mentions=discord.AllowedMentions(users=True, roles=False, everyone=False),
         )
 
@@ -476,7 +491,10 @@ class CourseService:
                         )
                     notice = await channel.send(
                         "⏳ **隱密案件保存期限已到。**\n\n"
-                        "系統正在建立經驗證的內容輸出；完成後會刪除此受限頻道。"
+                        "系統正在建立經驗證的 Private dump；完成後會刪除此受限頻道。\n"
+                        "**This private case has reached its retention limit.**\n\n"
+                        "A verified private dump is being created. This channel will be "
+                        "deleted afterward."
                     )
                     if not self.repo.mark_discord_lifecycle_stage(
                         claim.job_id,
@@ -527,12 +545,13 @@ class CourseService:
                 from .views import ReopenView
 
                 heading = (
-                    f"(„• ֊ •„) **第 {cycle_number} 次提問已自動結束。**"
+                    f"(„• ֊ •„) **第 {cycle_number} 次提問已自動結束 / "
+                    f"Round {cycle_number} closed automatically.**"
                     if transition == "AUTO_CLOSE"
-                    else f"✅ **第 {cycle_number} 次提問已結束。**"
+                    else f"✅ **第 {cycle_number} 次提問已結束 / Round {cycle_number} closed.**"
                 )
                 notice = await channel.send(
-                    f"{heading}\n\n還想繼續詢問嗎？",
+                    f"{heading}\n\n還想繼續詢問嗎？ / Need more help?",
                     view=ReopenView(self),
                 )
                 if not self.repo.mark_discord_lifecycle_stage(
@@ -555,7 +574,10 @@ class CourseService:
             if stage == "PENDING":
                 notice = await channel.send(
                     "⏳ **這個案件正在等待您的回覆。**\n\n"
-                    "如果仍需要協助，請在 48 小時內繼續回覆；否則系統會自動結案。"
+                    "如果仍需要協助，請在 48 小時內繼續回覆；否則系統會自動結案。\n"
+                    "**This case is waiting for your reply.**\n\n"
+                    "Reply within 48 hours if you still need help; otherwise it will close "
+                    "automatically."
                 )
                 if not self.repo.mark_discord_lifecycle_stage(
                     claim.job_id,
@@ -582,7 +604,8 @@ class CourseService:
             self.repo.enqueue_case_reopen_dm(case_id=str(job["case_id"]), cycle_number=cycle_number)
             if job["control_message_id"] is None:
                 notice = await channel.send(
-                    f"🔄 **第 {cycle_number} 次提問已開始。** 請繼續提出問題。"
+                    f"🔄 **第 {cycle_number} 次提問已開始 / Round {cycle_number} started.** "
+                    "請繼續提出問題。 / Please continue with your question."
                 )
                 if not self.repo.mark_discord_lifecycle_stage(
                     claim.job_id,

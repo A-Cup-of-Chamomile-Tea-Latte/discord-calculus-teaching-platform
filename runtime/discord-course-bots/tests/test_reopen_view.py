@@ -31,7 +31,8 @@ async def test_successful_reopen_disables_its_closure_button() -> None:
     assert reopen_button.disabled is True
     message.edit.assert_awaited_once_with(view=view)
     interaction.response.send_message.assert_awaited_once_with(
-        "已收到；案件正在重新開啟。完成後會在討論串通知您。",
+        "已收到；案件正在重新開啟。完成後會在討論串通知您。\n"
+        "Reopening the case. A message will appear here when it is ready.",
         ephemeral=True,
     )
     interaction.response.defer.assert_not_awaited()
@@ -40,7 +41,10 @@ async def test_successful_reopen_disables_its_closure_button() -> None:
 
 @pytest.mark.asyncio
 async def test_stale_reopen_button_replies_without_thinking() -> None:
-    message_text = "案件目前已經開啟；請先繼續提問，待再次結案後才能重新開啟下一輪。"
+    message_text = (
+        "案件目前已經開啟；請先繼續提問，待再次結案後才能重新開啟下一輪。 / "
+        "This case is already open. Continue here until it is closed again."
+    )
     service = MagicMock()
     service.interaction_retry_after.return_value = None
     service.claim_reopen.side_effect = CaseAlreadyOpenError(message_text)
@@ -82,7 +86,8 @@ async def test_reopen_throttle_rejects_before_repository_work() -> None:
 
     service.claim_reopen.assert_not_called()
     interaction.response.send_message.assert_awaited_once_with(
-        "操作太頻繁，請約 5 秒後再試。", ephemeral=True
+        "操作太頻繁，請約 5 秒後再試。 / Please try again in about 5 seconds.",
+        ephemeral=True,
     )
 
 

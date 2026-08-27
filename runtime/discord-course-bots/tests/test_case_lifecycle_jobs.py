@@ -220,7 +220,10 @@ async def test_reopen_job_is_restart_safe_after_public_notice(tmp_path: Path) ->
         name="[M1] [test] Question 2",
         reason="Course case reopened",
     )
-    thread.send.assert_awaited_once_with("🔄 **第 2 次提問已開始。** 請繼續提出問題。")
+    thread.send.assert_awaited_once_with(
+        "🔄 **第 2 次提問已開始 / Round 2 started.** "
+        "請繼續提出問題。 / Please continue with your question."
+    )
     reopened_dm = repo.get_dm_message("case-reopen:case-1:2")
     assert reopened_dm is not None
     assert reopened_dm["message_kind"] == "CASE_REOPENED"

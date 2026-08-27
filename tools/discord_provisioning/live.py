@@ -27,6 +27,7 @@ from tools.discord_provisioning.live_spec import (
     GUIDELINES_CONTENT,
     GUIDELINES_TITLE,
     MANAGED_FORUM_KEYS,
+    PRIVATE_SUPPORT_ENTRY_LEGACY_NAMES,
     ROLES,
     WELCOME_CONTENT,
     ChannelSpec,
@@ -585,7 +586,12 @@ class LiveProvisioner:
         return {str(key): str(value) for key, value in rows}
 
     async def inspect_channel_read_only(
-        self, key: str, name: str, expected: type[discord.abc.GuildChannel]
+        self,
+        key: str,
+        name: str,
+        expected: type[discord.abc.GuildChannel],
+        *,
+        legacy_names: frozenset[str] = frozenset(),
     ) -> tuple[discord.abc.GuildChannel | None, bool]:
         """Resolve one resource without changing the mapping or Discord state.
 
@@ -606,18 +612,18 @@ class LiveProvisioner:
                         f"mapped channel is inaccessible to course_assistant: {key}"
                     ) from exc
                 channel = fetched if isinstance(fetched, discord.abc.GuildChannel) else None
-            if not isinstance(channel, expected) or channel.name != name:
+            if not isinstance(channel, expected) or channel.name not in {name, *legacy_names}:
                 raise ProvisioningError(f"mapped channel drift for {key}")
             return channel, False
         candidates = [
             channel
             for channel in self.guild.channels
-            if channel.name == name and isinstance(channel, expected)
+            if channel.name in {name, *legacy_names} and isinstance(channel, expected)
         ]
         wrong_type = [
             channel
             for channel in self.guild.channels
-            if channel.name == name and not isinstance(channel, expected)
+            if channel.name in {name, *legacy_names} and not isinstance(channel, expected)
         ]
         if wrong_type or len(candidates) > 1:
             raise ProvisioningError(f"unknown or ambiguous same-name channel: {name}")
@@ -671,7 +677,10 @@ class LiveProvisioner:
 
         entry_spec = next(spec for spec in CHANNELS if spec.key == "channel.private_support_entry")
         channel, adopt_channel = await self.inspect_channel_read_only(
-            entry_spec.key, entry_spec.name, discord.TextChannel
+            entry_spec.key,
+            entry_spec.name,
+            discord.TextChannel,
+            legacy_names=PRIVATE_SUPPORT_ENTRY_LEGACY_NAMES,
         )
         if isinstance(channel, discord.TextChannel):
             if adopt_channel and channel.category_id != category.id:
@@ -1207,6 +1216,8 @@ class LiveProvisioner:
             actions.append("CREATE_CHANNEL")
             actions.append("SET_EXACT_OVERWRITES")
         else:
+            if channel.name != spec.name:
+                actions.append("UPDATE_NAME")
             if channel.category_id != category.id:
                 actions.append("MOVE_TO_PRIVATE_SUPPORT_CATEGORY")
             if channel.topic != spec.topic:
@@ -1430,6 +1441,8 @@ class LiveProvisioner:
             created_by_this_apply = True
         else:
             changes: dict[str, object] = {}
+            if channel.name != spec.name:
+                changes["name"] = spec.name
             if channel.category_id != category.id:
                 changes["category"] = category
             if channel.topic != spec.topic:

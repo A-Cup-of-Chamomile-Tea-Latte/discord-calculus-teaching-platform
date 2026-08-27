@@ -59,7 +59,7 @@ def _staff_allowed(member: discord.Member, service: CourseService) -> bool:
 
 class CaseCog(commands.Cog):
     case = app_commands.Group(name="case", description="案件操作")
-    private = app_commands.Group(name="private", description="隱密支援")
+    private = app_commands.Group(name="private", description="隱密支援 / Private Support")
     ops = app_commands.Group(name="ops", description="系統管理與人工接管")
 
     def __init__(self, bot: commands.Bot, service: CourseService) -> None:
@@ -264,15 +264,19 @@ class CaseCog(commands.Cog):
             f"已建立 replacement request `{request['interaction_id']}`；完成後會私訊當事人。",
         )
 
-    @private.command(name="open", description="建立隱密支援空間")
+    @private.command(name="open", description="建立隱密支援空間 / Open a private case")
     @app_commands.describe(
-        keyword="與公開提問相同的主標籤", ai_permission="是否允許 AI 分析文字正文"
+        keyword="主標籤 / Main tag",
+        ai_permission="是否允許 AI 分析文字 / Allow AI to analyze text",
     )
     async def private_open(
         self, interaction: discord.Interaction, keyword: str, ai_permission: bool
     ) -> None:
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
-            await _reply(interaction, "請在課程 Discord 伺服器內使用。")
+            await _reply(
+                interaction,
+                "請在課程 Discord 伺服器內使用。 / Use this in the course Discord server.",
+            )
             return
         try:
             normalized_keyword = normalize_keyword(keyword)
@@ -290,33 +294,57 @@ class CaseCog(commands.Cog):
             capacity=self.service.settings.private_open_capacity,
         )
         if str(request["status"]) == "REJECTED":
-            await _reply(interaction, "操作太頻繁，請稍後再試。")
+            await _reply(interaction, "操作太頻繁，請稍後再試。 / Please try again later.")
             return
         if str(request["status"]) == "COMPLETED":
-            await _reply(interaction, f"這個申請已完成：{request['jump_url']}")
+            await _reply(
+                interaction,
+                f"這個申請已完成 / Request completed: {request['jump_url']}",
+            )
             return
         if str(request["rejection_code"] or "") == "CAPACITY_WAIT":
-            await _reply(interaction, "已收到，正在等待建立。完成後會用 Discord 私訊通知您。")
+            await _reply(
+                interaction,
+                "已收到，正在等待建立。完成後會用 Discord 私訊通知您。\n"
+                "Request queued. You will receive a Discord DM when it is ready.",
+            )
             return
         category_id = self.service.repo.get_config_int("private_support_category_id")
         if category_id is None:
-            await _reply(interaction, "隱密支援目前尚未開放，請聯絡教學團隊。")
+            await _reply(
+                interaction,
+                "隱密支援目前尚未開放，請聯絡教學團隊。\n"
+                "Private Support is unavailable. Please contact the teaching team.",
+            )
             return
-        await _reply(interaction, "已收到，正在建立隱密支援。完成後會用 Discord 私訊通知您。")
+        await _reply(
+            interaction,
+            "已收到，正在建立隱密支援。完成後會用 Discord 私訊通知您。\n"
+            "Request received. You will receive a Discord DM when the private case is ready.",
+        )
 
-    @private.command(name="close", description="由 Staff 結束隱密支援案件")
+    @private.command(name="close", description="由 Staff 結束隱密案件 / Close a private case")
     async def private_close(self, interaction: discord.Interaction) -> None:
         if not isinstance(interaction.user, discord.Member) or not _staff_allowed(
             interaction.user, self.service
         ):
-            await _reply(interaction, "只有助教、教師或系統管理員可以結案。")
+            await _reply(
+                interaction,
+                "只有助教、教師或系統管理員可以結案。 / Only teaching staff may close a case.",
+            )
             return
         if not isinstance(interaction.channel, discord.TextChannel):
-            await _reply(interaction, "請在 Private Support 頻道內執行。")
+            await _reply(
+                interaction,
+                "請在 Private Support 頻道內執行。 / Use this inside a Private Support channel.",
+            )
             return
         case = self.service.repo.get_case_by_thread(interaction.channel.id)
         if case is None:
-            await _reply(interaction, "這個頻道不是隱密支援案件。")
+            await _reply(
+                interaction,
+                "這個頻道不是隱密支援案件。 / This is not a Private Support case.",
+            )
             return
         if str(case["status"]) == "OPEN":
             self.service.repo.claim_case(interaction.channel.id, interaction.user.id)
@@ -324,7 +352,9 @@ class CaseCog(commands.Cog):
 
         await interaction.response.send_message(
             "確定要結束這個隱密支援案件嗎？結案後 48 小時內仍可重新開啟；"
-            "逾時會先完成 Private dump 驗證，再刪除受限頻道。",
+            "逾時會先完成 Private dump 驗證，再刪除受限頻道。\n"
+            "Close this Private Support case? It can be reopened within 48 hours. "
+            "After that, the verified private dump runs before the channel is deleted.",
             view=CloseConfirmView(
                 self.service,
                 actor_id=interaction.user.id,

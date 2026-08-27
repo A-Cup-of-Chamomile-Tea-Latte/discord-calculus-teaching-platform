@@ -1574,7 +1574,11 @@ class Repository:
                 recipient_id=requester_id,
                 message_kind="CASE_OPENED",
                 aggregate_ref=case_number,
-                body=f"您的隱密支援案件已成立。\n案號：`{case_number}`\n前往案件：{jump_url}",
+                body=(
+                    "您的隱密支援案件已成立。 / Your Private Support case is ready.\n"
+                    f"案號 / Case ID：`{case_number}`\n"
+                    f"前往案件 / Open case：{jump_url}"
+                ),
                 created_at=now,
             )
             return db.execute(
@@ -1649,8 +1653,10 @@ class Repository:
                 message_kind="CASE_REOPENED",
                 aggregate_ref=f"{case_number}:cycle:{cycle_number}",
                 body=(
-                    f"您的案件已重新開啟（第 {cycle_number} 次提問）。\n"
-                    f"案號：`{case_number}`\n前往案件：{row['jump_url']}"
+                    f"您的案件已重新開啟（第 {cycle_number} 次提問）。 / "
+                    f"Your case has reopened for round {cycle_number}.\n"
+                    f"案號 / Case ID：`{case_number}`\n"
+                    f"前往案件 / Open case：{row['jump_url']}"
                 ),
                 created_at=now,
             )

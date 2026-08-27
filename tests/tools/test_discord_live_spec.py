@@ -18,6 +18,8 @@ from tools.discord_provisioning.live_spec import (
     CATEGORIES,
     CHANNELS,
     MANAGED_FORUM_KEYS,
+    PRIVATE_SUPPORT_ENTRY_LEGACY_NAMES,
+    PRIVATE_SUPPORT_ENTRY_NAME,
     ROLES,
     class_resource_errors,
     validate_spec,
@@ -82,7 +84,7 @@ def test_private_support_has_one_permanent_non_case_entry() -> None:
     ] == [
         (
             "channel.private_support_entry",
-            "開啟隱密案件",
+            PRIVATE_SUPPORT_ENTRY_NAME,
             "text",
             "private_support_entry",
             False,
@@ -240,16 +242,58 @@ def test_private_entry_targeted_commands_are_explicitly_allowlisted() -> None:
 
 
 @pytest.mark.asyncio
+async def test_private_entry_accepts_only_the_approved_legacy_name_for_rename() -> None:
+    provisioner = object.__new__(LiveProvisioner)
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.name = "開啟隱密案件"
+    guild = MagicMock(spec=discord.Guild)
+    guild.get_channel.return_value = channel
+    provisioner.guild = guild
+    provisioner.store = MagicMock()
+    provisioner.store.get_id.return_value = 101
+
+    resolved, adopt = await provisioner.inspect_channel_read_only(
+        "channel.private_support_entry",
+        PRIVATE_SUPPORT_ENTRY_NAME,
+        discord.TextChannel,
+        legacy_names=PRIVATE_SUPPORT_ENTRY_LEGACY_NAMES,
+    )
+
+    assert resolved is channel
+    assert adopt is False
+
+
+@pytest.mark.asyncio
+async def test_private_entry_rejects_an_unknown_mapped_name() -> None:
+    provisioner = object.__new__(LiveProvisioner)
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.name = "unrelated-channel"
+    guild = MagicMock(spec=discord.Guild)
+    guild.get_channel.return_value = channel
+    provisioner.guild = guild
+    provisioner.store = MagicMock()
+    provisioner.store.get_id.return_value = 101
+
+    with pytest.raises(ProvisioningError, match="mapped channel drift"):
+        await provisioner.inspect_channel_read_only(
+            "channel.private_support_entry",
+            PRIVATE_SUPPORT_ENTRY_NAME,
+            discord.TextChannel,
+            legacy_names=PRIVATE_SUPPORT_ENTRY_LEGACY_NAMES,
+        )
+
+
+@pytest.mark.asyncio
 async def test_targeted_ensure_does_not_enter_full_reconciliation(tmp_path) -> None:
     provisioner = object.__new__(LiveProvisioner)
     category = MagicMock(spec=discord.CategoryChannel)
     category.id = 100
     channel = MagicMock(spec=discord.TextChannel)
     channel.id = 101
+    channel.name = "開啟隱密案件"
     channel.category_id = 100
-    channel.topic = next(
-        item for item in CHANNELS if item.key == "channel.private_support_entry"
-    ).topic
+    channel.topic = "舊入口說明"
+    channel.edit = AsyncMock()
     roles = {
         "role.admin": MagicMock(spec=discord.Role),
         "role.staff": MagicMock(spec=discord.Role),
@@ -295,6 +339,11 @@ async def test_targeted_ensure_does_not_enter_full_reconciliation(tmp_path) -> N
 
     assert result["ok"] is True
     assert result["other_resources_action"] == "REPORTED_ONLY"
+    channel.edit.assert_awaited_once_with(
+        name=PRIVATE_SUPPORT_ENTRY_NAME,
+        topic=next(item for item in CHANNELS if item.key == "channel.private_support_entry").topic,
+        reason="2026-07-30 approved calculus server infrastructure provisioning",
+    )
     provisioner.ensure_private_entry_overwrites.assert_awaited_once()
     assert provisioner.ensure_private_entry_overwrites.await_args.args[0] is channel
     provisioner.ensure_roles.assert_not_awaited()
@@ -310,7 +359,7 @@ async def test_targeted_ensure_rolls_back_a_new_channel_when_acl_fails(tmp_path)
     category.id = 100
     channel = MagicMock(spec=discord.TextChannel)
     channel.id = 101
-    channel.name = "開啟隱密案件"
+    channel.name = PRIVATE_SUPPORT_ENTRY_NAME
     channel.delete = AsyncMock()
     guild = MagicMock(spec=discord.Guild)
     guild.default_role = MagicMock(spec=discord.Role)

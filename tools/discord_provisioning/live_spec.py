@@ -30,7 +30,13 @@ class ChannelSpec:
     managed_case: bool = False
 
 
-PRIVATE_SUPPORT_ENTRY_TOPIC = "請使用 /private open 建立隱密案件；不要在入口貼問題、個資或附件。"
+PRIVATE_SUPPORT_ENTRY_NAME = "開啟隱密案件-open-private-case"
+PRIVATE_SUPPORT_ENTRY_LEGACY_NAMES = frozenset({"開啟隱密案件"})
+PRIVATE_SUPPORT_ENTRY_TOPIC = (
+    "請使用 /private open 建立隱密案件；不要在入口貼問題、個資或附件。 / "
+    "Use /private open to create a private case. Do not post questions, personal data, "
+    "or attachments here."
+)
 
 
 CLASS_ROLES: tuple[RoleSpec, ...] = tuple(
@@ -118,7 +124,7 @@ CHANNELS = (
     ),
     ChannelSpec(
         "channel.private_support_entry",
-        "開啟隱密案件",
+        PRIVATE_SUPPORT_ENTRY_NAME,
         "text",
         "category.private_support",
         "private_support_entry",
@@ -198,7 +204,7 @@ def validate_spec() -> None:
     if private_entries != [
         ChannelSpec(
             "channel.private_support_entry",
-            "開啟隱密案件",
+            PRIVATE_SUPPORT_ENTRY_NAME,
             "text",
             "category.private_support",
             "private_support_entry",
