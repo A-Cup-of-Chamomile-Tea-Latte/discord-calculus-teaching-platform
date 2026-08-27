@@ -1219,10 +1219,9 @@ class LiveProvisioner:
                 for target, overwrite in channel.overwrites.items()
                 if target.id not in {self.course.top_role.id, self.dump.top_role.id}
             }
-            if (
-                overwrite_signature(actual_mutable) != overwrite_signature(desired)
-                or not self.private_entry_managed_boundary_matches(channel, category)
-            ):
+            if overwrite_signature(actual_mutable) != overwrite_signature(
+                desired
+            ) or not self.private_entry_managed_boundary_matches(channel, category):
                 actions.append("SET_EXACT_OVERWRITES")
 
             message_id = self.store.get_id("message.private_support_entry")
@@ -1680,6 +1679,7 @@ class LiveProvisioner:
                 label="edit Private Support entry message",
             )
             self.operations.record("updated", "message.private_support_entry", entry_message.id)
+
     def update_runtime_config(self) -> None:
         managed_ids = [
             self.channels[key].id for key in sorted(MANAGED_FORUM_KEYS) if key in self.channels
