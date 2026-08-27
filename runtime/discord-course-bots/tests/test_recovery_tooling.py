@@ -169,11 +169,16 @@ def test_recovery_rehearsal_migrates_only_an_independent_copy(tmp_path: Path) ->
     receipt = json.loads(completed.stdout)
     assert receipt["status"] == "PASS"
     assert receipt["sourceIntegrity"] is True
+    assert receipt["sourceForeignKeysValid"] is True
     assert receipt["sourceOwnerMatchesProcess"] is True
     assert receipt["workspaceModeOwnerOnly"] is True
     assert receipt["workspaceOwnerMatchesProcess"] is True
     assert receipt["sourceOpenedReadOnly"] is True
     assert receipt["backupRestoreEquivalent"] is True
+    assert receipt["backupForeignKeysValid"] is True
+    assert receipt["restoreForeignKeysValid"] is True
+    assert receipt["migrationForeignKeysValid"] is True
+    assert receipt["rollbackForeignKeysValid"] is True
     assert receipt["restoredCopyIndependent"] is True
     assert receipt["originalTableRowCountsPreserved"] is True
     assert receipt["artifactsRetained"] is False
@@ -206,6 +211,7 @@ def test_recovery_rehearsal_preserves_v6_application_rows_while_ledger_advances(
     receipt = json.loads(completed.stdout)
     assert receipt["status"] == "PASS"
     assert receipt["sourceIntegrity"] is True
+    assert receipt["sourceForeignKeysValid"] is True
     assert receipt["workspaceModeOwnerOnly"] is True
     assert receipt["sourceLedgerComplete"] is True
     assert receipt["migrationLedgerComplete"] is True

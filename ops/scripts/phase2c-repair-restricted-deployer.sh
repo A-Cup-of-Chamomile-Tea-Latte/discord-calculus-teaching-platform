@@ -12,6 +12,7 @@ source_release=${1:-}
 installed_deployer=/usr/local/sbin/calculus-discord-deploy
 installed_sudoers=/etc/sudoers.d/calculus-discord-deploy
 expected_old_sha256=05f6375160579374c5341395b53148506c616bcd43743e3ff4d2977ea521d2b6
+expected_old_hotfix_sha256=f1ebe3a301ddb93f15af392a72aeb6ccc223c03d1a427005a3325d69b19f2971
 
 fail() {
   printf 'repair_error=%s\n' "$1" >&2
@@ -54,7 +55,9 @@ if [[ $installed_sha256 == "$candidate_sha256" ]]; then
   printf 'systemd_units_changed=NO\ndeploy_executed=NO\n'
   exit 0
 fi
-[[ $installed_sha256 == "$expected_old_sha256" ]] || fail INSTALLED_DEPLOYER_VERSION_REFUSED
+[[ $installed_sha256 == "$expected_old_sha256" ||
+  $installed_sha256 == "$expected_old_hotfix_sha256" ]] ||
+  fail INSTALLED_DEPLOYER_VERSION_REFUSED
 
 incoming=$installed_deployer.incoming
 [[ ! -e $incoming ]] || fail DEPLOYER_INCOMING_PRESENT

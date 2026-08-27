@@ -17,6 +17,7 @@ preflight_root=/var/lib/calculus-discord-deploy/preflight
 rollback_root=/var/lib/calculus-discord-deploy/rollback
 stage_receipt_name=.v13-stage-receipt.json
 expected_old_deployer_sha256=05f6375160579374c5341395b53148506c616bcd43743e3ff4d2977ea521d2b6
+expected_old_hotfix_deployer_sha256=f1ebe3a301ddb93f15af392a72aeb6ccc223c03d1a427005a3325d69b19f2971
 units=(
   calculus-course-assistant.service
   calculus-dump-bot.service
@@ -33,7 +34,7 @@ fail() {
 [[ ${PREPARE_V13_HOST:-} == PREPARE-V13-HOST ]] || fail EXACT_APPROVAL_REQUIRED
 [[ $(hostname) == jerrymk-workstation ]] || fail WRONG_HOST
 
-for command in awk bash chmod chown cmp cut date df env find getent head hostname id install ln \
+for command in awk basename bash chmod chown cmp cut date df env find getent head hostname id install ln \
   mktemp mv python3 readlink realpath rm runuser sha256sum sleep sqlite3 stat systemctl visudo wc; do
   command -v "$command" >/dev/null 2>&1 || fail "COMMAND_MISSING_${command^^}"
 done
@@ -158,7 +159,8 @@ candidate_deployer_sha256=$(sha256sum "$deployer_source" | cut -d' ' -f1)
 installed_deployer_sha256=$(sha256sum "$installed_deployer" | cut -d' ' -f1)
 if [[ $installed_deployer_sha256 == "$candidate_deployer_sha256" ]]; then
   deployer_action=ALREADY_READY
-elif [[ $installed_deployer_sha256 == "$expected_old_deployer_sha256" ]]; then
+elif [[ $installed_deployer_sha256 == "$expected_old_deployer_sha256" ||
+  $installed_deployer_sha256 == "$expected_old_hotfix_deployer_sha256" ]]; then
   deployer_action=REPAIR_REQUIRED
 else
   fail INSTALLED_DEPLOYER_VERSION_REFUSED
@@ -167,12 +169,18 @@ fi
 [[ -L /opt/calculus-discord/current ]] || fail CURRENT_RELEASE_MISSING
 current_release=$(readlink -f /opt/calculus-discord/current)
 [[ $current_release == /opt/calculus-discord/releases/* ]] || fail CURRENT_RELEASE_PATH_INVALID
+[[ -d $current_release && ! -L $current_release ]] || fail CURRENT_RELEASE_BOUNDARY_INVALID
+[[ $(stat -c %U:%G "$current_release") == root:root ]] || fail CURRENT_RELEASE_OWNER_INVALID
+[[ -z $(find "$current_release" ! -user root -print -quit) ]] ||
+  fail CURRENT_RELEASE_TREE_OWNER_INVALID
+[[ -z $(find "$current_release" -perm /022 -print -quit) ]] ||
+  fail CURRENT_RELEASE_WRITABLE_BY_OTHERS
 [[ -f $database && ! -L $database ]] || fail PRODUCTION_DATABASE_MISSING
 [[ $(stat -c %U:%G "$database") == calculus-bot:calculus-bot ]] ||
   fail PRODUCTION_DATABASE_OWNER_INVALID
 [[ $(stat -c %a "$database") == 600 ]] || fail PRODUCTION_DATABASE_MODE_INVALID
 
-python3 -I - "$database" "$source_release" <<'PY' || fail PRODUCTION_DATABASE_V6_INVALID
+python3 -B -I - "$database" "$source_release" <<'PY' || fail PRODUCTION_DATABASE_V6_INVALID
 from pathlib import Path
 from datetime import UTC, datetime
 import sqlite3
@@ -256,8 +264,9 @@ for env_file in /etc/calculus-discord/course-assistant.env \
   [[ $(stat -c %a "$env_file") == 600 ]] || fail RUNTIME_ENV_MODE_INVALID
 done
 
-python3 -I - <<'PY' || fail RUNTIME_ENV_REQUIRED_VALUE_MISSING
+python3 -I - <<'PY' || fail RUNTIME_ENV_INVALID
 from pathlib import Path
+import pwd
 import shlex
 
 
@@ -286,10 +295,63 @@ required = (
 )
 if any(not mapping.get(key, "").strip() for mapping, keys in required for key in keys):
     raise SystemExit(1)
-if course["DATABASE_PATH"] != dump["DATABASE_PATH"] or course["DATABASE_PATH"] != bridge["DATABASE_PATH"]:
+expected_database = "/var/lib/calculus-discord/runtime.sqlite3"
+if {course["DATABASE_PATH"], dump["DATABASE_PATH"], bridge["DATABASE_PATH"]} != {
+    expected_database
+}:
+    raise SystemExit(1)
+if course["TEST_GUILD_ID"] != dump["TEST_GUILD_ID"]:
+    raise SystemExit(1)
+
+
+def positive_integer(value: str) -> bool:
+    try:
+        return int(value) > 0
+    except ValueError:
+        return False
+
+
+if not positive_integer(course["TEST_GUILD_ID"]):
+    raise SystemExit(1)
+owners = [part.strip() for part in course["BOT_OWNER_IDS"].split(",") if part.strip()]
+if not owners or any(not positive_integer(owner) for owner in owners):
+    raise SystemExit(1)
+for mapping, optional_ids in (
+    (course, ("COURSE_ASSISTANT_CLIENT_ID", "DUMP_BOT_CLIENT_ID")),
+    (dump, ("DUMP_BOT_CLIENT_ID",)),
+):
+    if any(mapping.get(key) and not positive_integer(mapping[key]) for key in optional_ids):
+        raise SystemExit(1)
+
+try:
+    reminder = int(course.get("DRAFT_REMINDER_SECONDS", "86400"))
+    delete = int(course.get("DRAFT_DELETE_SECONDS", "172800"))
+    idle = int(course.get("CASE_IDLE_SECONDS", "172800"))
+    auto_close = int(course.get("CASE_AUTO_CLOSE_SECONDS", "172800"))
+    capacity = int(course.get("PRIVATE_OPEN_CAPACITY", "50"))
+    bridge_interval = int(bridge.get("BRIDGE_INTERVAL_SECONDS", "60"))
+except ValueError:
+    raise SystemExit(1) from None
+if not (0 < reminder < delete and idle > 0 and auto_close > 0 and capacity > 0):
+    raise SystemExit(1)
+if not 30 <= bridge_interval <= 300:
+    raise SystemExit(1)
+if bridge.get("BRIDGE_ENVIRONMENT", "STAGING").upper() != "PRODUCTION":
+    raise SystemExit(1)
+if bridge.get("BRIDGE_SYNTHETIC_ONLY", "0") != "0":
     raise SystemExit(1)
 credential = Path(bridge["GOOGLE_OAUTH_CREDENTIALS"])
-if not credential.is_file() or credential.is_symlink() or credential.stat().st_mode & 0o077:
+if (
+    not credential.is_absolute()
+    or not credential.is_file()
+    or credential.is_symlink()
+):
+    raise SystemExit(1)
+credential_metadata = credential.stat()
+if (
+    credential_metadata.st_mode & 0o077
+    or credential_metadata.st_uid != pwd.getpwnam("calculus-bot").pw_uid
+):
     raise SystemExit(1)
 PY
 
@@ -325,7 +387,7 @@ fi
 
 if [[ $deployer_action == REPAIR_REQUIRED ]]; then
   REPAIR_CALCULUS_DEPLOYER=REPAIR-CALCULUS-DEPLOYER \
-    "$repairer_source" "$source_release" >/dev/null
+    /bin/bash -- "$repairer_source" "$source_release" >/dev/null
 fi
 [[ $(sha256sum "$installed_deployer" | cut -d' ' -f1) == "$candidate_deployer_sha256" ]] ||
   fail DEPLOYER_NOT_READY_AFTER_REPAIR
@@ -345,9 +407,8 @@ if [[ -e $preflight_bundle ]]; then
     fail PREFLIGHT_BACKUP_BOUNDARY_INVALID
   [[ $(stat -c %U:%G "$receipt") == root:root && $(stat -c %a "$receipt") == 600 ]] ||
     fail PREFLIGHT_RECEIPT_BOUNDARY_INVALID
-  python3 -I - "$backup" "$receipt" "$release_id" "$candidate_deployer_sha256" \
-    "$candidate_commit" "$archive_sha256" "$tree_sha256" <<'PY' ||
-    fail PREFLIGHT_ARTIFACT_INVALID
+  if ! python3 -I - "$backup" "$receipt" "$release_id" "$candidate_deployer_sha256" \
+    "$candidate_commit" "$archive_sha256" "$tree_sha256" <<'PY'
 import hashlib
 import json
 from pathlib import Path
@@ -364,9 +425,15 @@ if not (
     and value.get("archiveSha256") == sys.argv[6]
     and value.get("treeSha256") == sys.argv[7]
     and value.get("backupSha256") == digest
+    and value.get("productionDatabaseModified") is False
+    and value.get("deployExecuted") is False
+    and value.get("sensitiveValuesPrinted") is False
 ):
     raise SystemExit(1)
 PY
+  then
+    fail PREFLIGHT_ARTIFACT_INVALID
+  fi
   printf 'v13_host_prepare=ALREADY_READY\nbackup_rehearsal=PASS\n'
   printf 'deployer=READY\nruntime_env_ownership=%s\n' "$runtime_env_owner_action"
   printf 'production_database_modified=NO\ndeploy_executed=NO\n'
@@ -391,7 +458,7 @@ sqlite3 "$database" ".backup '$backup_incoming'"
 chmod 0600 "$backup_incoming"
 [[ $(sqlite3 "$backup_incoming" 'PRAGMA integrity_check;') == ok ]] ||
   fail PREFLIGHT_BACKUP_INTEGRITY_FAILED
-python3 -I "$rehearsal_source" "$backup_incoming" "$work_root" \
+python3 -B -I "$rehearsal_source" "$backup_incoming" "$work_root" \
   --expected-source-schema 6 --expected-target-schema 13 >"$raw_receipt" ||
   fail RECOVERY_REHEARSAL_FAILED
 chmod 0600 "$raw_receipt"

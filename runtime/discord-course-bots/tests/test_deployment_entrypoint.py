@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import subprocess
 import sys
 import tarfile
+import tomllib
 from pathlib import Path
+
+from packaging.requirements import Requirement
+from packaging.version import Version
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEPLOYER = PROJECT_ROOT / "ops/scripts/calculus-discord-deploy"
@@ -35,6 +40,34 @@ def test_deployment_scripts_are_executable_and_parse_as_bash() -> None:
     ):
         assert os.access(script, os.X_OK)
         subprocess.run(["bash", "-n", script], check=True)
+
+
+def test_deployment_heredocs_do_not_split_fallback_into_python_stdin() -> None:
+    scripts = tuple((PROJECT_ROOT / "ops/scripts").glob("*.sh")) + (DEPLOYER, PREPARER)
+    unsafe = re.compile(r"<<'[^']+'[^\n]*\|\|[ \t]*\n")
+    for script in scripts:
+        assert unsafe.search(script.read_text(encoding="utf-8")) is None, script
+
+
+def test_all_quoted_python_heredocs_compile_as_python() -> None:
+    scripts = tuple((PROJECT_ROOT / "ops/scripts").glob("*.sh")) + (DEPLOYER, PREPARER)
+    opener = re.compile(r"<<-?\s*'(?P<delimiter>PY)'")
+    for script in scripts:
+        lines = script.read_text(encoding="utf-8").splitlines()
+        index = 0
+        while index < len(lines):
+            match = opener.search(lines[index])
+            if match is None:
+                index += 1
+                continue
+            delimiter = match.group("delimiter")
+            start = index + 1
+            end = start
+            while end < len(lines) and lines[end].lstrip("\t") != delimiter:
+                end += 1
+            assert end < len(lines), f"unterminated {delimiter} heredoc in {script}:{index + 1}"
+            compile("\n".join(lines[start:end]) + "\n", f"{script}:{start + 1}", "exec")
+            index = end + 1
 
 
 def test_sudoers_rule_grants_only_the_fixed_root_owned_entrypoint() -> None:
@@ -70,10 +103,29 @@ def test_deployer_is_fixed_scope_and_does_not_install_units_or_secrets() -> None
     assert "rollback=APPLIED" in source
     assert "rollback=FAILED_SERVICES_STOPPED" in source
     assert "remote_services=STOPPED" in source
+    assert "rollback_started_at" in source
+    assert "last_heartbeat_at >= '$rollback_started_at'" in source
     assert "RESTORE_ATTEMPTED" not in source
     assert 'chmod -R u=rwX,go=rX "$release_destination"' in source
     assert "BUILDER_RUNTIME_ACCESS_DENIED" in source
     assert "SERVICE_RUNTIME_ACCESS_DENIED" in source
+    assert "CRITICAL_QUEUES_DEGRADED" in source
+    assert "PRODUCTION_DATABASE_FOREIGN_KEYS_INVALID" in source
+    assert "PRODUCTION_DATABASE_OWNER_INVALID" in source
+    assert "PRODUCTION_DATABASE_MODE_INVALID" in source
+    assert "CURRENT_RELEASE_TREE_OWNER_INVALID" in source
+    assert "STAGING_DATABASE_FOREIGN_KEYS_INVALID" in source
+    assert "ROLLBACK_DATABASE_FOREIGN_KEYS_INVALID" in source
+    for table in (
+        "discord_lifecycle_jobs",
+        "discord_dm_outbox",
+        "course_role_jobs",
+        "private_open_requests",
+        "private_dump_jobs",
+        "email_delivery_outbox",
+        "projection_outbox",
+    ):
+        assert table in source
     assert (
         'install -d -o calculus-builder -g calculus-builder -m 0700 "$migration_workspace"'
         in source
@@ -103,6 +155,21 @@ def test_release_dependency_lock_uses_only_exact_pins() -> None:
     assert pins
     assert all("==" in pin and not any(mark in pin for mark in (">", "<", "~=")) for pin in pins)
     assert "ops/requirements/discord-runtime.txt" in DEPLOYER.read_text(encoding="utf-8")
+    locked: dict[str, Version] = {}
+    for pin in pins:
+        requirement = Requirement(pin)
+        specifier = str(requirement.specifier)
+        assert specifier.startswith("==")
+        locked[requirement.name.lower()] = Version(specifier.removeprefix("=="))
+    project = tomllib.loads(
+        (PROJECT_ROOT / "runtime/discord-course-bots/pyproject.toml").read_text(encoding="utf-8")
+    )
+    requirements = [Requirement(value) for value in project["project"]["dependencies"]]
+    build_requirements = [Requirement(value) for value in project["build-system"]["requires"]]
+    for requirement in (*requirements, *build_requirements):
+        assert requirement.name.lower() in locked
+        assert locked[requirement.name.lower()] in requirement.specifier
+    assert "--no-build-isolation --no-deps" in DEPLOYER.read_text(encoding="utf-8")
 
 
 def test_installer_explicitly_reports_unchanged_network_secrets_and_units() -> None:
@@ -120,6 +187,7 @@ def test_one_time_repairer_is_guarded_and_only_replaces_the_deployer() -> None:
     assert "REPAIR_CALCULUS_DEPLOYER=REPAIR-CALCULUS-DEPLOYER" not in source
     assert "REPAIR_CALCULUS_DEPLOYER:-" in source
     assert "expected_old_sha256=" in source
+    assert "expected_old_hotfix_sha256=" in source
     assert "INSTALLED_DEPLOYER_VERSION_REFUSED" in source
     assert "ALREADY_READY" in source
     assert "SUDOERS_RULE_MISMATCH" in source
@@ -137,6 +205,9 @@ def test_v13_host_preparer_is_exact_scope_and_never_deploys() -> None:
     assert "PRODUCTION_DATABASE_V6_INVALID" in source
     assert "--expected-source-schema 6 --expected-target-schema 13" in source
     assert "BOT_OWNER_IDS" in source
+    assert "RUNTIME_ENV_INVALID" in source
+    assert 'expected_database = "/var/lib/calculus-discord/runtime.sqlite3"' in source
+    assert 'bridge.get("BRIDGE_ENVIRONMENT", "STAGING").upper() != "PRODUCTION"' in source
     assert "trusted_release_root=/var/lib/calculus-discord-deploy/releases" in source
     assert "RELEASE_TREE_OWNER_INVALID" in source
     assert 'value.get("candidateCommit")' in source
@@ -147,6 +218,8 @@ def test_v13_host_preparer_is_exact_scope_and_never_deploys() -> None:
     assert "RUNTIME_ENV_HARDEN_FAILED" in source
     assert "mktemp" in source
     assert "runuser" in source
+    assert 'python3 -B -I - "$database" "$source_release"' in source
+    assert 'python3 -B -I "$rehearsal_source"' in source
     assert "v13_host_prepare=PASS" in source
     assert "deploy_executed=NO" in source
     assert "systemctl stop" not in source
@@ -190,6 +263,7 @@ def test_friend_bootstrap_validates_exact_archive_then_only_prepares_host() -> N
     assert "/home/ding/calculus-discord-staging/releases" not in source
     assert "PREPARE_V13_HOST=PREPARE-V13-HOST" in source
     assert "if ! PREPARE_V13_HOST=" in source
+    assert '/bin/bash -- "$stage_path/ops/scripts/v13-host-owner-prepare.sh"' in source
     assert "fail HOST_PREPARE_FAILED" in source
     assert "deploy_executed=NO" in source
     assert "systemctl stop" not in source
@@ -199,7 +273,7 @@ def test_friend_bootstrap_validates_exact_archive_then_only_prepares_host() -> N
 
 def _embedded_stage_validator(tmp_path: Path) -> Path:
     source = FRIEND_BOOTSTRAP.read_text(encoding="utf-8")
-    marker = "<<'PY' ||\n  fail ARCHIVE_OR_STAGE_VALIDATION_FAILED\n"
+    marker = '"$stage_action" "$receipt_name" "$trusted_archive_name" <<\'PY\'\n'
     body = source.split(marker, maxsplit=1)[1].split("\nPY\n", maxsplit=1)[0]
     helper = tmp_path / "stage_validator.py"
     helper.write_text(body, encoding="utf-8")
