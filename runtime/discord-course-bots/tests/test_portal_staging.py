@@ -17,6 +17,8 @@ from discord_course_bots.portal_staging import (
     CapturingEmailTransport,
     SyntheticStagingError,
     create_synthetic_staging,
+    deliver_captured_email_once,
+    resolve_static_path,
 )
 
 ORIGIN = "https://staging.portal.example"
@@ -163,6 +165,44 @@ def test_synthetic_staging_refuses_real_email_before_storage(tmp_path: Path) -> 
         staging.close()
 
 
+def test_synthetic_worker_completes_and_scrubs_captured_delivery(tmp_path: Path) -> None:
+    staging = create_synthetic_staging(
+        tmp_path / "portal-staging",
+        origin=ORIGIN,
+        session_secret=b"s" * 32,
+    )
+    try:
+        cookies, csrf = issue_scope(staging.backend, "JOIN")
+        started = staging.backend.handle(
+            PortalRequest(
+                method="POST",
+                target=EMAIL_START_PATH,
+                headers={
+                    "Host": HOST,
+                    "Origin": ORIGIN,
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Cookie": cookies,
+                    "X-CSRF-Token": csrf,
+                },
+                body=b"identityType=GUEST&email=synthetic.guest%40example.com",
+                client_key="synthetic-browser",
+            )
+        )
+        assert started.status == 202
+
+        assert deliver_captured_email_once(staging) == {
+            "status": "COMPLETED",
+            "safeResultCode": "EMAIL_PROVIDER_ACCEPTED",
+        }
+        row = staging.store.repository._connection.execute(  # noqa: SLF001
+            "SELECT status, destination, verification_code FROM email_delivery_outbox"
+        ).fetchone()
+        assert tuple(row) == ("COMPLETED", None, None)
+        assert staging.email_capture_path.is_file()
+    finally:
+        staging.close()
+
+
 def test_capturing_transport_accepts_only_named_fixture_destinations(tmp_path: Path) -> None:
     capture = CapturingEmailTransport(tmp_path / "captured.jsonl")
     delivery = {
@@ -174,7 +214,7 @@ def test_capturing_transport_accepts_only_named_fixture_destinations(tmp_path: P
     }
     receipt = capture.send_verification_email(delivery)
 
-    assert receipt["safeResultCode"] == "SYNTHETIC_EMAIL_CAPTURED"
+    assert receipt["safeResultCode"] == "EMAIL_PROVIDER_ACCEPTED"
     record = json.loads((tmp_path / "captured.jsonl").read_text(encoding="utf-8"))
     assert record["syntheticOnly"] is True
     assert record["code"] == "123456"
@@ -182,3 +222,20 @@ def test_capturing_transport_accepts_only_named_fixture_destinations(tmp_path: P
 
     with pytest.raises(AppsScriptApiError, match="STAGING_DESTINATION_REFUSED"):
         capture.send_verification_email({**delivery, "destination": "real@example.net"})
+
+
+def test_static_path_resolution_has_no_listing_query_or_traversal(tmp_path: Path) -> None:
+    root = tmp_path / "dist"
+    (root / "join").mkdir(parents=True)
+    (root / "index.html").write_text("home", encoding="utf-8")
+    (root / "join" / "index.html").write_text("join", encoding="utf-8")
+    (root / "linked.html").symlink_to(root / "index.html")
+
+    assert resolve_static_path(root, "/") == root / "index.html"
+    assert resolve_static_path(root, "/join/") == root / "join" / "index.html"
+    assert resolve_static_path(root, "/missing/") is None
+    assert resolve_static_path(root, "/join/?unsafe=1") is None
+    assert resolve_static_path(root, "/../index.html") is None
+    assert resolve_static_path(root, "/%2e%2e/index.html") is None
+    assert resolve_static_path(root, "/linked.html") is None
+    assert resolve_static_path(root, "/%00") is None

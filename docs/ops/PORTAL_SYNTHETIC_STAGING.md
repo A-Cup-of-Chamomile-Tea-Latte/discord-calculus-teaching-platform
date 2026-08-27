@@ -1,6 +1,6 @@
 # Portal synthetic staging
 
-狀態：`IMPLEMENTED_LOCAL / NOT_DEPLOYED`
+狀態：`LOCAL BROWSER PASS / NOT DEPLOYED`
 
 用途：在不連 production SQLite、Discord、Google 或真 Email 的情況下，從瀏覽器演練匿名 session、加入流程與一般／Private 案件狀態查詢。這份 staging 不是 production evidence。
 
@@ -52,3 +52,9 @@ Reverse proxy 必須讓頁面與 `/api/` 位於同一個 HTTPS origin。未設�
 5. staging root、DB、audit 與 capture 都不在 production path，也不載入 production secret。
 
 External staging、數學系 hosting、production SQLite、真 Email 與 production rollout 都是後續獨立 gate。
+
+## Loopback browser smoke
+
+連接版 public artifact 可由同一個 loopback server 同時提供 static pages 與 `/api/`。這只供本機瀏覽器驗收，必須明示 `--allow-loopback-http`，bind host 限 `127.0.0.1`／`::1`，origin 必須精確對應該 port；其他 HTTP origin 一律拒絕。Static resolver 不列目錄、不跟 symlink、不接受 query／fragment 或 traversal。
+
+2026-08-28 已從瀏覽器完成：Guest 表單→capture-only Email dialog→驗碼→申請成功、一般案件查詢、Private 最小狀態查詢，browser console 0 error／warning。首次停止時發現 capture receipt 與 repository allowlist 不一致；修正為共用 `EMAIL_PROVIDER_ACCEPTED` contract，並新增 worker completion／outbox scrub regression test。未知 worker failure 現在會安全停止 staging，不會只讓背景執行緒退出。

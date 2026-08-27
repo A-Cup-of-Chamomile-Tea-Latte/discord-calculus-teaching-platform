@@ -2,19 +2,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import mimetypes
 import os
 import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from .apps_script_transport import AppsScriptApiError
 from .portal_backend import (
     PortalBackend,
     PortalBackendSettings,
     PortalHTTPServer,
+    PortalRequestHandler,
     SignedSessionAuthorizer,
     SQLiteAuditSink,
     SqlitePortalStore,
@@ -30,6 +33,82 @@ FIXTURE_DESTINATIONS = frozenset({"synthetic.student@ntu.edu.tw", "synthetic.gue
 
 class SyntheticStagingError(RuntimeError):
     """The requested directory is not an isolated synthetic Portal staging root."""
+
+
+def resolve_static_path(root: Path, target: str) -> Path | None:
+    """Resolve one static Portal path without directory listing or traversal."""
+    parsed = urlsplit(target)
+    if parsed.query or parsed.fragment:
+        return None
+    try:
+        relative = Path(unquote(parsed.path).lstrip("/"))
+    except (UnicodeDecodeError, ValueError):
+        return None
+    if not relative.parts:
+        relative = Path("index.html")
+    elif parsed.path.endswith("/"):
+        relative /= "index.html"
+    try:
+        current = root
+        for part in relative.parts:
+            current /= part
+            if current.is_symlink():
+                return None
+        candidate = current.resolve(strict=True)
+        candidate.relative_to(root.resolve(strict=True))
+    except (OSError, RuntimeError, ValueError):
+        return None
+    if not candidate.is_file():
+        return None
+    return candidate
+
+
+class SyntheticPortalRequestHandler(PortalRequestHandler):
+    """Serve the connected static artifact and API from one loopback origin."""
+
+    server: SyntheticPortalHTTPServer
+
+    def do_HEAD(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        self._dispatch_static()
+
+    def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        if urlsplit(self.path).path.startswith("/api/"):
+            super().do_GET()
+            return
+        self._dispatch_static()
+
+    def _dispatch_static(self) -> None:
+        path = resolve_static_path(self.server.static_root, self.path)
+        if path is None:
+            self.send_error(404)
+            return
+        body = path.read_bytes()
+        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; font-src 'self'; connect-src 'self'; "
+            "object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+        )
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+
+class SyntheticPortalHTTPServer(PortalHTTPServer):
+    def __init__(self, address: tuple[str, int], backend: PortalBackend, static_root: Path) -> None:
+        resolved = static_root.resolve()
+        if static_root.is_symlink() or not resolved.is_dir():
+            raise SyntheticStagingError("STATIC_ROOT_INVALID")
+        self.backend = backend
+        self.static_root = resolved
+        ThreadingHTTPServer.__init__(self, address, SyntheticPortalRequestHandler)
 
 
 class CapturingEmailTransport:
@@ -62,7 +141,7 @@ class CapturingEmailTransport:
         return {
             "deliveryId": delivery["deliveryId"],
             "status": "PROVIDER_ACCEPTED",
-            "safeResultCode": "SYNTHETIC_EMAIL_CAPTURED",
+            "safeResultCode": "EMAIL_PROVIDER_ACCEPTED",
             "quotaRemainingBefore": 1_000,
         }
 
@@ -254,24 +333,47 @@ def main() -> None:
     parser.add_argument("--origin", required=True)
     parser.add_argument("--bind-host", default="127.0.0.1")
     parser.add_argument("--bind-port", default=8081, type=int)
+    parser.add_argument("--static-root", type=Path)
+    parser.add_argument("--allow-loopback-http", action="store_true")
     args = parser.parse_args()
     if os.environ.get("PORTAL_STAGING_SYNTHETIC_ONLY") != "1":
         raise SystemExit("PORTAL_STAGING_SYNTHETIC_ONLY=1 is required")
     secret = os.environ.get("PORTAL_STAGING_SESSION_SECRET", "").encode()
+    if args.allow_loopback_http:
+        expected_origins = {
+            f"http://127.0.0.1:{args.bind_port}",
+            f"http://localhost:{args.bind_port}",
+        }
+        if args.bind_host not in {"127.0.0.1", "::1"} or args.origin not in expected_origins:
+            raise SystemExit("loopback HTTP requires an exact localhost origin and bind address")
     staging = create_synthetic_staging(
         args.root,
         origin=args.origin,
         session_secret=secret,
+        secure_cookies=not args.allow_loopback_http,
     )
     stop = threading.Event()
+    worker_failure: list[str] = []
+
+    if args.static_root is None:
+        server = PortalHTTPServer((args.bind_host, args.bind_port), staging.backend)
+    else:
+        server = SyntheticPortalHTTPServer(
+            (args.bind_host, args.bind_port), staging.backend, args.static_root
+        )
 
     def capture_worker() -> None:
         while not stop.wait(0.5):
-            deliver_captured_email_once(staging)
+            try:
+                deliver_captured_email_once(staging)
+            except Exception:
+                worker_failure.append("EMAIL_CAPTURE_WORKER_FAILED")
+                stop.set()
+                server.shutdown()
+                return
 
     worker = threading.Thread(target=capture_worker, name="portal-email-capture", daemon=True)
     worker.start()
-    server = PortalHTTPServer((args.bind_host, args.bind_port), staging.backend)
     print(
         json.dumps(
             {
@@ -297,6 +399,8 @@ def main() -> None:
         worker.join(timeout=2)
         server.server_close()
         staging.close()
+    if worker_failure:
+        raise SystemExit(f"portal_staging={worker_failure[0]}")
 
 
 if __name__ == "__main__":

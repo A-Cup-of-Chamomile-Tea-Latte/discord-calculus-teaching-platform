@@ -9,6 +9,8 @@
 - Portal rollout：未完成。現有 production 交接只列三個 core services，沒有 Portal service 或正式 session issuer 的部署證據。Owner-only GAS provider 實寄已通過，但 Portal／remote bridge 白帳號 E2E 不列為通過；數學系 hosting 不作為本輪本機／staging 驗證前提。
 - Browser boundary：public artifact 只包含 same-origin API path，掃描未發現 SQLite path、session secret、Bot token 或 Google credential。瀏覽器不直接讀寫 SQLite。
 - 獨立本機 Email journey：已用暫存 SQLite 與 capturing adapter 跑通 API 建立 challenge、durable outbox、worker 取件、驗碼、加入申請與敏感 payload 清除；不連 Google、不寄真信、不修改 production。
+- 受控真 Email service chain：temporary SQLite→Portal challenge→outbox→owner-only GAS v14→人工驗碼→`PENDING_REVIEW` PASS；process 結束刪除暫存 DB，production／Discord mutation 均為 NO。
+- Connected browser smoke：Guest form／Email dialog／申請成功，以及一般／Private lookup PASS；console 0 error／warning。Synthetic capture receipt contract defect 已修正並加入 regression test。
 
 ## 可重現檢查
 
@@ -17,7 +19,7 @@
 | Portal Vitest | 12 files／67 tests PASS |
 | Astro check | 68 files，0 error／warning／hint |
 | Portal backend tests | 25 PASS |
-| Portal／Email／staging／contract focused tests | 43 PASS（含完整本機 journey） |
+| Portal／Email／staging／contract focused tests | 51 PASS（含 controlled real-provider runner 與 capture worker regression） |
 | GAS MailApp adapter | unit tests PASS；immutable v14 受控實寄由 provider 接受，寄送前 quota 100，duplicate no-op，收件匣人工確認內容正確 |
 | Public build | 預設 fail-closed 60、connected candidate 61 個 base-safe local references；各 5 public pages |
 | 數學系 hosting | 不作本輪前提；待本機與外部 staging 通過後才測 |
