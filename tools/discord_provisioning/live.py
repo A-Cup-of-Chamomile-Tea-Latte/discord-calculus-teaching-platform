@@ -256,7 +256,6 @@ PRIVATE_SUPPORT_ENTRY_MEMBER = {
 PRIVATE_SUPPORT_ENTRY_STAFF = {
     **PRIVATE_SUPPORT_ENTRY_MEMBER,
     "send_messages": True,
-    "manage_messages": True,
     "manage_channels": False,
     "mention_everyone": False,
 }

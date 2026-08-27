@@ -125,12 +125,12 @@ def test_private_entry_allows_commands_but_rejects_member_content() -> None:
         permission = overwrites[operator]  # type: ignore[index]
         assert permission.view_channel is True
         assert permission.send_messages is True
-        assert permission.manage_messages is True
+        assert permission.manage_messages is None
         assert permission.manage_channels is True
     staff_permission = overwrites[staff]  # type: ignore[index]
     assert staff_permission.view_channel is True
     assert staff_permission.send_messages is True
-    assert staff_permission.manage_messages is True
+    assert staff_permission.manage_messages is None
     assert staff_permission.manage_channels is False
     course_permission = overwrites[course]  # type: ignore[index]
     assert course_permission.manage_channels is True
