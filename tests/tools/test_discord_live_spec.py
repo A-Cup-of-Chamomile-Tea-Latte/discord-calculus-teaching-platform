@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 import discord
@@ -151,10 +152,51 @@ def test_private_entry_preserves_existing_managed_bot_role_boundary() -> None:
 
     overwrites = provisioner.private_entry_overwrites(spec)
 
-    managed_role = overwrites[provisioner.course.top_role]
     assert provisioner.course not in overwrites
-    assert managed_role.manage_channels is True
-    assert managed_role.manage_messages is None
+    assert provisioner.course.top_role not in overwrites
+    assert provisioner.dump.top_role not in overwrites
+
+
+@pytest.mark.asyncio
+async def test_private_entry_never_writes_managed_bot_role_overwrites() -> None:
+    provisioner = object.__new__(LiveProvisioner)
+    provisioner.course = MagicMock(spec=discord.Member)
+    provisioner.course.top_role = MagicMock(spec=discord.Role)
+    provisioner.course.top_role.id = 90
+    provisioner.dump = MagicMock(spec=discord.Member)
+    provisioner.dump.top_role = MagicMock(spec=discord.Role)
+    provisioner.dump.top_role.id = 91
+    provisioner.operations = MagicMock()
+
+    category = MagicMock(spec=discord.CategoryChannel)
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.id = 100
+    channel.edit = AsyncMock()
+    channel.set_permissions = AsyncMock()
+    managed = discord.PermissionOverwrite(view_channel=True)
+    category.overwrites_for.return_value = managed
+    channel.overwrites_for.side_effect = lambda target: (
+        managed
+        if target in {provisioner.course.top_role, provisioner.dump.top_role}
+        else discord.PermissionOverwrite()
+    )
+    channel.overwrites = {
+        provisioner.course.top_role: managed,
+        provisioner.dump.top_role: managed,
+    }
+    member_role = cast(discord.Role, MagicMock(spec=discord.Role))
+    member_role.id = 10
+    desired: dict[discord.Role | discord.Member, discord.PermissionOverwrite] = {
+        member_role: discord.PermissionOverwrite(view_channel=True)
+    }
+
+    await provisioner.ensure_private_entry_overwrites(channel, category, desired)
+
+    channel.edit.assert_not_awaited()
+    written_targets = [call.args[0] for call in channel.set_permissions.await_args_list]
+    assert written_targets == [member_role]
+    assert provisioner.course.top_role not in written_targets
+    assert provisioner.dump.top_role not in written_targets
 
 
 def test_private_entry_targeted_commands_are_explicitly_allowlisted() -> None:
@@ -198,7 +240,7 @@ async def test_targeted_ensure_does_not_enter_full_reconciliation(tmp_path) -> N
         return_value={"unrelated_drift": ["forum.example: report only"]}
     )
     provisioner.resolve_private_entry_context = AsyncMock()
-    provisioner.ensure_overwrites = AsyncMock()
+    provisioner.ensure_private_entry_overwrites = AsyncMock()
     provisioner.ensure_private_entry_seed = AsyncMock()
     provisioner.update_private_entry_runtime_config = MagicMock()
     provisioner.private_entry_errors = AsyncMock(return_value=[])
@@ -217,8 +259,9 @@ async def test_targeted_ensure_does_not_enter_full_reconciliation(tmp_path) -> N
 
     assert result["ok"] is True
     assert result["other_resources_action"] == "REPORTED_ONLY"
-    provisioner.ensure_overwrites.assert_awaited_once()
-    assert provisioner.ensure_overwrites.await_args.args[0] is channel
+    provisioner.ensure_private_entry_overwrites.assert_awaited_once()
+    assert provisioner.ensure_private_entry_overwrites.await_args.args[0] is channel
+    assert provisioner.ensure_private_entry_overwrites.await_args.args[1] is category
     provisioner.ensure_roles.assert_not_awaited()
     provisioner.ensure_categories.assert_not_awaited()
     provisioner.ensure_channels.assert_not_awaited()
@@ -275,7 +318,7 @@ async def test_targeted_ensure_rolls_back_a_new_channel_when_seed_fails(tmp_path
     provisioner.run_dir = tmp_path
     provisioner.plan_private_entry = AsyncMock(return_value={"unrelated_drift": []})
     provisioner.resolve_private_entry_context = AsyncMock()
-    provisioner.ensure_overwrites = AsyncMock()
+    provisioner.ensure_private_entry_overwrites = AsyncMock()
     provisioner.ensure_private_entry_seed = AsyncMock(side_effect=RuntimeError("PIN_FAILED"))
     provisioner.update_private_entry_runtime_config = MagicMock()
 

@@ -1214,7 +1214,15 @@ class LiveProvisioner:
                 actions.append("MOVE_TO_PRIVATE_SUPPORT_CATEGORY")
             if channel.topic != spec.topic:
                 actions.append("UPDATE_TOPIC")
-            if overwrite_signature(channel.overwrites) != overwrite_signature(desired):
+            actual_mutable = {
+                target: overwrite
+                for target, overwrite in channel.overwrites.items()
+                if target.id not in {self.course.top_role.id, self.dump.top_role.id}
+            }
+            if (
+                overwrite_signature(actual_mutable) != overwrite_signature(desired)
+                or not self.private_entry_managed_boundary_matches(channel, category)
+            ):
                 actions.append("SET_EXACT_OVERWRITES")
 
             message_id = self.store.get_id("message.private_support_entry")
@@ -1276,10 +1284,11 @@ class LiveProvisioner:
                 label="edit Private Support entry message",
             )
             self.operations.record("updated", "message.private_support_entry", message.id)
+
     def private_entry_overwrites(
         self, spec: ChannelSpec
     ) -> dict[discord.Role | discord.Member, discord.PermissionOverwrite]:
-        return desired_overwrites(
+        desired = desired_overwrites(
             spec,
             everyone=self.guild.default_role,
             admin=self.roles["role.admin"],
@@ -1289,6 +1298,63 @@ class LiveProvisioner:
             course=self.course.top_role,
             dump=self.dump.top_role,
         )
+        # Integration-managed bot roles are immutable permission targets. The
+        # entry inherits those two overwrites from its existing category.
+        desired.pop(self.course.top_role, None)
+        desired.pop(self.dump.top_role, None)
+        return desired
+
+    def private_entry_managed_boundary_matches(
+        self, channel: discord.TextChannel, category: discord.CategoryChannel
+    ) -> bool:
+        return all(
+            channel.overwrites_for(role).pair() == category.overwrites_for(role).pair()
+            for role in (self.course.top_role, self.dump.top_role)
+        )
+
+    async def ensure_private_entry_overwrites(
+        self,
+        channel: discord.TextChannel,
+        category: discord.CategoryChannel,
+        desired: dict[discord.Role | discord.Member, discord.PermissionOverwrite],
+    ) -> None:
+        if not self.private_entry_managed_boundary_matches(channel, category):
+            synced = await retry(
+                lambda: channel.edit(sync_permissions=True, reason=REASON),
+                label="sync Private Support entry category permissions",
+            )
+            if not isinstance(synced, discord.TextChannel):
+                raise ProvisioningError("Private Support entry category sync changed channel type")
+            channel = synced
+            self.channels["channel.private_support_entry"] = channel
+            self.operations.record(
+                "updated", "channel.private_support_entry.permission.sync", channel.id
+            )
+
+        desired_ids = {target.id for target in desired}
+        protected_ids = {self.course.top_role.id, self.dump.top_role.id}
+        for target, overwrite in desired.items():
+            if channel.overwrites_for(target).pair() == overwrite.pair():
+                continue
+            await retry(
+                lambda target=target, overwrite=overwrite: channel.set_permissions(
+                    target, overwrite=overwrite, reason=REASON
+                ),
+                label=f"set Private Support entry overwrite:{target.id}",
+            )
+            self.operations.record(
+                "updated", f"channel.private_support_entry.permission.{target.id}", channel.id
+            )
+        for target in list(channel.overwrites):
+            if target.id in desired_ids or target.id in protected_ids:
+                continue
+            await retry(
+                lambda target=target: delete_permission_overwrite(channel, target),
+                label=f"remove stale Private Support entry overwrite:{target.id}",
+            )
+            self.operations.record(
+                "updated", "channel.private_support_entry.permission.remove", channel.id
+            )
 
     def update_private_entry_runtime_config(self) -> None:
         channel_id = self.channels["channel.private_support_entry"].id
@@ -1419,7 +1485,7 @@ class LiveProvisioner:
 
         try:
             overwrites = self.private_entry_overwrites(spec)
-            await self.ensure_overwrites(channel, overwrites, spec.key)
+            await self.ensure_private_entry_overwrites(channel, category, overwrites)
             await self.ensure_private_entry_seed()
             errors = await self.private_entry_errors()
             if errors:
