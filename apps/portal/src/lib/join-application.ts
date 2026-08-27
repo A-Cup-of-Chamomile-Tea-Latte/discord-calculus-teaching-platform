@@ -39,7 +39,9 @@ export function sameOriginEndpointPath(
   return path;
 }
 
-export function discordInviteUrl(value: string | undefined): string | undefined {
+export function discordInviteUrl(
+  value: string | undefined,
+): string | undefined {
   const candidate = value?.trim();
   if (!candidate) return undefined;
   try {

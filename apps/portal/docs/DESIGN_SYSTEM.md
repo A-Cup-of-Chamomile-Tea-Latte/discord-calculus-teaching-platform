@@ -26,7 +26,7 @@
 - `StatePanel`：loading/empty/error/success；loading 有 `aria-live`/`aria-busy`，error 為 alert。
 - `FormField`：label、hint、optional/required、error slot；實際 control 必須用 `aria-describedby` 連到 hint/error。
 - `ButtonLink`：primary/secondary/quiet/disabled/external；disabled anchor 移除 href 並退出 tab order。
-- `ComponentGallery`：只存在 reviewer artifact 的輕量 v10 元件 gallery；public build 移除 `/components/`。
+- `ComponentGallery`：只存在 reviewer artifact 的輕量元件 gallery；public build 移除 `/components/`。
 
 ## Keyboard and focus
 

@@ -17,10 +17,10 @@
 
 ## v13 之後才能完成
 
-1. **Email 額度佇列**
-   先保存申請意向，取得寄送名額後才建立驗證碼與到期時間。額度用完時顯示實際排程日期，使用者不用重填。
-2. **正式寄信 provider**
-   決定繼續使用 GAS `MailApp`、改用 Gmail API，或取得課程／Workspace 帳號。完成真實寄送、退信、重試、去重與監控。
+1. **Email 額度排程**
+   durable SQLite outbox 與 provider adapter 已有本機 journey；仍需在寄送額度不足時先保存申請意向，取得名額後才建立驗證碼與到期時間。額度用完時顯示實際排程日期，使用者不用重填。
+2. **正式寄信驗收**
+   決定繼續使用 GAS `MailApp`、改用 Gmail API，或取得課程／Workspace 帳號。現有 provider code 不等於 rollout；仍需完成真實寄送、退信、重試、去重與監控驗收。
 3. **正式加入流程**
    Portal 寫入 SQLite，Course Manager 查找 Discord 成員，審核後套用角色並由 Bot 私訊結果。
 4. **重設資料**

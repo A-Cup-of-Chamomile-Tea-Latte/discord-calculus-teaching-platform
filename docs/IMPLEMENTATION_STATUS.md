@@ -13,7 +13,7 @@ Last repository／AI handoff reconciliation: 2026-08-27（Asia/Taipei）
 | Production runtime | Active release `feab01757897`；三個 systemd services 依遠端交接均 active／enabled；Discord `/ops status` 與 `/ops attention-list` PASS |
 | Production DB | Remote SQLite schema 13；critical queues 與 manual attention 均為 0 |
 | Observation | v13 core 與 metadata-only ops smoke PASS；Email sender、白帳號 ACL／E2E 與 Portal rollout 仍是獨立 gate |
-| Repository candidate | Post-deploy maintenance 為 `f61219b31344`；未部署，不改變 production active release |
+| Repository candidate | Post-deploy baseline 為 `f61219b31344`；Portal candidate `codex/portal-post-v13` 目前含 `5c0472c`、`3f04a69`，未部署且不改變 production active release |
 | Google | SQLite 是 operational authority；Sheets 是 compact projection，不是第二套主資料庫 |
 | Portal | 公開／reviewer artifact 分離；學生面收斂為靜態資訊入口與已完成本機驗證的最小 backend，尚未部署 |
 | Portal backend | exact v13 source 已有 same-origin join／Email verify／one-case lookup，post-deploy focused tests 21 PASS；正式 Portal service、session issuer、origin 與 rollout 尚未接線，public build 預設仍 fail closed |

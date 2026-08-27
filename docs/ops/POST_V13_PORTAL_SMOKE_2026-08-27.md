@@ -17,7 +17,7 @@
 | Portal Vitest | 12 files／67 tests PASS |
 | Astro check | 68 files，0 error／warning／hint |
 | Exact post-deploy Portal backend tests | 21 PASS |
-| Portal／Email／bridge focused tests | 31 PASS（含新增完整本機 journey） |
+| Portal／Email／bridge focused tests | 38 PASS（含完整本機 journey） |
 | GAS MailApp adapter | 4 PASS；未呼叫真實 `MailApp` |
 | Public build | 5 public pages；61 個 base-safe local references |
 | 數學系 hosting | 不作本輪前提；待本機與外部 staging 通過後才測 |
@@ -28,7 +28,9 @@
 
 Portal backend 與 Email queue 已可在暫存 SQLite 獨立驗證；第一個真正 blocker 是正式 session issuer。沒有 issuer 時，瀏覽器拿不到 `portal_session`，所有 same-origin API request 都會回 401，因此目前還不能宣稱「從公開網頁點到底」已通過。
 
-網站修改已整理成 `codex/portal-post-v13`，直接基於 post-deploy canonical `f61219b`，整合 commit 為 `5c0472c`。原工作樹的其他使用者修改沒有混入整合分支。
+Maintenance 結論為 `READY_FOR_ISOLATED_STAGING_IMPLEMENTATION`，不是 `STAGING_DEPLOYED`：可以接續建立 session issuer 與獨立 staging composition，但 staging 必須使用 synthetic／temporary SQLite、獨立 audit DB 與 staging-only secret。現有 Private lookup 尚未把 session subject 綁到案件 ownership；完成前應在 staging 停用 Private lookup。完整 contract 與停止條件見 `docs/ops/PORTAL_BACKEND_V1.md`。
+
+網站修改已整理成 `codex/portal-post-v13`，直接基於 post-deploy canonical `f61219b`；整合 commit 為 `5c0472c`，isolated Email journey regression commit 為 `3f04a69`。原工作樹的其他使用者修改沒有混入整合分支。
 
 ## 需要授權的下一步
 

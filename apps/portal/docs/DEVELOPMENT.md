@@ -1,4 +1,4 @@
-# Portal development（v10 candidate）
+# Portal development（post-v13 candidate）
 
 ## Runtime boundary
 

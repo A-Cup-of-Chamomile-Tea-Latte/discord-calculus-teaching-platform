@@ -2,7 +2,7 @@
 
 狀態：`IMPLEMENTED_LOCAL / NOT_DEPLOYED`
 
-這是 v13 deployment candidate 的最小 same-origin backend 邊界。它不處理 CNAME、repository owner、公開 URL、hosting、OAuth provider 或 rollout；未注入正式設定時，public build 仍維持 fail closed。
+這是 post-v13 Portal candidate 的最小 same-origin backend 邊界。它不處理 CNAME、repository owner、公開 URL、hosting、OAuth provider 或 rollout；未注入正式設定時，public build 仍維持 fail closed。
 
 ## Routes
 
@@ -22,14 +22,24 @@
 
 backend 只透過既有 `Repository` 寫入與 Bot 相同的 canonical SQLite。加入申請使用 `join_applications`、`join_application_events`、v12 email challenge/outbox 與既有 Course Manager review queue；案件查詢使用 content-free `safe_case_projection`。Browser 不取得 token、SQLite path、row 或 writer access。
 
-session 是由外部 authenticated same-origin provider 發出的短效簽章 cookie；目前 local implementation 提供 `SignedSessionAuthorizer` 驗證器與 test issuer，不自行替瀏覽器建立登入身分。CSRF seed 是對 `/api/join` 或 `/api/cases/lookup` 的 `GET`，不是登入 endpoint。deployment 前必須由 owner 確認 session provider、單 instance／sticky session，或提供受保護的 shared session store；不能把 local fixture receipt 當 production evidence。
+session 預期由 trusted same-origin issuer 發出短效簽章 cookie；目前 local implementation 只有 `SignedSessionAuthorizer` 驗證器與 `issue_for_test()`，不自行替瀏覽器建立正式 session。CSRF seed 是對 `/api/join` 或 `/api/cases/lookup` 的 `GET`，不是登入 endpoint。不能把 test token 或 local fixture receipt 當 staging／production evidence。
 
-## Release gates still open
+## Session issuer stage
 
-- 注入正式 session secret、same-origin allowlist、durable audit sink、TLS cookie 與 bounded provider rate-limit 設定。
-- 以白帳號驗證加入、duplicate、waiting、approve、reject、archive／restore 與 Discord DM。
-- 以白帳號驗證一般／Private status lookup 的最小揭露與 Discord ACL；不以案號作唯一授權憑證。
-- 先取得 production v6 consistent backup，另在副本演練 v6 → schema v13、rollback 與 row-count receipt。
-- deployment smoke、rollback readiness 與明示 deploy authorization 仍是 human gate。
+進入獨立 staging 前必須先完成下列 contract；這些是 session issuer 本身的工作，不得用 static Portal 或 CSRF cookie 代替：
 
-未完成上述 gate 前，不應設定 `PUBLIC_JOIN_APPLICATION_ENDPOINT`、`PUBLIC_CASE_STATUS_ENDPOINT` 或 `PUBLIC_PORTAL_SESSION_ENDPOINT` 到 public build，也不應開放動態 submission／lookup。若通過，三者預期為 `/api/join`、`/api/cases/lookup`、`/api/join`（最後一個只作 CSRF seed）；Email start/verify 由 join client 以同站相對路徑呼叫。
+- 決定 issuer 的 trust source，並分開「建立加入申請」與「查詢既有案件」所需的 session scope。匿名 browser session 可支援 Email challenge，但不能自然取得案件 ownership。
+- issuer 只把 opaque random subject 放入 session，不放 Email、學號、Discord ID 或案件號；session cookie 必須為 `HttpOnly; Secure; SameSite=Strict`，有 bounded expiry，CSRF cookie 才由 browser script 讀取。
+- issuer 與 verifier 使用 staging-only secret，需定義 rotation／key version、失效與 clock-skew policy；不得沿用 production secret。
+- 現有 lookup path 對任一 valid session 會呼叫 `safe_case_projection(..., allow_private=True)`。在 subject-to-case ownership 尚未實作前，staging 必須使用 synthetic data 並停用 Private lookup；案號本身不能作唯一授權憑證。
+- tests 至少覆蓋：首次 issuance、expiry、tampered signature、cross-origin／wrong Host、cookie attributes、rate limit、rotation、scope mismatch，以及沒有 ownership 時拒絕 Private lookup。
+
+## Independent staging gates still open
+
+- 使用獨立 HTTPS origin、staging-only secret、synthetic／temporary SQLite、獨立 audit DB 與 bounded rate-limit；不可連 production authority。
+- 實作並驗證上述 session issuer contract；same-origin reverse proxy 必須能在 staging 重現。
+- 以 staging 帳號驗證 join／Email capturing flow；不寄真信、不套 Discord role、不呼叫 Bot。
+- Private lookup 在 ownership binding 完成前保持停用；一般 lookup 也只使用 synthetic cases。
+- staging smoke、cleanup／rollback 與明示 external staging authorization 仍是 human gate。
+
+未完成上述 gate 前，不應設定 `PUBLIC_JOIN_APPLICATION_ENDPOINT`、`PUBLIC_CASE_STATUS_ENDPOINT` 或 `PUBLIC_PORTAL_SESSION_ENDPOINT` 到任何公開 build，也不應開放動態 submission／lookup。issuer 完成後，staging 預期使用 `/api/join`、`/api/cases/lookup`、`/api/session`；Email start/verify 由 join client 以同站相對路徑呼叫。正式 rollout 仍需另外驗收 production service、白帳號、Email provider、backup 與 rollback，不沿用 staging PASS。
