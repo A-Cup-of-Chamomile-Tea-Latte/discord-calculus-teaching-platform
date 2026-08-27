@@ -41,6 +41,10 @@ def integrity(connection: sqlite3.Connection) -> bool:
     return row is not None and str(row[0]) == "ok"
 
 
+def foreign_keys_valid(connection: sqlite3.Connection) -> bool:
+    return connection.execute("PRAGMA foreign_key_check").fetchone() is None
+
+
 def quote_identifier(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
@@ -122,6 +126,7 @@ def main() -> int:
         source_before = sha256(source)
         with read_only_connection(source) as source_connection:
             source_integrity = integrity(source_connection)
+            source_foreign_keys_valid = foreign_keys_valid(source_connection)
             source_snapshot = snapshot(source_connection)
             source_ledger_versions = migration_versions(source_connection)
             backup_connection = sqlite3.connect(backup)
@@ -135,12 +140,14 @@ def main() -> int:
             backup_snapshot = snapshot(backup_connection)
             backup_ledger_versions = migration_versions(backup_connection)
             backup_integrity = integrity(backup_connection)
+            backup_foreign_keys_valid = foreign_keys_valid(backup_connection)
         shutil.copyfile(backup, restored)
         restored.chmod(stat.S_IRUSR | stat.S_IWUSR)
         with read_only_connection(restored) as restored_connection:
             restored_snapshot = snapshot(restored_connection)
             restored_ledger_versions = migration_versions(restored_connection)
             restored_integrity = integrity(restored_connection)
+            restored_foreign_keys_valid = foreign_keys_valid(restored_connection)
 
         shutil.copyfile(backup, rollback)
         rollback.chmod(stat.S_IRUSR | stat.S_IWUSR)
@@ -148,6 +155,7 @@ def main() -> int:
             rollback_snapshot = snapshot(rollback_connection)
             rollback_ledger_versions = migration_versions(rollback_connection)
             rollback_integrity = integrity(rollback_connection)
+            rollback_foreign_keys_valid = foreign_keys_valid(rollback_connection)
 
         restored_before_migration = sha256(restored)
         shutil.copyfile(restored, migrated)
@@ -166,6 +174,7 @@ def main() -> int:
             migrated_snapshot = snapshot(migrated_connection)
             migrated_ledger_versions = migration_versions(migrated_connection)
             migrated_integrity = integrity(migrated_connection)
+            migrated_foreign_keys_valid = foreign_keys_valid(migrated_connection)
 
         original_tables_preserved = all(
             migrated_snapshot["rowCounts"].get(table) == count
@@ -195,6 +204,7 @@ def main() -> int:
         rollback_ledger_complete = rollback_ledger_versions == expected_source_ledger
         rollback_copy_equivalent = (
             rollback_integrity
+            and rollback_foreign_keys_valid
             and rollback_snapshot == backup_snapshot
             and sha256(rollback) == sha256(backup)
         )
@@ -202,6 +212,7 @@ def main() -> int:
             (
                 source_before == source_after,
                 source_integrity,
+                source_foreign_keys_valid,
                 source_mode_gate,
                 source_owner_gate,
                 workspace_mode_gate,
@@ -209,10 +220,13 @@ def main() -> int:
                 source_schema_matches,
                 source_ledger_complete,
                 backup_integrity,
+                backup_foreign_keys_valid,
                 backup_ledger_complete,
                 restored_integrity,
+                restored_foreign_keys_valid,
                 restored_ledger_complete,
                 migrated_integrity,
+                migrated_foreign_keys_valid,
                 migrated_ledger_complete,
                 rollback_copy_equivalent,
                 rollback_ledger_complete,
@@ -232,6 +246,7 @@ def main() -> int:
             "sourceOpenedReadOnly": True,
             "sourceFileStableDuringRun": source_before == source_after,
             "sourceIntegrity": source_integrity,
+            "sourceForeignKeysValid": source_foreign_keys_valid,
             "sourceModeOwnerOnly": source_mode == 0o600,
             "sourceOwnerMatchesProcess": source_owner_matches_process,
             "workspaceWritable": os.access(work_directory, os.W_OK),
@@ -241,12 +256,16 @@ def main() -> int:
             "sourceSchemaMatchesExpected": source_schema_matches,
             "sourceLedgerComplete": source_ledger_complete,
             "backupIntegrity": backup_integrity,
+            "backupForeignKeysValid": backup_foreign_keys_valid,
             "backupLedgerComplete": backup_ledger_complete,
             "restoreIntegrity": restored_integrity,
+            "restoreForeignKeysValid": restored_foreign_keys_valid,
             "restoreLedgerComplete": restored_ledger_complete,
             "migrationIntegrity": migrated_integrity,
+            "migrationForeignKeysValid": migrated_foreign_keys_valid,
             "migrationLedgerComplete": migrated_ledger_complete,
             "rollbackIntegrity": rollback_integrity,
+            "rollbackForeignKeysValid": rollback_foreign_keys_valid,
             "rollbackCopyEquivalent": rollback_copy_equivalent,
             "rollbackLedgerComplete": rollback_ledger_complete,
             "backupRestoreEquivalent": backup_snapshot == restored_snapshot,

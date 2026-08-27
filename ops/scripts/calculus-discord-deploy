@@ -39,7 +39,10 @@ units=(
 [[ -e $request_source ]] || fail REQUEST_MISSING
 [[ ! -e $legacy_archive_source ]] || fail LEGACY_INBOX_ARCHIVE_REFUSED
 [[ -L /opt/calculus-discord/current ]] || fail CURRENT_RELEASE_MISSING
-[[ -f $database ]] || fail PRODUCTION_DATABASE_MISSING
+[[ -f $database && ! -L $database ]] || fail PRODUCTION_DATABASE_MISSING
+[[ $(stat -c %U:%G "$database") == calculus-bot:calculus-bot ]] ||
+  fail PRODUCTION_DATABASE_OWNER_INVALID
+[[ $(stat -c %a "$database") == 600 ]] || fail PRODUCTION_DATABASE_MODE_INVALID
 id calculus-builder >/dev/null 2>&1 || fail BUILD_USER_MISSING
 
 private_stage=$(mktemp -d /var/lib/calculus-discord-deploy/deploy.XXXXXXXX)
@@ -197,6 +200,7 @@ if not (
     and re.fullmatch(r"[a-f0-9]{64}", str(value.get("treeSha256", "")))
     and value.get("productionDatabaseModified") is False
     and value.get("deployExecuted") is False
+    and value.get("sensitiveValuesPrinted") is False
 ):
     raise SystemExit(1)
 PY
@@ -221,6 +225,12 @@ migration_workspace=$private_stage/migration
 staging_database=$migration_workspace/runtime.sqlite3
 
 [[ $old_release == /opt/calculus-discord/releases/* ]] || fail CURRENT_RELEASE_PATH_INVALID
+[[ -d $old_release && ! -L $old_release ]] || fail CURRENT_RELEASE_BOUNDARY_INVALID
+[[ $(stat -c %U:%G "$old_release") == root:root ]] || fail CURRENT_RELEASE_OWNER_INVALID
+[[ -z $(find "$old_release" ! -user root -print -quit) ]] ||
+  fail CURRENT_RELEASE_TREE_OWNER_INVALID
+[[ -z $(find "$old_release" -perm /022 -print -quit) ]] ||
+  fail CURRENT_RELEASE_WRITABLE_BY_OTHERS
 [[ $old_release != "$release_destination" ]] || fail RELEASE_ALREADY_CURRENT
 [[ ! -e $release_destination && ! -e $incoming ]] || fail RELEASE_ALREADY_PRESENT
 [[ ! -e /opt/calculus-discord/current.incoming ]] || fail CURRENT_INCOMING_PRESENT
@@ -228,6 +238,8 @@ staging_database=$migration_workspace/runtime.sqlite3
 [[ ! -e $rollback_bundle ]] || fail DEPLOY_ARTIFACT_ALREADY_PRESENT
 [[ $(sqlite3 "$database" 'PRAGMA integrity_check;') == ok ]] ||
   fail PRODUCTION_DATABASE_INTEGRITY_FAILED
+[[ -z $(sqlite3 "$database" 'PRAGMA foreign_key_check;') ]] ||
+  fail PRODUCTION_DATABASE_FOREIGN_KEYS_INVALID
 [[ $(sqlite3 "$database" 'SELECT COUNT(*) FROM schema_migrations;') == "$current_schema" ]] ||
   fail PRODUCTION_DATABASE_LEDGER_INVALID
 for unit in "${units[@]}"; do
@@ -287,7 +299,7 @@ runuser -u calculus-builder -- env -i HOME=/var/lib/calculus-discord-build \
   -r "$dependency_lock" >/dev/null
 runuser -u calculus-builder -- env -i HOME=/var/lib/calculus-discord-build \
   PATH=/usr/bin:/bin "$incoming_runtime/.venv/bin/pip" install \
-  --no-deps "$incoming_runtime" >/dev/null
+  --no-build-isolation --no-deps "$incoming_runtime" >/dev/null
 for executable in course-assistant dump-bot discord-production-bridge; do
   [[ -x $incoming_runtime/.venv/bin/$executable ]] || fail RELEASE_EXECUTABLE_MISSING
   shebang=$(head -n 1 "$incoming_runtime/.venv/bin/$executable")
@@ -331,6 +343,8 @@ finally:
 PY
 [[ $(sqlite3 "$staging_database" 'PRAGMA integrity_check;') == ok ]] ||
   fail STAGING_DATABASE_INTEGRITY_FAILED
+[[ -z $(sqlite3 "$staging_database" 'PRAGMA foreign_key_check;') ]] ||
+  fail STAGING_DATABASE_FOREIGN_KEYS_INVALID
 
 backup_ready=0
 release_switched=0
@@ -364,18 +378,35 @@ rollback_deploy() {
     rollback_failed=1
   fi
   rollback_integrity=$(sqlite3 "$database" 'PRAGMA integrity_check;' 2>/dev/null)
+  rollback_foreign_keys=$(sqlite3 "$database" 'PRAGMA foreign_key_check;' 2>/dev/null)
   rollback_schema=$(sqlite3 "$database" 'PRAGMA user_version;' 2>/dev/null)
   rollback_ledger=$(
     sqlite3 "$database" 'SELECT COUNT(*) FROM schema_migrations;' 2>/dev/null
   )
   [[ $rollback_integrity == ok ]] || rollback_failed=1
+  [[ -z $rollback_foreign_keys ]] || rollback_failed=1
   [[ $rollback_schema == "$current_schema" ]] || rollback_failed=1
   [[ $rollback_ledger == "$current_schema" ]] || rollback_failed=1
   if [[ $rollback_failed -eq 0 ]]; then
+    local rollback_started_at
+    local rollback_attempts=0
+    rollback_started_at=$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')
     systemctl start "${units[@]}" >/dev/null 2>&1 || rollback_failed=1
-    for unit in "${units[@]}"; do
-      [[ $(systemctl is-active "$unit" 2>/dev/null) == active ]] || rollback_failed=1
+    while [[ $rollback_failed -eq 0 && $rollback_attempts -lt 45 ]]; do
+      if [[ $(systemctl is-active calculus-course-assistant.service 2>/dev/null) == active &&
+        $(systemctl is-active calculus-dump-bot.service 2>/dev/null) == active &&
+        $(systemctl is-active calculus-data-bridge.service 2>/dev/null) == active ]] &&
+        [[ $(sqlite3 "$database" \
+          "SELECT COUNT(*) FROM service_health
+           WHERE service_key IN ('course-assistant','dump-bot','data-bridge')
+             AND status='HEALTHY' AND safe_error_code IS NULL
+             AND last_heartbeat_at >= '$rollback_started_at';" 2>/dev/null) == 3 ]]; then
+        break
+      fi
+      sleep 2
+      rollback_attempts=$((rollback_attempts + 1))
     done
+    [[ $rollback_attempts -lt 45 ]] || rollback_failed=1
   fi
   if [[ $rollback_failed -ne 0 ]]; then
     systemctl stop "${units[@]}" >/dev/null 2>&1 || true
@@ -395,6 +426,8 @@ chown root:root "$rollback_database"
 chmod 0600 "$rollback_database"
 [[ $(sqlite3 "$rollback_database" 'PRAGMA integrity_check;') == ok ]] ||
   fail ROLLBACK_DATABASE_INTEGRITY_FAILED
+[[ -z $(sqlite3 "$rollback_database" 'PRAGMA foreign_key_check;') ]] ||
+  fail ROLLBACK_DATABASE_FOREIGN_KEYS_INVALID
 backup_ready=1
 rollback_sha=$(sha256sum "$rollback_database" | cut -d' ' -f1)
 printf 'release=%s\nrollback_sha256=%s\n' "$release_id" "$rollback_sha" >"$receipt"
@@ -422,6 +455,8 @@ finally:
 PY
 [[ $(sqlite3 "$database" 'PRAGMA integrity_check;') == ok ]] ||
   fail PRODUCTION_DATABASE_INTEGRITY_FAILED_AFTER_MIGRATION
+[[ -z $(sqlite3 "$database" 'PRAGMA foreign_key_check;') ]] ||
+  fail PRODUCTION_DATABASE_FOREIGN_KEYS_INVALID_AFTER_MIGRATION
 
 ln -s "releases/$release_id" /opt/calculus-discord/current.incoming
 mv -Tf /opt/calculus-discord/current.incoming /opt/calculus-discord/current
@@ -454,13 +489,30 @@ wait_for_health calculus-data-bridge.service data-bridge
 
 [[ $(sqlite3 "$database" 'PRAGMA integrity_check;') == ok ]] ||
   fail PRODUCTION_DATABASE_INTEGRITY_FAILED_AFTER_DEPLOY
+[[ -z $(sqlite3 "$database" 'PRAGMA foreign_key_check;') ]] ||
+  fail PRODUCTION_DATABASE_FOREIGN_KEYS_INVALID_AFTER_DEPLOY
 [[ $(sqlite3 "$database" 'PRAGMA user_version;') == "$target_schema" ]] ||
   fail PRODUCTION_DATABASE_SCHEMA_INVALID_AFTER_DEPLOY
 [[ $(sqlite3 "$database" 'SELECT COUNT(*) FROM schema_migrations;') == "$target_schema" ]] ||
   fail PRODUCTION_DATABASE_LEDGER_INVALID_AFTER_DEPLOY
-[[ $(sqlite3 "$database" \
-  "SELECT COUNT(*) FROM discord_lifecycle_jobs WHERE status='PERMANENT_FAILURE';") == 0 ]] ||
-  fail LIFECYCLE_QUEUE_DEGRADED
+critical_queue_failures=$(sqlite3 "$database" \
+  "SELECT
+     (SELECT COUNT(*) FROM discord_lifecycle_jobs
+       WHERE status IN ('RETRYABLE_FAILURE','PERMANENT_FAILURE')) +
+     (SELECT COUNT(*) FROM discord_dm_outbox
+       WHERE status IN ('RETRYABLE_FAILURE','PERMANENT_FAILURE')) +
+     (SELECT COUNT(*) FROM course_role_jobs
+       WHERE status IN ('RETRYABLE_FAILURE','PERMANENT_FAILURE')) +
+     (SELECT COUNT(*) FROM private_open_requests
+       WHERE status IN ('RETRYABLE_FAILURE','PERMANENT_FAILURE')) +
+     (SELECT COUNT(*) FROM private_dump_jobs WHERE status = 'FAILED') +
+     (SELECT COUNT(*) FROM email_delivery_outbox
+       WHERE status IN ('RETRYABLE_FAILURE','PERMANENT_FAILURE')) +
+     (SELECT COUNT(*) FROM projection_outbox
+       WHERE status IN ('RETRYABLE_FAILURE','PERMANENT_FAILURE'));"
+)
+[[ $critical_queue_failures =~ ^[0-9]+$ && $critical_queue_failures -eq 0 ]] ||
+  fail CRITICAL_QUEUES_DEGRADED
 
 trap cleanup_private_stage EXIT
 rm -f -- "$request_source" || true

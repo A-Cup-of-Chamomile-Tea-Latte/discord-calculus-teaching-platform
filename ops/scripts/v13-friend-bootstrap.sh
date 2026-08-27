@@ -90,9 +90,8 @@ trap cleanup_bootstrap EXIT
 
 stage_path=$destination
 [[ $stage_action == STAGE_NEW ]] && stage_path=$incoming
-python3 -I - "$archive" "$stage_path" "$expected_sha256" "$release_id" \
-  "$stage_action" "$receipt_name" "$trusted_archive_name" <<'PY' ||
-  fail ARCHIVE_OR_STAGE_VALIDATION_FAILED
+if ! python3 -I - "$archive" "$stage_path" "$expected_sha256" "$release_id" \
+  "$stage_action" "$receipt_name" "$trusted_archive_name" <<'PY'
 import hashlib
 import json
 import os
@@ -234,6 +233,9 @@ else:
     ):
         raise SystemExit(1)
 PY
+then
+  fail ARCHIVE_OR_STAGE_VALIDATION_FAILED
+fi
 
 [[ -z $(find "$stage_path" -type l -print -quit) ]] || fail EXTRACTED_SYMLINK_REFUSED
 [[ -z $(find "$stage_path" ! -type f ! -type d -print -quit) ]] ||
@@ -258,7 +260,7 @@ fi
 trap - EXIT
 
 if ! PREPARE_V13_HOST=PREPARE-V13-HOST \
-  "$stage_path/ops/scripts/v13-host-owner-prepare.sh" "$stage_path"; then
+  /bin/bash -- "$stage_path/ops/scripts/v13-host-owner-prepare.sh" "$stage_path"; then
   fail HOST_PREPARE_FAILED
 fi
 printf 'v13_friend_bootstrap=PASS\nrelease_staged=%s\ndeploy_executed=NO\n' \
