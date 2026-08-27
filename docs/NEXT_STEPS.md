@@ -7,16 +7,15 @@
 - Production Bot 已是 v13，active release `feab01757897`、SQLite schema 13；三個 services active／enabled，critical queues 與 manual attention 為 0。
 - GAS provider smoke 與 isolated Portal→outbox→GAS→人工驗碼→`PENDING_REVIEW` service chain 已通過。
 - Portal same-origin join、Email verify、Case ID lookup、分 scope session、synthetic SQLite、staging package、installer、rollback 與 smoke 已完成本機驗證。
-- 最新完整 gate 通過 Portal 67、Config 3、GAS 70、Python 372 與 secret scan 717／0。Implementation head `f79827e` 收集 374 個 Python tests；新增的 Discord focused suite 25／25 PASS，本輪沒有重跑完整 374 tests。
+- 最新完整 gate 通過 Portal 67、Config 3、GAS 70、Python 374 與 secret scan 717／0。
 
-## 1. 建立 Discord 永久入口
+## 1. 完成 Discord 白帳號 E2E
 
-目前 live Guild 還沒有 `開啟隱密案件`。Targeted provisioner 與 ACL preflight 已完成；先前失敗的 apply 已自動 rollback，沒有留下 channel 或 mapping。
+`開啟隱密案件` 已成功建立並 live verify。Post-apply 唯讀 plan 為 0 actions、0 unrelated drift；既有 Private category 與動態案件頻道未修改。
 
-1. 先跑 current head 的 read-only plan，確認只會建立或採用永久入口、設定 topic／ACL 並送出入口說明。
-2. Plan 無 unrelated drift 後，只執行一次 targeted ensure；不修改既有 Private category、動態案件頻道或其他資源。
-3. Apply PASS 後再跑 read-only plan，預期沒有待處理 action。
-4. 由白帳號在永久入口執行 `/private open`，驗證提出者與教學團隊 ACL、Discord DM、close／reopen、private dump 與 48＋48 lifecycle。
+1. 由白帳號在永久入口執行 `/private open`。
+2. 驗證提出者與教學團隊可見、其他一般帳號不可見，且提出者收到 Discord DM 案號。
+3. 驗證 close／reopen、private dump 與 48＋48 lifecycle；需要等候的 timer 以測試時鐘／管理工具驗證，不必真人等待 96 小時。
 
 ## 2. 部署 external synthetic staging
 
