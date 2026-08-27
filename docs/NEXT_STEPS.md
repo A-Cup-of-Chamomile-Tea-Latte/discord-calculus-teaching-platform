@@ -7,15 +7,16 @@
 - Production Bot 已是 v13，active release `feab01757897`、SQLite schema 13；三個 services active／enabled，critical queues 與 manual attention 為 0。
 - GAS provider smoke 與 isolated Portal→outbox→GAS→人工驗碼→`PENDING_REVIEW` service chain 已通過。
 - Portal same-origin join、Email verify、Case ID lookup、分 scope session、synthetic SQLite、staging package、installer、rollback 與 smoke 已完成本機驗證。
-- 最新完整 gate 通過 Portal 67、Config 3、GAS 70、Python 374 與 secret scan 717／0。
+- 最新完整 gate 通過 Portal 67、Config 3、GAS 70、Python 376 與 secret scan 717／0。
 
 ## 1. 完成 Discord 白帳號 E2E
 
-`開啟隱密案件` 已成功建立並 live verify。Post-apply 唯讀 plan 為 0 actions、0 unrelated drift；既有 Private category 與動態案件頻道未修改。
+`開啟隱密案件-open-private-case` 與雙語 topic 已成功 live verify。白帳號 `/private open` 與動態 Private channel 建立速度已真人驗證；post-apply 唯讀 plan 為 0 actions、0 unrelated drift。
 
-1. 由白帳號在永久入口執行 `/private open`。
-2. 驗證提出者與教學團隊可見、其他一般帳號不可見，且提出者收到 Discord DM 案號。
+1. 確認提出者收到 Discord DM 案號。
+2. 以另一個普通帳號確認動態 Private channel 不可見；提出者與教學團隊仍可見。
 3. 驗證 close／reopen、private dump 與 48＋48 lifecycle；需要等候的 timer 以測試時鐘／管理工具驗證，不必真人等待 96 小時。
+4. `08e4bba` 的雙語 Bot 訊息尚未部署；須先產生 exact maintenance candidate，不以本機 PASS 冒充 production PASS。
 
 ## 2. 部署 external synthetic staging
 

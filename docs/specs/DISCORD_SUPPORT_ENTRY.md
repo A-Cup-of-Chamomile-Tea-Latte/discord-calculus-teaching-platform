@@ -1,6 +1,6 @@
 # Discord 公開／隱密支援入口
 
-狀態：`V13_DEPLOYED / LIVE_WHITE_ACCOUNT_E2E_PENDING`
+狀態：`V13_DEPLOYED / LIVE_WHITE_ACCOUNT_E2E_PARTIAL`
 
 更新日期：2026-08-28
 
@@ -12,7 +12,7 @@
 - 隱密：學生用 Discord 指令要求 Course Manager 建立受限空間。
 - Portal：只說明流程與查狀態，不收題目、不上傳附件、不另存 Discord 圖片。
 
-production v13 已註冊 `/private open`，以受限文字頻道承載 Private Support，並使用 `private dump` 後刪除頻道的生命週期。程式與部署檢查已通過；正式對學生宣稱完成前，仍須做一次白帳號可見性、DM、close／reopen 與非參與學生不可見的 live E2E。
+production v13 已註冊 `/private open`，以受限文字頻道承載 Private Support，並使用 `private dump` 後刪除頻道的生命週期。白帳號已驗證入口、指令受理與動態案件建立；正式對學生宣稱完成前，仍須驗證 DM、close／reopen、dump 與非參與學生不可見。雙語 Bot 訊息已在 `08e4bba` 通過完整 gate，但尚未 production deployment。
 
 ## 冪等與防濫用
 
