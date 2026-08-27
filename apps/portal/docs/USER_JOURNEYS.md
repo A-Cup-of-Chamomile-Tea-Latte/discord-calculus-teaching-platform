@@ -1,6 +1,6 @@
 # Portal user journeys
 
-更新日期：2026-08-24
+更新日期：2026-08-28
 
 ## 加入課程伺服器
 
@@ -37,6 +37,8 @@ Production 已提供 `/private open`；實際 ACL、關閉、private dump 與自
 3. 不回傳題目、對話、作者、附件、班級、AI 選擇或內部 ID。
 4. 不存在、無權限或不可用採最小揭露；不列出相似案件，不背景 polling。
 5. 主要下一步是「前往 Discord 查看與回覆」。
+
+目前可用 synthetic SQLite 測試 Case ID 狀態查詢。Portal 尚未進入 external staging，也沒有 production hosting；頁面上的「測試中」表示查詢結果可能延遲或不可靠。
 
 ## 失敗與恢復
 

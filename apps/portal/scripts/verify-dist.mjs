@@ -157,6 +157,31 @@ if (publicMode) {
       );
     }
   }
+  const statusPage = readFileSync(join(dist, "status/index.html"), "utf8");
+  for (const requiredText of [
+    "v13 Bot 已上線",
+    "GAS provider smoke 已通過",
+    "尚未進入 external staging",
+    "系網掛載也未授權",
+    "Case ID 狀態查詢目前只在本機",
+  ]) {
+    if (!statusPage.includes(requiredText)) {
+      throw new Error(
+        `status/index.html: missing current Portal status ${requiredText}`,
+      );
+    }
+  }
+  for (const staleText of [
+    "v13 核心已上線；Portal 與 Email 仍在發布前驗收",
+    "GAS 實寄仍待部署",
+    "正式網址、API 與 Email 目前尚未部署",
+  ]) {
+    if (statusPage.includes(staleText)) {
+      throw new Error(
+        `status/index.html: contains stale Portal status ${staleText}`,
+      );
+    }
+  }
 }
 let referenceCount = 0;
 for (const relativePath of htmlFiles) {

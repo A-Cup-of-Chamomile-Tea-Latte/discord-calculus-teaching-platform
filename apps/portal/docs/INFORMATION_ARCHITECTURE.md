@@ -1,6 +1,6 @@
 # Portal information architecture
 
-更新日期：2026-08-24
+更新日期：2026-08-28
 
 ## 產品定位
 
@@ -29,7 +29,9 @@ Portal 是公開、輕量的課程入口。它負責加入申請、Discord 使�
 
 ## 動態邊界
 
-- 加入申請：未來送往受保護 backend，進入 Course Manager 審核佇列；公開靜態 build 在 endpoint 未設定時停用送出。
-- 案件查詢：未來只接受單一完整案號並回傳 allowlisted status projection；不列出案件、不背景 polling。
+- 加入申請：設定受核准的 same-origin endpoint 後送往 Course Manager 審核佇列；公開靜態 build 在 endpoint 未設定時停用送出。GAS provider smoke 已通過，但 Portal 完整寄信流程仍待 external staging 驗收。
+- 案件查詢：只接受單一完整 Case ID，回傳 allowlisted status projection；不列出案件、不背景 polling。目前可用 synthetic SQLite 測試，尚未接 production SQLite 或 production hosting。
 - Discord：公開提問直接發文；隱密支援由指令建立受限空間。附件留在 Discord，不經 Portal 上傳。
 - Browser：不得直接讀 SQLite、呼叫 Discord REST、持有 Bot token 或打開 owner-only GAS endpoint。
+
+External staging 與系網掛載是不同 gate。目前兩者都尚未執行，系網掛載也未獲授權。

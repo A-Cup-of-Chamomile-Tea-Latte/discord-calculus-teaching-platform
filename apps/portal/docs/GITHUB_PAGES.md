@@ -1,6 +1,6 @@
-# GitHub Pages project-site deployment
+# GitHub Pages project-site deployment（保留方案）
 
-此文件只描述部署前準備。Task 14 沒有建立 remote repository、沒有 push、沒有啟用 Pages、沒有 dispatch workflow，也沒有部署。
+此文件保留 GitHub Pages 的備援做法，不是目前的部署授權。Portal 尚未進入 external staging，數學系網站掛載也未獲授權；不得依本文件直接發布網站。Task 14 沒有建立 remote repository、沒有 push、沒有啟用 Pages、沒有 dispatch workflow，也沒有部署。
 
 ## 預期位置
 

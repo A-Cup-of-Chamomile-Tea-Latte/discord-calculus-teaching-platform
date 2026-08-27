@@ -5,6 +5,8 @@
 案件查詢現在是 one-case-at-a-time 的狀態摘要介面。Reviewer 使用完全虛構 fixture；
 預設 public artifact 維持 fail closed；接線版使用匿名、分 scope 的 same-origin session，
 完整 Case ID 是查詢最小狀態的 bearer capability，不要求 user ID 或 OAuth。
+目前可在本機與 synthetic SQLite 測試這條路徑；尚未進入 external staging，也沒有
+production hosting。
 
 ## 現行介面契約
 
@@ -20,13 +22,13 @@
 
 ## 2026-08-24 桌面驗收
 
-| 情境 | 輸入 | 結果 |
-| --- | --- | --- |
-| 一般案 | `C01`／`7K4M2Q`／`0702`／`1000` | 通過；顯示一般案件、安全狀態摘要與 fixture Discord 連結。 |
-| 隱密案 | `C99`／`B4W9K6`／`0702`／`1500`／`P` | 通過；顯示隱密案件與安全狀態摘要，不揭露內容或內部識別碼。 |
-| 大小寫 | 分段輸入 `c99`／`b4w9k6`／`p` | 通過；整理成大寫 canonical 案號。 |
-| 無直達連結 | 隱密 fixture | 通過；只提示從 Bot 私訊或伺服器返回，不產生虛假 URL。 |
-| Public build | `http://127.0.0.1:4330/cases/` | 通過；所有分段與按鈕停用，顯示「案件查詢服務尚未啟用」。 |
+| 情境         | 輸入                                 | 結果                                                       |
+| ------------ | ------------------------------------ | ---------------------------------------------------------- |
+| 一般案       | `C01`／`7K4M2Q`／`0702`／`1000`      | 通過；顯示一般案件、安全狀態摘要與 fixture Discord 連結。  |
+| 隱密案       | `C99`／`B4W9K6`／`0702`／`1500`／`P` | 通過；顯示隱密案件與安全狀態摘要，不揭露內容或內部識別碼。 |
+| 大小寫       | 分段輸入 `c99`／`b4w9k6`／`p`        | 通過；整理成大寫 canonical 案號。                          |
+| 無直達連結   | 隱密 fixture                         | 通過；只提示從 Bot 私訊或伺服器返回，不產生虛假 URL。      |
+| Public build | `http://127.0.0.1:4330/cases/`       | 通過；所有分段與按鈕停用，顯示「案件查詢服務尚未啟用」。   |
 
 ## Privacy 與 artifact 邊界
 
@@ -40,6 +42,6 @@
 
 ## 驗證結果
 
-- Portal Vitest：60／60。
-- Astro check：66 files，0 error、0 warning、0 hint。
-- Public artifact：5 required pages，54 個 base-safe local references，驗證通過。
+- Portal Vitest：67／67。
+- Astro check：68 files，0 error、0 warning、0 hint。
+- Public artifact：5 required pages，60 個 base-safe local references，驗證通過。

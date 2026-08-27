@@ -1,4 +1,4 @@
-# Portal development（post-v13 candidate）
+# Portal development
 
 ## Runtime boundary
 
@@ -56,7 +56,7 @@ npm run build:public --workspace @calculus/portal
 npm run verify:public --workspace @calculus/portal -- /~calc/DC-platform-beta
 ```
 
-沒有 endpoint 時，加入與查詢都必須顯示服務尚未啟用；這是安全預設，不是故障。deployment 前仍須注入正式 signed session、CSRF、origin allowlist、rate limit、durable audit sink 與 TLS cookie，並完成白帳號 E2E。
+沒有 endpoint 時，加入與查詢都必須顯示服務尚未啟用；這是安全預設，不是故障。開始 external staging 前，必須設定實際 HTTPS origin、trusted proxy 與 TLS cookie，並以 synthetic SQLite 驗證既有的 signed session、CSRF、rate limit 與 durable audit 邊界。這一步不連 production SQLite，也不代表系網掛載已獲授權。GAS provider smoke 已通過；Portal 完整寄信流程仍要在 staging 做白帳號 E2E。
 
 ## Preview checklist
 

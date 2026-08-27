@@ -16,7 +16,7 @@ const buildGates = [
   {
     label: "Course Manager 加入審核",
     status: "IN_PROGRESS",
-    note: "v13 已有資料模型與 API；Portal 加入流程與分 scope session 已通過本機驗證，正式服務、GAS 實寄與白帳號 E2E 仍待驗收。",
+    note: "v13 Bot 已上線；Portal 加入流程與分 scope session 已通過本機驗證，GAS provider smoke 也已通過。完整流程仍待 external staging 與白帳號 E2E。",
   },
   {
     label: "隱密支援正式化",
@@ -26,18 +26,18 @@ const buildGates = [
   {
     label: "案件狀態查詢後端",
     status: "IN_PROGRESS",
-    note: "最小欄位、same-origin API、匿名分 scope session 與一般／隱密假案件查詢已通過本機驗證；尚未以獨立服務接到 production SQLite。",
+    note: "Case ID 最小狀態查詢、same-origin API 與分 scope session 已可用 synthetic SQLite 測試；尚未接 production SQLite，也沒有 production hosting。",
   },
   {
     label: "網站公開發布",
     status: "PENDING",
-    note: "Beta 網址已定為數學系 /~calc/DC-platform-beta/；首次上傳、API 轉送與外部驗收尚未執行。",
+    note: "規劃路徑為數學系 /~calc/DC-platform-beta/；系網掛載尚未授權，未上傳網站、未設定 API 轉送，也未進行外部驗收。",
   },
 ];
 
 const monitorCards = [
   {
-    label: "Production core",
+    label: "Production Bot",
     value: "v13／schema 13",
     note: "依 2026-08-27 遠端交接：active release feab01757897，三服務 active／enabled，critical queues 為 0。",
   },
@@ -47,14 +47,19 @@ const monitorCards = [
     note: "/ops status 與 /ops attention-list 已通過；這不代表 Email 或白帳號 E2E 已通過。",
   },
   {
-    label: "公開網站",
-    value: "Beta 準備中",
-    note: "公開路徑已確定；交付前仍要完成正式建置、敏感資訊檢查與數學系端部署。",
+    label: "GAS Email provider",
+    value: "Smoke PASS",
+    note: "已驗證 provider 可以寄出驗證信；這不代表 Portal 完整寄信流程或 external staging 已通過。",
   },
   {
-    label: "API／寄信服務",
-    value: "尚未正式部署",
-    note: "本機 session issuer、synthetic staging 與 capture-only Email 已通過；Portal service、API 轉送與 GAS 實寄仍待部署及驗收。",
+    label: "Portal runtime",
+    value: "本機驗證完成",
+    note: "Same-origin join、Case ID lookup、session issuer 與 synthetic staging 已通過；尚未進入 external staging。",
+  },
+  {
+    label: "數學系網站",
+    value: "尚未授權掛載",
+    note: "目前沒有 production hosting；網站與 API 都還沒交付到系網。",
   },
 ];
 ---
@@ -70,11 +75,11 @@ const monitorCards = [
         <p><a href={withBase("access/")}>內部工作區</a> / 建造與系統狀態</p>
         <h1>建造與系統狀態</h1>
         <p>
-          v13 核心已上線；Portal 已完成本機 session 與 synthetic staging，Email
-          與外部發布仍待驗收。全部通過後，這一頁只保留長期監控資訊。
+          v13 Bot 已上線，GAS provider smoke 已通過。Portal 仍在本機與 synthetic
+          staging 階段；external staging 尚未開始，系網掛載也未授權。
         </p>
       </div>
-      <span class="mode-badge">Portal 驗收中</span>
+      <span class="mode-badge">等待 external staging</span>
     </header>
 
     <section aria-labelledby="snapshot-title">
@@ -82,9 +87,10 @@ const monitorCards = [
         <div>
           <h2 id="snapshot-title">目前系統狀態</h2>
           <p>
-            頁面核對：2026-08-28。Production core 已是 v13；證據來自遠端交接與
-            Discord ops smoke，本機沒有直接連線朋友主機。Portal 的本機 synthetic
-            staging 不接 production；正式網址、API 與 Email 目前尚未部署。
+            頁面核對：2026-08-28。v13 Bot 狀態來自遠端交接與 Discord ops
+            smoke，GAS provider 已另行完成實寄測試。Portal 尚未進入 external
+            staging，也未連接 production SQLite；Case ID 狀態查詢目前只在本機與
+            synthetic 環境測試。
           </p>
         </div>
       </div>
@@ -106,7 +112,8 @@ const monitorCards = [
         <div>
           <h2 id="gates-title">Portal 發布檢查</h2>
           <p>
-            v13 core 上線不等於 Portal 已接線；每一項仍要通過測試或人工驗收。
+            Bot 與寄信 provider 已各自通過目前的檢查，但 Portal hosting
+            仍須另行測試與授權。
           </p>
         </div>
       </div>
