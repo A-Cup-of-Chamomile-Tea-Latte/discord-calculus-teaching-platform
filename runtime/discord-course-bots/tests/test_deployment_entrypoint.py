@@ -14,6 +14,7 @@ PREPARER = PROJECT_ROOT / "ops/scripts/prepare-calculus-discord-deploy-request.s
 REPAIRER = PROJECT_ROOT / "ops/scripts/phase2c-repair-restricted-deployer.sh"
 HOST_PREPARER = PROJECT_ROOT / "ops/scripts/v13-host-owner-prepare.sh"
 FRIEND_BOOTSTRAP = PROJECT_ROOT / "ops/scripts/v13-friend-bootstrap.sh"
+RUNBOOK = PROJECT_ROOT / "docs/ops/V13_RELEASE_SAFETY_RUNBOOK.md"
 SUDOERS = PROJECT_ROOT / "ops/sudoers/calculus-discord-deploy"
 DEPENDENCY_LOCK = PROJECT_ROOT / "ops/requirements/discord-runtime.txt"
 SUPERSEDED_MUTATORS = (
@@ -144,11 +145,20 @@ def test_v13_host_preparer_is_exact_scope_and_never_deploys() -> None:
     assert "preflight_root=/var/lib/calculus-discord-deploy/preflight" in source
     assert "runtime_env_owner_action=HARDEN_REQUIRED" in source
     assert "RUNTIME_ENV_HARDEN_FAILED" in source
+    assert "mktemp" in source
+    assert "runuser" in source
     assert "v13_host_prepare=PASS" in source
     assert "deploy_executed=NO" in source
     assert "systemctl stop" not in source
     assert "systemctl start" not in source
     assert "sudo -n /usr/local/sbin/calculus-discord-deploy" not in source
+
+
+def test_v13_runbook_uses_interpreter_for_noexec_safe_trusted_copy() -> None:
+    source = RUNBOOK.read_text(encoding="utf-8")
+    assert '/bin/bash -- "$trusted" "$archive"' in source
+    assert '\n  "$trusted" "$archive"' not in source
+    assert "jerrymk-workstation" in source
 
 
 def test_superseded_phase2c_mutators_refuse_before_old_logic() -> None:
@@ -161,6 +171,8 @@ def test_superseded_phase2c_mutators_refuse_before_old_logic() -> None:
 def test_friend_bootstrap_validates_exact_archive_then_only_prepares_host() -> None:
     source = FRIEND_BOOTSTRAP.read_text(encoding="utf-8")
     assert "BOOTSTRAP_V13_RELEASE:-" in source
+    assert "PYTHON_VERSION_UNSUPPORTED" in source
+    assert "(3, 12) <= sys.version_info[:2] < (3, 15)" in source
     assert "ARCHIVE_PATH_REFUSED" in source
     assert "os.O_NOFOLLOW" in source
     assert "hashlib.file_digest" in source

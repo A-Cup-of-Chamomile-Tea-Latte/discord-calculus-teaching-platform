@@ -44,6 +44,12 @@ id ding >/dev/null 2>&1 || fail DEPLOY_USER_MISSING
 for command in dirname find hostname id install mv python3 realpath rm stat; do
   command -v "$command" >/dev/null 2>&1 || fail "COMMAND_MISSING_${command^^}"
 done
+python3 -I - <<'PY' || fail PYTHON_VERSION_UNSUPPORTED
+import sys
+
+if not (3, 12) <= sys.version_info[:2] < (3, 15):
+    raise SystemExit(1)
+PY
 
 self=$(realpath -e "$0")
 self_parent=$(dirname "$self")

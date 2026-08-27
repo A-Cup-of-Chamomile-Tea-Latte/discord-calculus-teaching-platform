@@ -186,7 +186,7 @@ def _auto_closed_private(repo: Repository) -> object:
         requester_id=3,
         ai_content_permission=True,
     )
-    moment = datetime(2026, 8, 27, tzinfo=UTC)
+    moment = datetime.now(UTC) + timedelta(seconds=1)
     repo.record_case_activity(55, actor_id=9, is_staff=True, occurred_at=moment)
     repo.mark_due_cases_idle(48 * 3600, now=moment + timedelta(hours=48, seconds=1))
     idle_claim = repo.claim_discord_lifecycle_job("idle-worker")
@@ -212,7 +212,7 @@ def _manually_closed_private(repo: Repository) -> object:
         requester_id=3,
         ai_content_permission=True,
     )
-    moment = datetime(2026, 8, 27, tzinfo=UTC)
+    moment = datetime.now(UTC) + timedelta(seconds=1)
     repo.record_case_activity(56, actor_id=9, is_staff=True, occurred_at=moment)
     assert repo.close_case(56, now=moment) is not None
     close_claim = repo.claim_discord_lifecycle_job("manual-close-worker")

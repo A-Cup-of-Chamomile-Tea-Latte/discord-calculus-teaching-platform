@@ -33,8 +33,8 @@ fail() {
 [[ ${PREPARE_V13_HOST:-} == PREPARE-V13-HOST ]] || fail EXACT_APPROVAL_REQUIRED
 [[ $(hostname) == jerrymk-workstation ]] || fail WRONG_HOST
 
-for command in awk bash chmod chown cmp cut df find getent hostname id install mv python3 readlink \
-  realpath rm sha256sum sqlite3 stat systemctl visudo wc; do
+for command in awk bash chmod chown cmp cut date df env find getent head hostname id install ln \
+  mktemp mv python3 readlink realpath rm runuser sha256sum sleep sqlite3 stat systemctl visudo wc; do
   command -v "$command" >/dev/null 2>&1 || fail "COMMAND_MISSING_${command^^}"
 done
 id ding >/dev/null 2>&1 || fail DEPLOY_USER_MISSING

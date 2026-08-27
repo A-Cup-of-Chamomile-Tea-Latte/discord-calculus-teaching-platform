@@ -20,7 +20,8 @@ overwrites 決定，不由 module metadata 決定。Private 在 48＋48 自動�
 
 Codex／PM 提供 exact Git archive、standalone bootstrap 與兩者的 SHA-256。將兩檔放進既有 upload
 root 後，朋友只執行下列一個 root command 一次。Launcher 先把 bootstrap 複製到 `/run` 的 root-only
-暫存目錄，驗證該可信副本的 SHA-256，再執行它；不可直接 `sudo bash` 開啟 `ding` 可寫路徑上的腳本：
+暫存目錄，驗證該可信副本的 SHA-256，再由系統 `/bin/bash` 讀取它。這樣不依賴
+`/run` 是否允許 direct exec，也不會直接從 `ding` 可寫的 upload path 開啟腳本：
 
 ```bash
 sudo env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C \
@@ -51,13 +52,14 @@ trusted=$trusted_dir/v13-friend-bootstrap.sh
 install -o root -g root -m 0700 "$source" "$trusted"
 printf "%s  %s\n" "$V13_BOOTSTRAP_SHA256" "$trusted" | sha256sum -c -
 if ! BOOTSTRAP_V13_RELEASE=BOOTSTRAP-V13-RELEASE \
-  "$trusted" "$archive" "$V13_ARCHIVE_SHA256" "$V13_RELEASE_ID"; then
+  /bin/bash -- "$trusted" "$archive" "$V13_ARCHIVE_SHA256" "$V13_RELEASE_ID"; then
   exit 2
 fi
 V13_ROOT
 ```
 
-Bootstrap 以單一 file descriptor 驗證 archive 是 regular file、SHA-256、Git commit、path traversal、檔案型別、
+Bootstrap 會先確認 host `python3` 符合 runtime 明訂的 `>=3.12,<3.15`，再以單一 file descriptor
+驗證 archive 是 regular file、SHA-256、Git commit、path traversal、檔案型別、
 數量與大小，再 atomic stage 到 root-owned、`ding` 不可寫的 trusted release root。Stage receipt 綁定 full
 commit、archive SHA-256 與完整 tree digest；同一 exact release 可安全 resume，root 不從 upload root 執行或
 import candidate code。接著 owner prepare 在任何 production mutation 前先檢查
@@ -106,6 +108,11 @@ system-admin grants 是 migration 後、rollout 前 gate。
 
 ## 3. Owner deploy decision 與單一路徑部署
 
+Checkpoint 與 deployment 都在 `jerrymk-workstation` 執行。使用者的 Mac 只負責準備、
+測試、凍結與審閱 exact 交付，不會直接操作 production host。最終外部 handoff
+必須綁定 exact release ID、archive SHA-256 與 owner deploy approval；Jerrymk 或其 Codex
+只在 host checkpoint 全部 PASS 後才能繼續。
+
 Release 與 request 可先在非 production staging 完成 checksum 固定；只有 production backup rehearsal、
 mapping gate 與 PM／課程 owner 對該 exact release 的明示 deploy 授權全部通過後，才可執行 restricted
 deployer：
@@ -113,7 +120,7 @@ deployer：
 1. 核對 root-owned trusted release 中的 original archive、dependency lock、release ID、SHA-256 與
    friend preflight receipt；固定 inbox 只接受四欄 request，不接受第二份 user-owned archive。
 2. 以 `ops/scripts/prepare-calculus-discord-deploy-request.sh` 產生四欄 request：release、archive SHA-256、target schema `13`、migration class `ADDITIVE`；deployer 只接受經 rehearsal 的 exact v6→v13 chain，不接受任意 additive target。
-3. 由既有 root-owned `/usr/local/sbin/calculus-discord-deploy` 執行唯一 production cutover；不直接執行 archive 內任意 script，不切換 `/opt/calculus-discord/current`。
+3. 由既有 root-owned `/usr/local/sbin/calculus-discord-deploy` 執行唯一 production cutover；操作者不直接執行 archive 內任意 script，也不自行切換 `/opt/calculus-discord/current`。
 4. Deployer 先驗證 current schema／ledger、release checksum、builder workspace 與 verified-copy migration；全部通過後才短暫停止三服務。
 5. Deployer 保存 pre-deploy rollback DB，再以單一 writer 完成 v6 → v13，atomic 切換 release。
 6. 依固定順序啟動並等 fresh health：course assistant → dump bot → data bridge。
