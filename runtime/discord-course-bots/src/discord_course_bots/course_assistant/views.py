@@ -198,15 +198,21 @@ class CloseConfirmView(discord.ui.View):
         self.actor_id = actor_id
         self.thread_id = thread_id
 
-    @discord.ui.button(label="確認結案", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="確認結案 / Close", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if interaction.user.id != self.actor_id:
-            await _ephemeral_error(interaction, "只有發起結案的人可以確認。")
+            await _ephemeral_error(
+                interaction,
+                "只有發起結案的人可以確認。 / Only the person who started closing may confirm.",
+            )
             return
         if not isinstance(interaction.user, discord.Member) or not isinstance(
             interaction.channel, (discord.Thread, discord.TextChannel)
         ):
-            await _ephemeral_error(interaction, "請在案件討論串內操作。")
+            await _ephemeral_error(
+                interaction,
+                "請在案件討論串內操作。 / Use this inside the case channel.",
+            )
             return
         try:
             await self.service.close_case(interaction.channel, interaction.user)
@@ -215,17 +221,25 @@ class CloseConfirmView(discord.ui.View):
             return
         button.disabled = True
         await interaction.response.edit_message(
-            content="已收到；案件正在結案。完成後會更新標題並封存討論串。",
+            content=(
+                "已收到；案件正在結案。完成後會更新標題並封存討論串。\n"
+                "Closing the case. Its title and archive state will update shortly."
+            ),
             view=self,
         )
         self.stop()
 
-    @discord.ui.button(label="取消", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="取消 / Cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         if interaction.user.id != self.actor_id:
-            await _ephemeral_error(interaction, "只有發起結案的人可以取消。")
+            await _ephemeral_error(
+                interaction,
+                "只有發起結案的人可以取消。 / Only the person who started closing may cancel.",
+            )
             return
-        await interaction.response.edit_message(content="已取消結案。", view=None)
+        await interaction.response.edit_message(
+            content="已取消結案。 / Closing cancelled.", view=None
+        )
         self.stop()
 
 
@@ -235,21 +249,26 @@ class ReopenView(discord.ui.View):
         self.service = service
 
     @discord.ui.button(
-        label="繼續詢問",
+        label="繼續詢問 / Continue",
         style=discord.ButtonStyle.primary,
         custom_id="course:case:reopen:v1",
     )
     async def reopen(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         channel = interaction.channel
         if not isinstance(channel, (discord.Thread, discord.TextChannel)):
-            await _ephemeral_error(interaction, "這個按鈕只能在案件討論串內使用。")
+            await _ephemeral_error(
+                interaction,
+                "這個按鈕只能在案件討論串內使用。 / Use this button inside the case channel.",
+            )
             return
         retry_after = self.service.interaction_retry_after(
             "case-reopen", interaction.user.id, channel.id
         )
         if retry_after is not None:
             await interaction.response.send_message(
-                f"操作太頻繁，請約 {retry_after} 秒後再試。", ephemeral=True
+                f"操作太頻繁，請約 {retry_after} 秒後再試。 / "
+                f"Please try again in about {retry_after} seconds.",
+                ephemeral=True,
             )
             return
         try:
@@ -259,7 +278,8 @@ class ReopenView(discord.ui.View):
             return
         _.disabled = True
         await interaction.response.send_message(
-            "已收到；案件正在重新開啟。完成後會在討論串通知您。",
+            "已收到；案件正在重新開啟。完成後會在討論串通知您。\n"
+            "Reopening the case. A message will appear here when it is ready.",
             ephemeral=True,
         )
         if interaction.message is not None:
@@ -269,13 +289,14 @@ class ReopenView(discord.ui.View):
                 LOGGER.warning("Could not disable a claimed reopen button")
 
     @discord.ui.button(
-        label="隱私與資料說明",
+        label="隱私說明 / Privacy",
         style=discord.ButtonStyle.secondary,
         custom_id="course:case:privacy:v1",
     )
     async def privacy(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await interaction.response.send_message(
-            "繼續詢問會沿用同一個討論串與案號，不會再寄送新的案號。",
+            "繼續詢問會沿用同一個討論串與案號，不會再寄送新的案號。\n"
+            "Continuing uses the same channel and case ID; no new case ID is issued.",
             ephemeral=True,
         )
 
