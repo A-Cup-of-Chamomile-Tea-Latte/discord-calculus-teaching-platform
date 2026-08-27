@@ -6,7 +6,7 @@ Astro 7 + TypeScript 的靜態入口網站。學生面只負責加入申請入�
 
 加入頁以 Discord APP 為主要建議，同時保留官方網頁版備援。正式課程邀請由 `PUBLIC_DISCORD_INVITE_URL` 注入；只接受 `https://discord.gg/...` 或 `https://discord.com/invite/...`，未設定或格式錯誤時一律不產生邀請按鈕。
 
-post-v13 Portal candidate 已有加入介面、Email 驗證、durable SQLite outbox、provider adapter、案件查詢與匿名分 scope session issuer，並以暫存 SQLite／capturing adapter 完成本機 journey。真實寄送驗收與外部部署仍未完成。未設定受核准 endpoint 時，public build 必須 fail closed，不得用測試資料冒充成功。Browser 不持有 Discord token、Google owner credential、SQLite path 或 writer access。
+post-v13 Portal candidate 已有加入介面、Email 驗證、durable SQLite outbox、provider adapter、案件查詢與匿名分 scope session issuer。暫存 SQLite 的 browser journey 與 owner-only GAS 單封實寄／人工驗碼都已通過；external staging 與 production rollout 仍未完成。未設定受核准 endpoint 時，public build 必須 fail closed，不得用測試資料冒充成功。Browser 不持有 Discord token、Google owner credential、SQLite path 或 writer access。
 
 ## Local commands
 
