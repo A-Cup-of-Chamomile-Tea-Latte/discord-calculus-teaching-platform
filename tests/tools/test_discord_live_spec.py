@@ -130,7 +130,9 @@ def test_private_entry_allows_commands_but_rejects_member_content() -> None:
     course_permission = overwrites[course]  # type: ignore[index]
     assert course_permission.manage_channels is True
     assert course_permission.manage_messages is None
-    assert overwrites[everyone].view_channel is False  # type: ignore[index]
+    assert overwrites[everyone].view_channel is True  # type: ignore[index]
+    assert overwrites[everyone].use_application_commands is True  # type: ignore[index]
+    assert overwrites[everyone].send_messages is False  # type: ignore[index]
     assert overwrites[dump].view_channel is False  # type: ignore[index]
 
 
@@ -168,13 +170,11 @@ async def test_private_entry_never_writes_managed_bot_role_overwrites() -> None:
     provisioner.dump.top_role.id = 91
     provisioner.operations = MagicMock()
 
-    category = MagicMock(spec=discord.CategoryChannel)
     channel = MagicMock(spec=discord.TextChannel)
     channel.id = 100
     channel.edit = AsyncMock()
     channel.set_permissions = AsyncMock()
     managed = discord.PermissionOverwrite(view_channel=True)
-    category.overwrites_for.return_value = managed
     channel.overwrites_for.side_effect = lambda target: (
         managed
         if target in {provisioner.course.top_role, provisioner.dump.top_role}
@@ -190,7 +190,7 @@ async def test_private_entry_never_writes_managed_bot_role_overwrites() -> None:
         member_role: discord.PermissionOverwrite(view_channel=True)
     }
 
-    await provisioner.ensure_private_entry_overwrites(channel, category, desired)
+    await provisioner.ensure_private_entry_overwrites(channel, desired)
 
     channel.edit.assert_not_awaited()
     written_targets = [call.args[0] for call in channel.set_permissions.await_args_list]
@@ -241,7 +241,6 @@ async def test_targeted_ensure_does_not_enter_full_reconciliation(tmp_path) -> N
     )
     provisioner.resolve_private_entry_context = AsyncMock()
     provisioner.ensure_private_entry_overwrites = AsyncMock()
-    provisioner.ensure_private_entry_seed = AsyncMock()
     provisioner.update_private_entry_runtime_config = MagicMock()
     provisioner.private_entry_errors = AsyncMock(return_value=[])
     provisioner.ensure_roles = AsyncMock(side_effect=AssertionError("full role reconcile called"))
@@ -261,7 +260,6 @@ async def test_targeted_ensure_does_not_enter_full_reconciliation(tmp_path) -> N
     assert result["other_resources_action"] == "REPORTED_ONLY"
     provisioner.ensure_private_entry_overwrites.assert_awaited_once()
     assert provisioner.ensure_private_entry_overwrites.await_args.args[0] is channel
-    assert provisioner.ensure_private_entry_overwrites.await_args.args[1] is category
     provisioner.ensure_roles.assert_not_awaited()
     provisioner.ensure_categories.assert_not_awaited()
     provisioner.ensure_channels.assert_not_awaited()
@@ -269,27 +267,7 @@ async def test_targeted_ensure_does_not_enter_full_reconciliation(tmp_path) -> N
 
 
 @pytest.mark.asyncio
-async def test_private_entry_seed_creates_instruction_without_extra_permission() -> None:
-    provisioner = object.__new__(LiveProvisioner)
-    message = MagicMock(spec=discord.Message)
-    message.id = 303
-    channel = MagicMock(spec=discord.TextChannel)
-    channel.send = AsyncMock(return_value=message)
-    provisioner.channels = {"channel.private_support_entry": channel}
-    provisioner.store = MagicMock()
-    provisioner.store.get_id.return_value = None
-    provisioner.operations = MagicMock()
-
-    await LiveProvisioner.ensure_private_entry_seed(provisioner)
-
-    channel.send.assert_awaited_once()
-    provisioner.store.set.assert_called_once_with(
-        "message.private_support_entry", 303, "message", "private-support-entry"
-    )
-
-
-@pytest.mark.asyncio
-async def test_targeted_ensure_rolls_back_a_new_channel_when_seed_fails(tmp_path) -> None:
+async def test_targeted_ensure_rolls_back_a_new_channel_when_acl_fails(tmp_path) -> None:
     provisioner = object.__new__(LiveProvisioner)
     category = MagicMock(spec=discord.CategoryChannel)
     category.id = 100
@@ -318,16 +296,14 @@ async def test_targeted_ensure_rolls_back_a_new_channel_when_seed_fails(tmp_path
     provisioner.run_dir = tmp_path
     provisioner.plan_private_entry = AsyncMock(return_value={"unrelated_drift": []})
     provisioner.resolve_private_entry_context = AsyncMock()
-    provisioner.ensure_private_entry_overwrites = AsyncMock()
-    provisioner.ensure_private_entry_seed = AsyncMock(side_effect=RuntimeError("PIN_FAILED"))
+    provisioner.ensure_private_entry_overwrites = AsyncMock(side_effect=RuntimeError("ACL_FAILED"))
     provisioner.update_private_entry_runtime_config = MagicMock()
 
-    with pytest.raises(RuntimeError, match="PIN_FAILED"):
+    with pytest.raises(RuntimeError, match="ACL_FAILED"):
         await provisioner.ensure_private_entry()
 
     channel.delete.assert_awaited_once()
     assert [item.args[0] for item in provisioner.store.remove.call_args_list] == [
-        "message.private_support_entry",
-        "channel.private_support_entry",
+        "channel.private_support_entry"
     ]
     provisioner.update_private_entry_runtime_config.assert_not_called()

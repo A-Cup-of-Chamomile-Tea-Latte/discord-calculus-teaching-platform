@@ -27,7 +27,6 @@ from tools.discord_provisioning.live_spec import (
     GUIDELINES_CONTENT,
     GUIDELINES_TITLE,
     MANAGED_FORUM_KEYS,
-    PRIVATE_SUPPORT_ENTRY_CONTENT,
     ROLES,
     WELCOME_CONTENT,
     ChannelSpec,
@@ -389,7 +388,7 @@ def desired_overwrites(
         add(course, COURSE_CASE)
         add(dump, HIDDEN)
     elif spec.policy == "private_support_entry":
-        add(everyone, HIDDEN)
+        add(everyone, PRIVATE_SUPPORT_ENTRY_MEMBER)
         add(verified, PRIVATE_SUPPORT_ENTRY_MEMBER)
         add(guest, PRIVATE_SUPPORT_ENTRY_MEMBER)
         add(admin, PRIVATE_SUPPORT_ENTRY_ADMIN)
@@ -695,7 +694,6 @@ class LiveProvisioner:
         ignored = {
             "category.private_support",
             "channel.private_support_entry",
-            "message.private_support_entry",
             "forum.managed_case",
         }
         drift: list[str] = []
@@ -1207,7 +1205,7 @@ class LiveProvisioner:
         actions: list[str] = []
         if channel is None:
             actions.append("CREATE_CHANNEL")
-            actions.extend(("SET_EXACT_OVERWRITES", "CREATE_INSTRUCTION"))
+            actions.append("SET_EXACT_OVERWRITES")
         else:
             desired = self.private_entry_overwrites(spec)
             if channel.category_id != category.id:
@@ -1219,26 +1217,8 @@ class LiveProvisioner:
                 for target, overwrite in channel.overwrites.items()
                 if target.id not in {self.course.top_role.id, self.dump.top_role.id}
             }
-            if overwrite_signature(actual_mutable) != overwrite_signature(
-                desired
-            ) or not self.private_entry_managed_boundary_matches(channel, category):
+            if overwrite_signature(actual_mutable) != overwrite_signature(desired):
                 actions.append("SET_EXACT_OVERWRITES")
-
-            message_id = self.store.get_id("message.private_support_entry")
-            if message_id is None:
-                actions.append("CREATE_INSTRUCTION")
-            else:
-                try:
-                    message = await channel.fetch_message(message_id)
-                except discord.NotFound:
-                    actions.append("RECREATE_INSTRUCTION")
-                except discord.HTTPException as exc:
-                    raise ProvisioningError(
-                        f"cannot inspect mapped Private Support entry message: {exc}"
-                    ) from exc
-                else:
-                    if message.content != PRIVATE_SUPPORT_ENTRY_CONTENT:
-                        actions.append("UPDATE_INSTRUCTION")
 
         return {
             "ok": True,
@@ -1250,39 +1230,6 @@ class LiveProvisioner:
             "dynamic_case_channels_action": "PRESERVE_EXISTING",
             "other_resources_action": "REPORT_ONLY",
         }
-
-    async def ensure_private_entry_seed(self) -> None:
-        channel = self.channels["channel.private_support_entry"]
-        assert isinstance(channel, discord.TextChannel)
-        message_id = self.store.get_id("message.private_support_entry")
-        message: discord.Message | None = None
-        if message_id is not None:
-            try:
-                message = await channel.fetch_message(message_id)
-            except discord.NotFound:
-                self.store.remove("message.private_support_entry")
-            except discord.HTTPException as exc:
-                raise ProvisioningError(
-                    f"cannot inspect mapped Private Support entry message: {exc}"
-                ) from exc
-        if message is None:
-            message = await retry(
-                lambda: channel.send(
-                    PRIVATE_SUPPORT_ENTRY_CONTENT,
-                    allowed_mentions=discord.AllowedMentions.none(),
-                ),
-                label="create Private Support entry message",
-            )
-            self.store.set(
-                "message.private_support_entry", message.id, "message", "private-support-entry"
-            )
-            self.operations.record("created", "message.private_support_entry", message.id)
-        elif message.content != PRIVATE_SUPPORT_ENTRY_CONTENT:
-            await retry(
-                lambda: message.edit(content=PRIVATE_SUPPORT_ENTRY_CONTENT),
-                label="edit Private Support entry message",
-            )
-            self.operations.record("updated", "message.private_support_entry", message.id)
 
     def private_entry_overwrites(
         self, spec: ChannelSpec
@@ -1298,38 +1245,16 @@ class LiveProvisioner:
             dump=self.dump.top_role,
         )
         # Integration-managed bot roles are immutable permission targets. The
-        # entry inherits those two overwrites from its existing category.
+        # entry stays content-free, so it does not need bot-specific overwrites.
         desired.pop(self.course.top_role, None)
         desired.pop(self.dump.top_role, None)
         return desired
 
-    def private_entry_managed_boundary_matches(
-        self, channel: discord.TextChannel, category: discord.CategoryChannel
-    ) -> bool:
-        return all(
-            channel.overwrites_for(role).pair() == category.overwrites_for(role).pair()
-            for role in (self.course.top_role, self.dump.top_role)
-        )
-
     async def ensure_private_entry_overwrites(
         self,
         channel: discord.TextChannel,
-        category: discord.CategoryChannel,
         desired: dict[discord.Role | discord.Member, discord.PermissionOverwrite],
     ) -> None:
-        if not self.private_entry_managed_boundary_matches(channel, category):
-            synced = await retry(
-                lambda: channel.edit(sync_permissions=True, reason=REASON),
-                label="sync Private Support entry category permissions",
-            )
-            if not isinstance(synced, discord.TextChannel):
-                raise ProvisioningError("Private Support entry category sync changed channel type")
-            channel = synced
-            self.channels["channel.private_support_entry"] = channel
-            self.operations.record(
-                "updated", "channel.private_support_entry.permission.sync", channel.id
-            )
-
         desired_ids = {target.id for target in desired}
         protected_ids = {self.course.top_role.id, self.dump.top_role.id}
         for target, overwrite in desired.items():
@@ -1391,7 +1316,11 @@ class LiveProvisioner:
         if channel.category_id != category.id:
             errors.append("channel.private_support_entry: wrong category")
 
-        for role in (self.roles.get("role.verified_member"), self.roles.get("role.guest")):
+        for role in (
+            self.guild.default_role,
+            self.roles.get("role.verified_member"),
+            self.roles.get("role.guest"),
+        ):
             if role is None:
                 errors.append("Private Support entry member role mapping is incomplete")
                 continue
@@ -1411,13 +1340,7 @@ class LiveProvisioner:
             ):
                 errors.append(f"{role.name} can post content in the Private Support entry")
 
-        if channel.permissions_for(self.guild.default_role).view_channel:
-            errors.append("@everyone can see the Private Support entry without a course role")
-        for role in (
-            self.roles.get("role.staff"),
-            self.roles.get("role.admin"),
-            self.course,
-        ):
+        for role in (self.roles.get("role.staff"), self.roles.get("role.admin")):
             if role is None:
                 errors.append("Private Support entry staff role mapping is incomplete")
                 continue
@@ -1429,20 +1352,13 @@ class LiveProvisioner:
                 and entry.manage_messages
             ):
                 errors.append(f"{role.name} cannot manage the Private Support entry")
-        if channel.permissions_for(self.dump).view_channel:
-            errors.append("dump_bot can see the Private Support entry")
-
-        entry_message_id = self.store.get_id("message.private_support_entry")
-        if entry_message_id is None:
-            errors.append("Private Support entry message mapping is incomplete")
-        else:
-            try:
-                entry_message = await channel.fetch_message(entry_message_id)
-            except (discord.NotFound, discord.HTTPException):
-                errors.append("Private Support entry message is unavailable")
-            else:
-                if entry_message.content != PRIVATE_SUPPORT_ENTRY_CONTENT:
-                    errors.append("Private Support entry message content drifted")
+        course_entry = channel.permissions_for(self.course)
+        if not (
+            course_entry.view_channel
+            and course_entry.read_message_history
+            and course_entry.use_application_commands
+        ):
+            errors.append("course_assistant cannot receive commands in the Private Support entry")
         return errors
 
     async def ensure_private_entry(self) -> dict[str, object]:
@@ -1484,8 +1400,7 @@ class LiveProvisioner:
 
         try:
             overwrites = self.private_entry_overwrites(spec)
-            await self.ensure_private_entry_overwrites(channel, category, overwrites)
-            await self.ensure_private_entry_seed()
+            await self.ensure_private_entry_overwrites(channel, overwrites)
             errors = await self.private_entry_errors()
             if errors:
                 raise ProvisioningError("Private Support entry verify failed: " + "; ".join(errors))
@@ -1495,7 +1410,6 @@ class LiveProvisioner:
                     lambda: channel.delete(reason=f"{REASON} rollback"),
                     label="rollback newly created Private Support entry",
                 )
-                self.store.remove("message.private_support_entry")
                 self.store.remove(spec.key)
                 self.operations.record("rolled_back", spec.key, channel.id)
                 self.channels.pop(spec.key, None)
@@ -1644,41 +1558,6 @@ class LiveProvisioner:
                 )
                 self.operations.record("updated", "message.server_guidelines", starter.id)
             self.store.set("message.server_guidelines", starter.id, "message", GUIDELINES_TITLE)
-
-        private_entry = self.channels["channel.private_support_entry"]
-        assert isinstance(private_entry, discord.TextChannel)
-        entry_message_id = self.store.get_id("message.private_support_entry")
-        entry_message: discord.Message | None = None
-        if entry_message_id is not None:
-            try:
-                entry_message = await private_entry.fetch_message(entry_message_id)
-            except discord.NotFound:
-                self.store.remove("message.private_support_entry")
-            except discord.HTTPException as exc:
-                raise ProvisioningError(
-                    f"cannot inspect mapped Private Support entry message: {exc}"
-                ) from exc
-        if entry_message is None:
-            entry_message = await retry(
-                lambda: private_entry.send(
-                    PRIVATE_SUPPORT_ENTRY_CONTENT,
-                    allowed_mentions=discord.AllowedMentions.none(),
-                ),
-                label="create Private Support entry message",
-            )
-            self.store.set(
-                "message.private_support_entry",
-                entry_message.id,
-                "message",
-                "Private Support entry",
-            )
-            self.operations.record("created", "message.private_support_entry", entry_message.id)
-        elif entry_message.content != PRIVATE_SUPPORT_ENTRY_CONTENT:
-            await retry(
-                lambda: entry_message.edit(content=PRIVATE_SUPPORT_ENTRY_CONTENT),
-                label="edit Private Support entry message",
-            )
-            self.operations.record("updated", "message.private_support_entry", entry_message.id)
 
     def update_runtime_config(self) -> None:
         managed_ids = [

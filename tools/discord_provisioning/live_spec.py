@@ -169,13 +169,6 @@ GUIDELINES_CONTENT = """- 請依各頻道用途發文，避免重複洗版。
 - 課程正式資料仍以 NTU COOL 為準。
 - 管理團隊可在必要時整理、移動或移除明顯違反規範的內容。"""
 
-PRIVATE_SUPPORT_ENTRY_CONTENT = (
-    "需要私下詢問成績、個人資料或其他不適合公開討論的事情時，"
-    "請在本頻道執行 `/private open`。\n\n"
-    "機器人會另行建立只有您與授權教學團隊可見的案件頻道，並以 Discord 私訊通知結果。"
-    "請不要在這個入口貼問題、個人資料或附件。"
-)
-
 
 def validate_spec() -> None:
     resources = (
