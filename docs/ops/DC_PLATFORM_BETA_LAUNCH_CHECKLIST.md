@@ -20,7 +20,7 @@
 1. **Email 額度排程**
    durable SQLite outbox 與 provider adapter 已有本機 journey；仍需在寄送額度不足時先保存申請意向，取得名額後才建立驗證碼與到期時間。額度用完時顯示實際排程日期，使用者不用重填。
 2. **正式寄信驗收**
-   決定繼續使用 GAS `MailApp`、改用 Gmail API，或取得課程／Workspace 帳號。現有 provider code 不等於 rollout；仍需完成真實寄送、退信、重試、去重與監控驗收。
+   Owner-only GAS `MailApp` 已完成單封實寄、收件內容、驗碼、去重與 outbox 清除驗收。正式 rollout 前仍須補齊 production 監控、退信處理與配額耗盡排程；目前先以一般 Gmail 的每日剩餘配額為硬上限，不宣稱可承受大量同時註冊。
 3. **正式加入流程**
    Portal 寫入 SQLite，Course Manager 查找 Discord 成員，審核後套用角色並由 Bot 私訊結果。
 4. **重設資料**
@@ -45,7 +45,7 @@
 
 先完成下列項目，再寄出需求：
 
-- v13 本機端到端流程通過。
+- v13 本機端到端流程與單封 GAS 實寄通過。
 - 靜態部署包可以在 `/~calc/DC-platform-beta/` 正常顯示。
 - 外部 API 直連與路徑轉送兩種方案都在本機模擬完成。
 - 已有固定的後端 HTTPS 網域、健康檢查與測試帳號。

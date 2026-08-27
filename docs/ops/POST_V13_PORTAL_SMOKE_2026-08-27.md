@@ -37,6 +37,6 @@ Owner 已於 2026-08-28 決定完整 Case ID 可作 content-free status lookup �
 ## 需要授權的下一步
 
 1. 先在非數學系的外部 staging 重現 local issuer、same-origin HTTPS、暫存 SQLite 與白帳號 click-through；不接 production authority。
-2. GAS 單封實寄、quota receipt、收件內容與重複投遞已通過；下一步用新 challenge 驗證 Portal→outbox→remote bridge→GAS→輸入驗證碼的完整白帳號流程。
+2. GAS 單封實寄、quota receipt、收件內容與重複投遞已通過；新的 challenge 已完成 Portal→outbox→GAS→人工輸入驗證碼，申請進入 temporary SQLite 的 `PENDING_REVIEW`。production Portal rollout 與 Discord 白帳號審核仍分開驗收。
 3. 完整 staging 通過後，才評估在朋友主機新增只綁 loopback 的 Portal service 並接 production SQLite authority；這會改動 production service 與 secrets，需明示授權。
 4. 最後才準備數學系五頁 static artifact 與限定 `/api/` 的 hosting 配合，不將數學系環境當成前兩階段的依賴。
