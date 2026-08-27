@@ -6,8 +6,9 @@
 
 - Production core：依遠端交接為 active release `feab01757897`、SQLite schema 13、三服務 active／enabled、critical queues 0；Discord `/ops status` 與 `/ops attention-list` 已通過。本機沒有直接登入朋友主機重驗。
 - Portal backend：exact v13 source 已有 same-origin join、Email start／verify、one-case lookup、session 驗證、CSRF、rate limit、generic errors 與 metadata-only audit；focused tests 21 PASS。
-- Portal rollout：未完成。正式網址目前回 404；現有 production 交接只列三個 core services，沒有 Portal service 或正式 session issuer 的部署證據。Email／白帳號 E2E 不列為通過。
+- Portal rollout：未完成。現有 production 交接只列三個 core services，沒有 Portal service 或正式 session issuer 的部署證據。Email／白帳號 E2E 不列為通過；數學系 hosting 不作為本輪本機／staging 驗證前提。
 - Browser boundary：public artifact 只包含 same-origin API path，掃描未發現 SQLite path、session secret、Bot token 或 Google credential。瀏覽器不直接讀寫 SQLite。
+- 獨立本機 Email journey：已用暫存 SQLite 與 capturing adapter 跑通 API 建立 challenge、durable outbox、worker 取件、驗碼、加入申請與敏感 payload 清除；不連 Google、不寄真信、不修改 production。
 
 ## 可重現檢查
 
@@ -16,21 +17,22 @@
 | Portal Vitest | 12 files／67 tests PASS |
 | Astro check | 68 files，0 error／warning／hint |
 | Exact post-deploy Portal backend tests | 21 PASS |
+| Portal／Email／bridge focused tests | 31 PASS（含新增完整本機 journey） |
+| GAS MailApp adapter | 4 PASS；未呼叫真實 `MailApp` |
 | Public build | 5 public pages；61 個 base-safe local references |
-| 正式網址 | `https://www.math.ntu.edu.tw/~calc/DC-platform-beta/` 回 404 |
-| 正式 API 路徑 | `https://www.math.ntu.edu.tw/~calc/DC-platform-beta/api/join` 回 404 |
-| 本機桌面 smoke | 首頁、加入、查案件、指南、登入、團隊、審核、狀態頁均有主標、無 console error、無整頁水平 overflow |
-| 本機窄螢幕 smoke | 公開五頁無整頁水平 overflow；案號控制項在窄螢幕採元件內水平捲動 |
+| 數學系 hosting | 不作本輪前提；待本機與外部 staging 通過後才測 |
+| 本機桌面 smoke | post-v13 整合版 8 routes 均有主標、無 console error、無整頁水平 overflow |
+| 本機窄螢幕 smoke | post-v13 整合版 5 個公開頁面無整頁水平 overflow |
 
 ## 第一個真正 blocker
 
-Portal backend 雖已存在於 v13 source，現有交接卻沒有它成為 production service 的證據；目前列出的三個 production services 都是 Discord／projection runtime。另需先決定並實作正式 session issuer，否則所有 API request 都會因缺少 `portal_session` 而回 401。這兩項完成前，不設定 public endpoint，也不啟用送出與查詢。
+Portal backend 與 Email queue 已可在暫存 SQLite 獨立驗證；第一個真正 blocker 是正式 session issuer。沒有 issuer 時，瀏覽器拿不到 `portal_session`，所有 same-origin API request 都會回 401，因此目前還不能宣稱「從公開網頁點到底」已通過。
 
-目前承載網站設計修改的工作樹也不是 v13 canonical branch：它與 post-deploy maintenance 相差 1 個本地 commit／18 個 canonical commits，且含大量未提交的使用者修改。因此不得直接把整個工作樹當成 production package；發布前要在獨立整合分支保留網站修改並吸收 v13 canonical source。
+網站修改已整理成 `codex/portal-post-v13`，直接基於 post-deploy canonical `f61219b`，整合 commit 為 `5c0472c`。原工作樹的其他使用者修改沒有混入整合分支。
 
 ## 需要授權的下一步
 
-1. 在朋友主機新增只綁 loopback 的 Portal service，將 `PORTAL_SQLITE_PATH` 指向同一份 production SQLite authority，另用獨立 audit DB；這會改動 production service 與 secrets，需明示授權。
-2. 決定 public join／lookup 的 session 模型，完成 issuer 與 server-side Beta gate 後再做白帳號 E2E。
-3. 請數學系設定 `/~calc/DC-platform-beta/api/` 的 HTTPS reverse proxy，並上傳五頁 static artifact；這會改動正式 hosting，需系辦配合。
-4. 完成 GAS 實寄與 Email queue 驗收；不得以 queue=0 代替寄信 E2E。
+1. 先在非數學系的外部 staging 完成 session issuer、same-origin HTTPS、暫存 SQLite 與白帳號 click-through；不接 production authority。
+2. 以明確指定的測試收件匣做一次 GAS 實寄，核對寄件者、到信、驗碼、quota receipt 與重複投遞；需要 GAS deployment、OAuth 與 action-time 授權。
+3. 上述通過後，才評估在朋友主機新增只綁 loopback 的 Portal service並接 production SQLite authority；這會改動 production service 與 secrets，需明示授權。
+4. 最後才準備數學系五頁 static artifact 與限定 `/api/` 的 hosting 配合，不將數學系環境當成前兩階段的依賴。
