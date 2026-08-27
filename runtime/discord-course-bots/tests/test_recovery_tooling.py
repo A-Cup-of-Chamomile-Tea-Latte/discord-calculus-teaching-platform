@@ -218,3 +218,39 @@ def test_recovery_rehearsal_preserves_v6_application_rows_while_ledger_advances(
     assert receipt["migrationLedgerEntries"] == 13
     assert receipt["originalTableRowCountsPreserved"] is True
     assert file_sha256(source) == source_before
+
+
+def test_recovery_rehearsal_accepts_schema_13_noop_maintenance(tmp_path: Path) -> None:
+    source = tmp_path / "production-shaped-v13.sqlite3"
+    repository = Repository(source)
+    repository.set_config("synthetic.maintenance", "preserved")
+    repository.close()
+    source.chmod(0o600)
+    source_before = file_sha256(source)
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            PROJECT_ROOT / "ops/scripts/sqlite-recovery-rehearsal.py",
+            "--expected-source-schema",
+            "13",
+            "--expected-target-schema",
+            "13",
+            source,
+            tmp_path,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    receipt = json.loads(completed.stdout)
+    assert receipt["status"] == "PASS"
+    assert receipt["sourceSchemaVersion"] == 13
+    assert receipt["migratedSchemaVersion"] == 13
+    assert receipt["expectedSourceSchemaVersion"] == 13
+    assert receipt["expectedTargetSchemaVersion"] == 13
+    assert receipt["sourceLedgerComplete"] is True
+    assert receipt["migrationLedgerComplete"] is True
+    assert receipt["migrationLedgerEntries"] == 13
+    assert receipt["originalTableRowCountsPreserved"] is True
+    assert file_sha256(source) == source_before

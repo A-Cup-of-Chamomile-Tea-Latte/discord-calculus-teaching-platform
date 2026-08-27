@@ -180,7 +180,7 @@ current_release=$(readlink -f /opt/calculus-discord/current)
   fail PRODUCTION_DATABASE_OWNER_INVALID
 [[ $(stat -c %a "$database") == 600 ]] || fail PRODUCTION_DATABASE_MODE_INVALID
 
-python3 -B -I - "$database" "$source_release" <<'PY' || fail PRODUCTION_DATABASE_V6_INVALID
+current_schema=$(python3 -B -I - "$database" "$source_release" <<'PY'
 from pathlib import Path
 from datetime import UTC, datetime
 import sqlite3
@@ -197,12 +197,15 @@ try:
         raise SystemExit(1)
     if connection.execute("PRAGMA foreign_key_check").fetchone() is not None:
         raise SystemExit(1)
-    if connection.execute("PRAGMA user_version").fetchone()[0] != 6:
+    current_schema = int(connection.execute("PRAGMA user_version").fetchone()[0])
+    if current_schema not in {6, 13}:
         raise SystemExit(1)
     actual = connection.execute(
         "SELECT version, name, checksum FROM schema_migrations ORDER BY version"
     ).fetchall()
-    expected = [(item.version, item.name, item.checksum) for item in MIGRATIONS[:6]]
+    expected = [
+        (item.version, item.name, item.checksum) for item in MIGRATIONS[:current_schema]
+    ]
     if actual != expected:
         raise SystemExit(1)
     health = connection.execute(
@@ -223,24 +226,48 @@ try:
         age = (now - checked.astimezone(UTC)).total_seconds()
         if age < -60 or age > 300:
             raise SystemExit(1)
-    failures = (
-        connection.execute(
-            "SELECT COUNT(*) FROM discord_lifecycle_jobs "
-            "WHERE status IN ('RETRYABLE_FAILURE', 'PERMANENT_FAILURE')"
-        ).fetchone()[0]
-        + connection.execute(
-            "SELECT COUNT(*) FROM projection_outbox "
-            "WHERE status IN ('RETRYABLE_FAILURE', 'PERMANENT_FAILURE')"
-        ).fetchone()[0]
-        + connection.execute(
-            "SELECT COUNT(*) FROM private_dump_jobs WHERE status = 'FAILED'"
-        ).fetchone()[0]
-    )
+    tables = {
+        str(row[0])
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    failures = 0
+    for table in (
+        "discord_lifecycle_jobs",
+        "discord_dm_outbox",
+        "course_role_jobs",
+        "private_open_requests",
+        "email_delivery_outbox",
+        "projection_outbox",
+    ):
+        if table in tables:
+            failures += int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM {table} "
+                    "WHERE status IN ('RETRYABLE_FAILURE', 'PERMANENT_FAILURE')"
+                ).fetchone()[0]
+            )
+    if "private_dump_jobs" in tables:
+        failures += int(
+            connection.execute(
+                "SELECT COUNT(*) FROM private_dump_jobs WHERE status = 'FAILED'"
+            ).fetchone()[0]
+        )
     if failures:
         raise SystemExit(1)
+    print(current_schema)
 finally:
     connection.close()
 PY
+) || fail PRODUCTION_DATABASE_SCHEMA_INVALID
+[[ $current_schema == 6 || $current_schema == 13 ]] ||
+  fail PRODUCTION_DATABASE_SCHEMA_INVALID
+if [[ $current_schema == 6 ]]; then
+  migration_class=ADDITIVE
+else
+  migration_class=NONE
+fi
 
 for unit in "${units[@]}"; do
   [[ $(systemctl is-active "$unit" 2>/dev/null) == active ]] ||
@@ -408,7 +435,7 @@ if [[ -e $preflight_bundle ]]; then
   [[ $(stat -c %U:%G "$receipt") == root:root && $(stat -c %a "$receipt") == 600 ]] ||
     fail PREFLIGHT_RECEIPT_BOUNDARY_INVALID
   if ! python3 -I - "$backup" "$receipt" "$release_id" "$candidate_deployer_sha256" \
-    "$candidate_commit" "$archive_sha256" "$tree_sha256" <<'PY'
+    "$candidate_commit" "$archive_sha256" "$tree_sha256" "$current_schema" <<'PY'
 import hashlib
 import json
 from pathlib import Path
@@ -424,6 +451,8 @@ if not (
     and value.get("candidateCommit") == sys.argv[5]
     and value.get("archiveSha256") == sys.argv[6]
     and value.get("treeSha256") == sys.argv[7]
+    and value.get("expectedSourceSchemaVersion") == int(sys.argv[8])
+    and value.get("expectedTargetSchemaVersion") == 13
     and value.get("backupSha256") == digest
     and value.get("productionDatabaseModified") is False
     and value.get("deployExecuted") is False
@@ -435,6 +464,8 @@ PY
     fail PREFLIGHT_ARTIFACT_INVALID
   fi
   printf 'v13_host_prepare=ALREADY_READY\nbackup_rehearsal=PASS\n'
+  printf 'source_schema=%s\ntarget_schema=13\nmigration_class=%s\n' \
+    "$current_schema" "$migration_class"
   printf 'deployer=READY\nruntime_env_ownership=%s\n' "$runtime_env_owner_action"
   printf 'production_database_modified=NO\ndeploy_executed=NO\n'
   exit 0
@@ -459,7 +490,7 @@ chmod 0600 "$backup_incoming"
 [[ $(sqlite3 "$backup_incoming" 'PRAGMA integrity_check;') == ok ]] ||
   fail PREFLIGHT_BACKUP_INTEGRITY_FAILED
 python3 -B -I "$rehearsal_source" "$backup_incoming" "$work_root" \
-  --expected-source-schema 6 --expected-target-schema 13 >"$raw_receipt" ||
+  --expected-source-schema "$current_schema" --expected-target-schema 13 >"$raw_receipt" ||
   fail RECOVERY_REHEARSAL_FAILED
 chmod 0600 "$raw_receipt"
 
@@ -498,5 +529,7 @@ rm -f -- "$raw_receipt"
 mv "$preflight_incoming" "$preflight_bundle"
 trap - EXIT
 printf 'v13_host_prepare=PASS\nbackup_rehearsal=PASS\ndeployer=READY\n'
+printf 'source_schema=%s\ntarget_schema=13\nmigration_class=%s\n' \
+  "$current_schema" "$migration_class"
 printf 'runtime_env_ownership=%s\n' "$runtime_env_owner_action"
 printf 'production_database_modified=NO\ndeploy_executed=NO\n'
