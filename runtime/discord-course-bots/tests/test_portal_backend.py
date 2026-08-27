@@ -10,6 +10,7 @@ from discord_course_bots.portal_backend import (
     CASE_LOOKUP_PATH,
     EMAIL_START_PATH,
     EMAIL_VERIFY_PATH,
+    HEALTH_PATH,
     JOIN_CSRF_COOKIE,
     JOIN_PATH,
     JOIN_SCOPE,
@@ -18,6 +19,7 @@ from discord_course_bots.portal_backend import (
     LOOKUP_SCOPE,
     LOOKUP_SESSION_COOKIE,
     SESSION_PATH,
+    ForwardedClientAddressError,
     InMemoryAuditSink,
     PortalBackend,
     PortalBackendSettings,
@@ -27,6 +29,7 @@ from discord_course_bots.portal_backend import (
     SignedSessionAuthorizer,
     SQLiteAuditSink,
     SqlitePortalStore,
+    resolve_client_key,
 )
 
 ORIGIN = "https://portal.example"
@@ -236,6 +239,53 @@ def test_auth_origin_and_csrf_fail_closed(tmp_path: Path) -> None:
     assert foreign_origin.status == 403
     assert missing_csrf.status == 403
     assert wrong_host.status == 403
+
+
+def test_health_is_minimal_no_store_and_does_not_touch_store(tmp_path: Path) -> None:
+    class ExplodingStore:
+        def __getattribute__(self, name: str) -> Any:
+            if name.startswith("__"):
+                return object.__getattribute__(self, name)
+            raise AssertionError(f"health touched store attribute {name}")
+
+    backend = PortalBackend(
+        ExplodingStore(),  # type: ignore[arg-type]
+        settings=PortalBackendSettings(ORIGIN),
+        sessions=SignedSessionAuthorizer(b"s" * 32),
+        audit=InMemoryAuditSink(),
+    )
+    response = backend.handle(
+        PortalRequest(method="GET", target=HEALTH_PATH, headers={"Host": HOST})
+    )
+
+    assert response.status == 200
+    assert response.json() == {"status": "ok"}
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert "Set-Cookie" not in response.headers
+
+
+def test_forwarded_client_is_only_used_for_an_explicit_trusted_proxy() -> None:
+    trusted = frozenset({"127.0.0.1"})
+
+    assert resolve_client_key("203.0.113.9", ("198.51.100.7",), trusted) == "203.0.113.9"
+    assert resolve_client_key("127.0.0.1", ("198.51.100.7",), trusted) == "198.51.100.7"
+
+
+@pytest.mark.parametrize(
+    "forwarded",
+    [(), ("198.51.100.7, 198.51.100.8",), (" 198.51.100.7",), ("2001:0db8::1",)],
+)
+def test_trusted_proxy_requires_one_canonical_forwarded_ip(
+    forwarded: tuple[str, ...],
+) -> None:
+    with pytest.raises(ForwardedClientAddressError):
+        resolve_client_key("127.0.0.1", forwarded, frozenset({"127.0.0.1"}))
+
+
+def test_trusted_proxy_configuration_requires_canonical_ip_literals() -> None:
+    with pytest.raises(ValueError, match="canonical"):
+        PortalBackendSettings(ORIGIN, trusted_proxy_ips=frozenset({"2001:0db8::1"}))
 
 
 def test_csrf_seed_is_same_origin_and_no_store(tmp_path: Path) -> None:

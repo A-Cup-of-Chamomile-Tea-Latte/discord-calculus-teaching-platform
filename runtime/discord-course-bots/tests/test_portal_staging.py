@@ -15,6 +15,7 @@ from discord_course_bots.portal_backend import (
 )
 from discord_course_bots.portal_staging import (
     CapturingEmailTransport,
+    SyntheticPortalHTTPServer,
     SyntheticStagingError,
     create_synthetic_staging,
     deliver_captured_email_once,
@@ -239,3 +240,20 @@ def test_static_path_resolution_has_no_listing_query_or_traversal(tmp_path: Path
     assert resolve_static_path(root, "/%2e%2e/index.html") is None
     assert resolve_static_path(root, "/linked.html") is None
     assert resolve_static_path(root, "/%00") is None
+
+
+def test_static_server_records_normalized_base_path(tmp_path: Path) -> None:
+    static = tmp_path / "dist"
+    static.mkdir()
+    (static / "index.html").write_text("staging", encoding="utf-8")
+    staging = create_synthetic_staging(
+        tmp_path / "portal-staging",
+        origin=ORIGIN,
+        session_secret=b"s" * 32,
+    )
+    server = SyntheticPortalHTTPServer(("127.0.0.1", 0), staging.backend, static, "/portal-staging")
+    try:
+        assert server.static_base_path == "/portal-staging"
+    finally:
+        server.server_close()
+        staging.close()

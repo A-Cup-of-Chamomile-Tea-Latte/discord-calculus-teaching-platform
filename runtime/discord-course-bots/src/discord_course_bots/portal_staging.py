@@ -72,13 +72,43 @@ class SyntheticPortalRequestHandler(PortalRequestHandler):
         self._dispatch_static()
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
-        if urlsplit(self.path).path.startswith("/api/"):
-            super().do_GET()
+        if self._is_api_request():
+            self._dispatch_api()
             return
         self._dispatch_static()
 
+    def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        if self._is_api_request():
+            self._dispatch_api()
+            return
+        self.send_error(404)
+
+    def _is_api_request(self) -> bool:
+        path = urlsplit(self.path).path
+        base = self.server.static_base_path
+        return path.startswith("/api/") if base == "/" else path.startswith(f"{base}/api/")
+
+    def _dispatch_api(self) -> None:
+        original = self.path
+        base = self.server.static_base_path
+        if base != "/":
+            self.path = self.path[len(base) :]
+        try:
+            super()._dispatch()
+        finally:
+            self.path = original
+
     def _dispatch_static(self) -> None:
-        path = resolve_static_path(self.server.static_root, self.path)
+        target_path = urlsplit(self.path).path
+        base = self.server.static_base_path
+        if base != "/":
+            if target_path == base:
+                target_path = f"{base}/"
+            if not target_path.startswith(f"{base}/"):
+                self.send_error(404)
+                return
+            target_path = target_path[len(base) :]
+        path = resolve_static_path(self.server.static_root, target_path)
         if path is None:
             self.send_error(404)
             return
@@ -102,12 +132,19 @@ class SyntheticPortalRequestHandler(PortalRequestHandler):
 
 
 class SyntheticPortalHTTPServer(PortalHTTPServer):
-    def __init__(self, address: tuple[str, int], backend: PortalBackend, static_root: Path) -> None:
+    def __init__(
+        self,
+        address: tuple[str, int],
+        backend: PortalBackend,
+        static_root: Path,
+        static_base_path: str = "/",
+    ) -> None:
         resolved = static_root.resolve()
         if static_root.is_symlink() or not resolved.is_dir():
             raise SyntheticStagingError("STATIC_ROOT_INVALID")
         self.backend = backend
         self.static_root = resolved
+        self.static_base_path = static_base_path
         ThreadingHTTPServer.__init__(self, address, SyntheticPortalRequestHandler)
 
 
@@ -245,6 +282,7 @@ def create_synthetic_staging(
     origin: str,
     session_secret: bytes,
     secure_cookies: bool = True,
+    trusted_proxy_ips: frozenset[str] = frozenset(),
 ) -> SyntheticPortalStaging:
     parsed_origin = urlsplit(origin)
     if secure_cookies and (
@@ -285,7 +323,11 @@ def create_synthetic_staging(
             private=True,
         )
         audit = SQLiteAuditSink(audit_database)
-        settings = PortalBackendSettings(origin=origin, secure_cookies=secure_cookies)
+        settings = PortalBackendSettings(
+            origin=origin,
+            secure_cookies=secure_cookies,
+            trusted_proxy_ips=trusted_proxy_ips,
+        )
         sessions = SignedSessionAuthorizer(
             session_secret,
             key_id="staging-v1",
@@ -334,11 +376,30 @@ def main() -> None:
     parser.add_argument("--bind-host", default="127.0.0.1")
     parser.add_argument("--bind-port", default=8081, type=int)
     parser.add_argument("--static-root", type=Path)
+    parser.add_argument("--base-path", default="/")
+    parser.add_argument("--trusted-proxy", action="append", default=[])
+    parser.add_argument("--require-production-paths-inaccessible", action="store_true")
     parser.add_argument("--allow-loopback-http", action="store_true")
     args = parser.parse_args()
     if os.environ.get("PORTAL_STAGING_SYNTHETIC_ONLY") != "1":
         raise SystemExit("PORTAL_STAGING_SYNTHETIC_ONLY=1 is required")
     secret = os.environ.get("PORTAL_STAGING_SESSION_SECRET", "").encode()
+    if args.base_path != "/" and (
+        not args.base_path.startswith("/") or args.base_path.endswith("/") or "//" in args.base_path
+    ):
+        raise SystemExit(
+            "base path must be / or a normalized absolute path without a trailing slash"
+        )
+    trusted_proxies = frozenset(args.trusted_proxy)
+    if args.require_production_paths_inaccessible:
+        for protected in (Path("/var/lib/calculus-discord"), Path("/etc/calculus-discord")):
+            try:
+                protected.stat()
+            except PermissionError:
+                continue
+            except FileNotFoundError:
+                raise SystemExit(f"required production boundary is absent: {protected}") from None
+            raise SystemExit(f"production path is accessible: {protected}")
     if args.allow_loopback_http:
         expected_origins = {
             f"http://127.0.0.1:{args.bind_port}",
@@ -351,6 +412,7 @@ def main() -> None:
         origin=args.origin,
         session_secret=secret,
         secure_cookies=not args.allow_loopback_http,
+        trusted_proxy_ips=trusted_proxies,
     )
     stop = threading.Event()
     worker_failure: list[str] = []
@@ -359,7 +421,10 @@ def main() -> None:
         server = PortalHTTPServer((args.bind_host, args.bind_port), staging.backend)
     else:
         server = SyntheticPortalHTTPServer(
-            (args.bind_host, args.bind_port), staging.backend, args.static_root
+            (args.bind_host, args.bind_port),
+            staging.backend,
+            args.static_root,
+            args.base_path,
         )
 
     def capture_worker() -> None:

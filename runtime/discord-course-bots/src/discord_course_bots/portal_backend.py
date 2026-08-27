@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import ipaddress
 import json
 import logging
 import os
@@ -39,8 +40,9 @@ EMAIL_START_PATH = "/api/join/email/start"
 EMAIL_VERIFY_PATH = "/api/join/email/verify"
 CASE_LOOKUP_PATH = "/api/cases/lookup"
 SESSION_PATH = "/api/session"
+HEALTH_PATH = "/api/health"
 PORTAL_ROUTES = frozenset(
-    {SESSION_PATH, JOIN_PATH, EMAIL_START_PATH, EMAIL_VERIFY_PATH, CASE_LOOKUP_PATH}
+    {HEALTH_PATH, SESSION_PATH, JOIN_PATH, EMAIL_START_PATH, EMAIL_VERIFY_PATH, CASE_LOOKUP_PATH}
 )
 CSRF_HEADER = "x-csrf-token"
 JOIN_SCOPE = "JOIN"
@@ -62,6 +64,37 @@ SAFE_AUDIT_EVENT = re.compile(r"^[A-Z][A-Z0-9_]{2,63}$")
 
 class PortalBackendError(RuntimeError):
     """An expected backend failure which must not cross the HTTP boundary."""
+
+
+class ForwardedClientAddressError(ValueError):
+    """A trusted proxy supplied no usable single client address."""
+
+
+def _canonical_ip(value: str) -> str:
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError as exc:
+        raise ForwardedClientAddressError("CLIENT_ADDRESS_INVALID") from exc
+
+
+def resolve_client_key(
+    peer_ip: str,
+    forwarded_values: tuple[str, ...],
+    trusted_proxy_ips: frozenset[str],
+) -> str:
+    """Resolve one rate-limit key without trusting arbitrary forwarding headers."""
+    peer = _canonical_ip(peer_ip)
+    if peer not in trusted_proxy_ips:
+        return peer
+    if len(forwarded_values) != 1:
+        raise ForwardedClientAddressError("FORWARDED_CLIENT_REQUIRED")
+    forwarded = forwarded_values[0]
+    if forwarded != forwarded.strip() or "," in forwarded:
+        raise ForwardedClientAddressError("FORWARDED_CLIENT_NOT_SINGLE_CANONICAL_IP")
+    canonical = _canonical_ip(forwarded)
+    if forwarded != canonical:
+        raise ForwardedClientAddressError("FORWARDED_CLIENT_NOT_SINGLE_CANONICAL_IP")
+    return canonical
 
 
 class PortalStore(Protocol):
@@ -150,6 +183,7 @@ class PortalBackendSettings:
     csrf_token_bytes: int = 32
     lookup_min_duration_seconds: float = 0.0
     secure_cookies: bool = True
+    trusted_proxy_ips: frozenset[str] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
         parsed = urlsplit(self.origin)
@@ -165,6 +199,9 @@ class PortalBackendSettings:
             raise ValueError("backend limits are unsafe")
         if self.lookup_min_duration_seconds < 0:
             raise ValueError("lookup_min_duration_seconds cannot be negative")
+        canonical_proxies = frozenset(_canonical_ip(value) for value in self.trusted_proxy_ips)
+        if canonical_proxies != self.trusted_proxy_ips:
+            raise ValueError("trusted proxy addresses must be canonical IP literals")
 
 
 @dataclass(frozen=True, slots=True)
@@ -532,6 +569,10 @@ class PortalBackend:
             return _error(HTTPStatus.FORBIDDEN, "FORBIDDEN")
 
         method = request.method.upper()
+        if path == HEALTH_PATH:
+            if method != "GET" or parsed_target.query:
+                return _error(HTTPStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED")
+            return _response(HTTPStatus.OK, {"status": "ok"})
         if path == SESSION_PATH:
             if method != "POST":
                 return _error(HTTPStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED")
@@ -1001,9 +1042,21 @@ class PortalRequestHandler(BaseHTTPRequestHandler):
             body_length = int(length)
         except ValueError:
             body_length = self.server.backend.settings.max_body_bytes + 1
-        if body_length < 0 or body_length > self.server.backend.settings.max_body_bytes:
-            response = _error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "REQUEST_TOO_LARGE")
+        try:
+            client_key = resolve_client_key(
+                self.client_address[0],
+                tuple(self.headers.get_all("X-Forwarded-For", failobj=[])),
+                self.server.backend.settings.trusted_proxy_ips,
+            )
+        except ForwardedClientAddressError:
+            response = _error(HTTPStatus.BAD_REQUEST, "INVALID_FORWARDED_CLIENT")
         else:
+            response = None
+        if response is None and (
+            body_length < 0 or body_length > self.server.backend.settings.max_body_bytes
+        ):
+            response = _error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "REQUEST_TOO_LARGE")
+        elif response is None:
             body = self.rfile.read(body_length) if body_length else b""
             response = self.server.backend.handle(
                 PortalRequest(
@@ -1011,7 +1064,7 @@ class PortalRequestHandler(BaseHTTPRequestHandler):
                     target=self.path,
                     headers={key: value for key, value in self.headers.items()},
                     body=body,
-                    client_key=self.client_address[0],
+                    client_key=client_key,
                 )
             )
         self.send_response(response.status)

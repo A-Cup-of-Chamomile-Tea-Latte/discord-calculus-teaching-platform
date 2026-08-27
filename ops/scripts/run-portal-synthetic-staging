@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail() {
+  printf 'portal_staging_start_error=%s\n' "$1" >&2
+  exit 2
+}
+
+runtime=/opt/calculus-portal-staging/current/runtime/discord-course-bots
+static_root=/opt/calculus-portal-staging/current/static
+state_root=/run/calculus-portal-staging/data
+
+[[ ${PORTAL_STAGING_SYNTHETIC_ONLY:-} == 1 ]] || fail SYNTHETIC_MARKER_REQUIRED
+[[ ${PORTAL_STAGING_ORIGIN:-} == https://* ]] || fail HTTPS_ORIGIN_REQUIRED
+[[ ${PORTAL_STAGING_SESSION_SECRET:-} =~ ^[A-Fa-f0-9]{64,}$ ]] || fail SESSION_SECRET_INVALID
+[[ ${PORTAL_STAGING_BASE_PATH:-} == / ||
+  ${PORTAL_STAGING_BASE_PATH:-} =~ ^/[A-Za-z0-9._~-]+(/[A-Za-z0-9._~-]+)*$ ]] ||
+  fail BASE_PATH_INVALID
+[[ ${PORTAL_STAGING_BIND_PORT:-} =~ ^[0-9]+$ ]] || fail BIND_PORT_INVALID
+((PORTAL_STAGING_BIND_PORT >= 1024 && PORTAL_STAGING_BIND_PORT <= 65535)) ||
+  fail BIND_PORT_INVALID
+[[ ${PORTAL_STAGING_TRUSTED_PROXY_IP:-} == 127.0.0.1 ||
+  ${PORTAL_STAGING_TRUSTED_PROXY_IP:-} == ::1 ]] || fail TRUSTED_PROXY_NOT_LOOPBACK
+[[ -x $runtime/.venv/bin/portal-staging && -d $static_root ]] || fail RELEASE_INCOMPLETE
+
+exec "$runtime/.venv/bin/portal-staging" \
+  --root "$state_root" \
+  --origin "$PORTAL_STAGING_ORIGIN" \
+  --bind-host 127.0.0.1 \
+  --bind-port "$PORTAL_STAGING_BIND_PORT" \
+  --static-root "$static_root" \
+  --base-path "$PORTAL_STAGING_BASE_PATH" \
+  --trusted-proxy "$PORTAL_STAGING_TRUSTED_PROXY_IP" \
+  --require-production-paths-inaccessible

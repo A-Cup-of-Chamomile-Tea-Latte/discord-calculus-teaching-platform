@@ -1,0 +1,41 @@
+[Unit]
+Description=Calculus Portal isolated synthetic staging
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+WorkingDirectory=/opt/calculus-portal-staging/current/runtime/discord-course-bots
+EnvironmentFile=/etc/calculus-portal-staging/runtime.env
+ExecStart=/opt/calculus-portal-staging/current/ops/run-portal-synthetic-staging
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=20s
+RuntimeDirectory=calculus-portal-staging
+RuntimeDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+InaccessiblePaths=-/var/lib/calculus-discord -/etc/calculus-discord
+ReadOnlyPaths=/opt/calculus-portal-staging/current
+ReadWritePaths=/run/calculus-portal-staging
+
+[Install]
+WantedBy=multi-user.target

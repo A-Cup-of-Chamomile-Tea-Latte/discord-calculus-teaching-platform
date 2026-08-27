@@ -1,0 +1,7 @@
+{
+  "origin": "https://portal-staging.example.edu",
+  "basePath": "/portal-staging",
+  "bindPort": 18081,
+  "trustedProxyIp": "127.0.0.1",
+  "proxyAdapter": "/usr/local/sbin/calculus-portal-staging-proxy"
+}
