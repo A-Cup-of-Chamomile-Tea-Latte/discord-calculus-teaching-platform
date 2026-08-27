@@ -1,6 +1,6 @@
 # 電子郵件驗證與 delivery boundary
 
-Task 19 的 provider-neutral domain service 與純記憶體 mock 仍保留。v13 deployment candidate 另加入尚未部署的 production delivery boundary：SQLite durable outbox 是唯一 delivery authority，owner-only 獨立 GAS 只負責呼叫 `MailApp`；Sheet-bound GAS 不寄驗證信，也沒有 public Web App route。Email 僅用於加入申請驗證；Public／Private 案件通知維持 Discord DM-only。
+Task 19 的 provider-neutral domain service 與純記憶體 mock 仍保留。SQLite durable outbox 是唯一 delivery authority，owner-only 獨立 GAS 只負責呼叫 `MailApp`；Sheet-bound GAS 不寄驗證信，也沒有 public Web App route。Owner-only GAS provider 已部署並完成一封受控實寄，但 Portal→SQLite outbox→remote bridge 尚未 rollout。Email 僅用於加入申請驗證；Public／Private 案件通知維持 Discord DM-only。
 
 ## 身分語意
 
@@ -42,3 +42,11 @@ Production 尚缺：
 ## 本機驗證
 
 `src/email-verification/service.test.ts` 覆蓋 domain flow；`mail-app-provider.test.ts` 覆蓋純文字寄送、quota reserve、accepted no-op、ambiguous fail-closed、輸入與 expiry。Python tests 覆蓋 SQLite enqueue／claim／retry／到期／terminal scrub 及 Linux→GAS receipt。所有地址皆為 `.example` fixture；測試不寄真實郵件。
+
+## 2026-08-28 provider smoke
+
+- owner-only standalone GAS immutable v14 已更新；cloud pull-back 與 source commit `554669e` 完全相同，v13 保留 rollback。
+- 使用獨立 mode `0600` 的 Sheets＋`script.send_mail` OAuth credential；Execution API health 回報 `PRODUCTION` 且非 synthetic。
+- 一封明確授權的真實驗證信由 provider 接受；寄送前 quota 為 100，同一 delivery 重送為 no-op。
+- 收件者人工確認寄件者、主旨、六位碼、台北時間 expiry 與純文字內容正確。
+- Repository 不保存真實地址、驗證碼或截圖。此結果只代表 GAS provider road PASS；完整 Portal→outbox→remote bridge→GAS→輸入驗證碼 E2E 仍待驗收。

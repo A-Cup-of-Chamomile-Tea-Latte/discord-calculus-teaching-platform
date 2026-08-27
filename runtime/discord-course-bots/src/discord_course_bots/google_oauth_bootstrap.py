@@ -6,7 +6,7 @@ from pathlib import Path
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-from discord_course_bots.apps_script_transport import APPS_SCRIPT_SCOPE
+from discord_course_bots.apps_script_transport import APPS_SCRIPT_SCOPES
 
 
 def parser() -> argparse.ArgumentParser:
@@ -23,7 +23,9 @@ def main() -> None:
     args = parser().parse_args()
     if args.output.exists():
         raise SystemExit("Refusing to overwrite an existing OAuth credential")
-    flow = InstalledAppFlow.from_client_secrets_file(str(args.client_secrets), [APPS_SCRIPT_SCOPE])
+    flow = InstalledAppFlow.from_client_secrets_file(
+        str(args.client_secrets), list(APPS_SCRIPT_SCOPES)
+    )
     credentials = flow.run_local_server(
         host="127.0.0.1",
         port=0,

@@ -19,6 +19,8 @@ from discord_course_bots.data_lab.transport import (
 )
 
 APPS_SCRIPT_SCOPE = "https://www.googleapis.com/auth/spreadsheets"
+APPS_SCRIPT_SEND_MAIL_SCOPE = "https://www.googleapis.com/auth/script.send_mail"
+APPS_SCRIPT_SCOPES = (APPS_SCRIPT_SCOPE, APPS_SCRIPT_SEND_MAIL_SCOPE)
 SAFE_CODE = re.compile(r"[^A-Z0-9_]+")
 
 
@@ -66,7 +68,7 @@ class AppsScriptApiTransport:
     def __init__(self, config: AppsScriptApiConfig) -> None:
         self.config = config
         self._credentials = Credentials.from_authorized_user_file(
-            str(config.credential_path), [APPS_SCRIPT_SCOPE]
+            str(config.credential_path), list(APPS_SCRIPT_SCOPES)
         )
 
     def _access_token(self) -> str:

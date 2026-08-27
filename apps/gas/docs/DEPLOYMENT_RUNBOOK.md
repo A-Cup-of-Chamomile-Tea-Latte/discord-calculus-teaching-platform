@@ -1,9 +1,10 @@
 # GAS deployment runbook
 
-本機 source 可產生獨立與附著兩種 target。2026-08-20 的 canonical cloud baseline 為：
+本機 source 可產生獨立與附著兩種 target。2026-08-28 的 canonical cloud baseline 為：
 
-- standalone immutable v12，owner-only Execution API，已通過健康檢查、雙向 synthetic smoke、
-  cleanup 與 pull-back fingerprint 比對；
+- standalone immutable v14，owner-only Execution API；cloud pull-back 與核准 source 完全相同，
+  Execution API health 與一封受控 `MailApp` 實寄均通過，重複 delivery 為 no-op；immutable v13
+  保留作 rollback；
 - bound immutable v6，source 已對齊，但 status-digest trigger 仍刻意停用；
 - Script ID、deployment ID、Sheet ID 與 credentials 只保存在 gitignored local state。
 
@@ -46,6 +47,10 @@
    blank／duplicate primary key、formula 或未知列都應 fail closed。
 10. 確認 request validation、quota、logging redaction、rollback version、deployment inventory 與
     OAuth longevity gate 後，才可考慮 production target。
+
+2026-08-28 的 provider smoke 使用獨立、mode `0600`、同時含 Sheets 與
+`script.send_mail` 的 OAuth credential；不覆寫 remote v13 core 的既有 Sheets-only credential。
+驗收紀錄只保存版本與 PASS／FAIL，不保存真實收件地址、驗證碼或信件截圖。
 
 ## Rollback
 

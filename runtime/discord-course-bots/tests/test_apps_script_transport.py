@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from discord_course_bots.apps_script_transport import (
-    APPS_SCRIPT_SCOPE,
+    APPS_SCRIPT_SCOPES,
     AppsScriptApiConfig,
     AppsScriptApiError,
     AppsScriptApiTransport,
@@ -24,7 +24,7 @@ def credentials(path: Path) -> None:
                 "token_uri": "https://oauth2.googleapis.com/token",
                 "client_id": "fixture-client",
                 "client_secret": "fixture-secret",
-                "scopes": [APPS_SCRIPT_SCOPE],
+                "scopes": list(APPS_SCRIPT_SCOPES),
                 "expiry": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
             }
         ),
@@ -54,6 +54,14 @@ def test_transport_maps_basic_json_receipts_without_exposing_credentials(
     assert receipt.source_version == 3
     assert receipt.safe_result_code == "SYNC_PREVIEW_READY"
     assert "fixture-access-token" not in repr(receipt)
+
+
+def test_transport_requires_sheet_and_send_mail_scopes(tmp_path: Path) -> None:
+    credential = tmp_path / "oauth.json"
+    credentials(credential)
+    transport = AppsScriptApiTransport(AppsScriptApiConfig("fixture-deployment", credential))
+
+    assert set(transport._credentials.scopes or ()) == set(APPS_SCRIPT_SCOPES)  # noqa: SLF001
 
 
 class FakeResponse:
