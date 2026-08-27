@@ -202,8 +202,13 @@ def test_one_time_repairer_is_guarded_and_only_replaces_the_deployer() -> None:
 def test_v13_host_preparer_is_exact_scope_and_never_deploys() -> None:
     source = HOST_PREPARER.read_text(encoding="utf-8")
     assert "PREPARE_V13_HOST:-" in source
-    assert "PRODUCTION_DATABASE_V6_INVALID" in source
-    assert "--expected-source-schema 6 --expected-target-schema 13" in source
+    assert "PRODUCTION_DATABASE_SCHEMA_INVALID" in source
+    assert "current_schema not in {6, 13}" in source
+    assert "migration_class=ADDITIVE" in source
+    assert "migration_class=NONE" in source
+    assert '--expected-source-schema "$current_schema" --expected-target-schema 13' in source
+    assert 'value.get("expectedSourceSchemaVersion") == int(sys.argv[8])' in source
+    assert 'value.get("expectedTargetSchemaVersion") == 13' in source
     assert "BOT_OWNER_IDS" in source
     assert "RUNTIME_ENV_INVALID" in source
     assert 'expected_database = "/var/lib/calculus-discord/runtime.sqlite3"' in source
