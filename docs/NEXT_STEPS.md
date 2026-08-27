@@ -1,68 +1,48 @@
 # Ordered next steps
 
-更新日期：2026-08-26
+更新日期：2026-08-28
 
-## 已完成 checkpoint：Portal／Bot／academic data 整合
+## 已完成 checkpoint
 
-- Portal 公開架構、115-1 班別資料、production v6 基礎與 Bot UX 候選版已放入同一整合分支。
-- public artifact 只保留 5 個允許頁面；未接線的加入與案件查詢 fail closed。
-- Bot candidate 對齊五態、48＋48、C01–C16／C99 案號、Course Manager 五態與 Discord DM。
-- 舊 Portal 與 Private dump 入口進入可逆 archive／inactive stage，不與現行設計並列。
-- 本機品質閘已通過；現行 production v6 的 24 小時 observation 也已另行 PASS，但兩者都不等同 v13 deployment 授權。
+- Production Bot 已是 v13，active release `feab01757897`、SQLite schema 13；三個 services active／enabled，critical queues 與 manual attention 為 0。
+- GAS provider smoke 與 isolated Portal→outbox→GAS→人工驗碼→`PENDING_REVIEW` service chain 已通過。
+- Portal same-origin join、Email verify、Case ID lookup、分 scope session、synthetic SQLite、staging package、installer、rollback 與 smoke 已完成本機驗證。
+- 最新完整 gate 通過 Portal 67、Config 3、GAS 70、Python 372 與 secret scan 717／0。Implementation head `f79827e` 收集 374 個 Python tests；新增的 Discord focused suite 25／25 PASS，本輪沒有重跑完整 374 tests。
 
-## 已完成 checkpoint：Production v6 observation
+## 1. 建立 Discord 永久入口
 
-- 2026-08-24 17:12 後的 owner-only `/ops status` 顯示三服務健康、schema v6、queue 與 manual attention 歸零。
-- Remote／Mac 唯讀核對確認 remote 持續是唯一 writer，三個 services active／enabled，受限部署入口仍就緒。
-- Phase 2C v6 baseline 於 2026-08-24 17:16 判定 PASS；這不是 v13 deployment 的部署核准。
+目前 live Guild 還沒有 `開啟隱密案件`。Targeted provisioner 與 ACL preflight 已完成；先前失敗的 apply 已自動 rollback，沒有留下 channel 或 mapping。
 
-## 1. Candidate migration 與 release safety
+1. 先跑 current head 的 read-only plan，確認只會建立或採用永久入口、設定 topic／ACL 並送出入口說明。
+2. Plan 無 unrelated drift 後，只執行一次 targeted ensure；不修改既有 Private category、動態案件頻道或其他資源。
+3. Apply PASS 後再跑 read-only plan，預期沒有待處理 action。
+4. 由白帳號在永久入口執行 `/private open`，驗證提出者與教學團隊 ACL、Discord DM、close／reopen、private dump 與 48＋48 lifecycle。
 
-目前：舊 request 已可逆封存；本機 v13 deployment preparation 尚未凍結 exact commit／archive，
-remote staging request 也尚未更新。Production 仍是 v6。先完成單次 host-owner prepare receipt 與 exact
-release evidence，再對該 exact release 做一次明示 deploy decision。
+## 2. 部署 external synthetic staging
 
-1. 取得 production v6 consistent backup；只在獨立副本演練 v6 → v13。
-2. 核對 backup readability、ledger 1–13、integrity、row counts、rollback 與已決定的 retention。
-3. Discord live provisioning 與 secure ID mapping 已完成；host prepare 只需確認不輸出值的 `BOT_OWNER_IDS` bootstrap，reviewer/admin grant 在 v13 migration 後由 owner command 完成。
-4. 形成固定 smoke／rollback runbook；沒有新的明示部署授權，不寫入 production。
+Portal staging package 的內容、builder、installer、rollback 與 smoke 已就緒，但尚未部署。現有測試 artifact 不可當成正式 staging package；真正的 package 必須綁定實際 host facts。
 
-## 2. Portal 動態能力（本機候選已完成，正式接線仍是 gate）
+1. 取得 staging HTTPS origin、base path、loopback port、proxy 技術與 root-owned proxy adapter。
+2. 從 exact implementation commit 建立新的 host-bound package、manifest 與 checksum，不沿用舊 department draft。
+3. 在獨立 external staging 使用 synthetic SQLite；不讀寫 production SQLite，不改 production services。
+4. 驗證 same-origin session、trusted proxy、CSRF、rate limit、durable audit、Portal 加入、Email 與一般／Private Case ID lookup。
+5. 執行 smoke 與 rollback，保存不含 secrets 或學生資料的 receipt。
 
-- `POST /api/join` 與 `POST /api/cases/lookup` 已完成同源 middleware、session authorization、CSRF、rate limit、generic failure response、SQLite adapter、Course Manager queue、content-free projection 與 metadata-only audit。
-- Portal Vitest 61/61 PASS、Astro 0 diagnostics；same-origin email start／verify、`/api/join` 與
-  `/api/cases/lookup` 均納入完整回歸。Public artifact build PASS。
-- 這些是 repository／local receipts，不是 production deploy、真實 OAuth、Discord ACL 或 public URL evidence。
+## 3. 白帳號 E2E 與 production Portal decision
 
-### 加入申請
+- 在 external staging 走完加入、驗證信、驗碼、`PENDING_REVIEW`、duplicate、waiting 與案件狀態查詢。
+- GAS provider PASS 不能代替 Portal 完整 E2E；v13 Bot PASS 也不能代替 Portal hosting PASS。
+- External staging 全部通過後，才提出一次 production Portal service／SQLite authority 接線決策。未取得明示授權前，不新增 production service、不設定正式 proxy，也不開 public endpoint。
 
-- 注入受保護 same-origin session provider、durable audit sink、CSRF／rate limit 設定與 SQLite adapter；deployment 前只做 isolated/staging email、session 與 mapping smoke。
-- 接 Course Manager durable queue、Discord member resolution、角色／暱稱與 Discord DM。
-- duplicate／waiting／approved／rejected／archived 必須冪等且可稽核。
+## 4. Department handoff
 
-### 案件查詢
+目前固定為 `NOT APPROVED`。不得把舊 draft、synthetic staging package 或本機 public artifact 交給系辦，也不得掛上微積分統一教學網。
 
-- 接受一般與 `-P` 完整案號（`POST /api/cases/lookup`，一次一案）。
-- 只回傳案號、類型、狀態、更新時間、是否有教學團隊回覆與 Discord 連結。
-- 不回傳題目、對話、作者、附件、AI、內部 ID；不提供 list-all 或背景 polling。
-
-## 3. 白帳號 E2E 與部署決策
-
-- 白帳號已備妥且授權已開；production deployment 後、rollout 前，由 Owner 用教師白帳號／學生測試帳號驗證加入、duplicate、waiting、approve、reject、archive／restore、
-  Private ACL、DM、案件查詢與 Discord 新手流程。
-- 完成資料告知、保留／刪除、Private ACL regression、事故責任與 rollback。
-- 上述 gate 無異常後，才向 owner 要一次明示部署核准；若沒有實際風險，不重複詢問或額外等待。
-- v13 deployment 後不強制再等 24 小時。以 deployment smoke、白帳號 E2E 與 rollback readiness 作主 gate；
-  只有具體穩定性疑慮時才啟動最多約 8 小時的 checkpoint observation。
-
-## 暫緩的外部決策
-
-- Repository owner、公開 URL、backend origin、CNAME 與 rollout 範圍留給 PM 與課程 owner 決定。
-- 這些 gate 暫不阻擋 production backup rehearsal、設定收斂與 Portal backend 實作。
+只有在 external staging、白帳號 E2E、正式 artifact 掃描與 rollback plan 全部通過後，才由 PM 明示 `APPROVED FOR DEPARTMENT HANDOFF`。該授權只涵蓋核准的 exact artifact 與 API boundary，不自動授權 CNAME、其他 hosting 或額外 production mutation。
 
 ## 固定停止線
 
-- 不把本機 candidate 測試寫成 production PASS。
+- 不把本機或 synthetic 測試寫成 production PASS。
 - 不把 raw messages、學生姓名／ID、Email、Discord ID、附件、Private Support、SQLite rows、credential 或 secrets 放進 Git、聊天或公開 artifact。
 - SQLite 是 operational authority；Browser 永不持有 Bot token、Google owner credential 或 SQLite write access。
-- 未完成 auth、rate limit 與 storage gate 前，不開啟公開動態 submission／lookup。
+- Public Case ID lookup 只回傳 content-free status projection；若未來增加內容或案件操作，必須另加身分驗證。

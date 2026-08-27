@@ -2,23 +2,23 @@
 
 Last repository／AI handoff reconciliation: 2026-08-28（Asia/Taipei）
 
-> 本頁分開記錄「production core」與「尚未 rollout 的 Portal／Email」。v13 core 狀態來自遠端交接與
-> Discord metadata-only ops smoke；本機沒有直接登入朋友主機。GAS provider 實寄已通過，完整
-> Portal／白帳號 E2E 尚未完成。
+> 本頁分開記錄 production Bot、GAS provider、Portal staging 與 Discord live provisioning。v13 Bot
+> 狀態來自遠端交接與 Discord metadata-only ops smoke；本機沒有直接登入朋友主機。GAS provider
+> smoke 已通過，Portal 尚未 external staging，系辦交付維持 `NOT APPROVED`。
 
 ## Canonical snapshot
 
-| 領域 | 現況 |
-| --- | --- |
-| Production writer | Remote Linux 是唯一 production writer；Mac writers 已停止 |
-| Production runtime | Active release `feab01757897`；三個 systemd services 依遠端交接均 active／enabled；Discord `/ops status` 與 `/ops attention-list` PASS |
-| Production DB | Remote SQLite schema 13；critical queues 與 manual attention 均為 0 |
-| Observation | v13 core、metadata-only ops smoke 與 owner-only GAS provider 實寄 PASS；白帳號 ACL／完整 E2E 與 Portal rollout 仍是獨立 gate |
-| Repository candidate | Post-deploy baseline 為 `f61219b31344`；Portal candidate `codex/portal-post-v13` 已包含 checkpoints `5c0472c`、`3f04a69`、`f401a58`、`554669e` 與後續 GAS dual-scope bridge 修正，未部署且不改變 production active release |
-| Google | SQLite 是 operational authority；Sheets 是 compact projection，不是第二套主資料庫 |
-| Portal | 公開／reviewer artifact 分離；學生面收斂為靜態資訊入口與已完成 local browser smoke 的最小 backend，尚未部署 |
-| Portal backend | same-origin join／Email verify／one-case lookup與匿名分 scope session issuer已在 local candidate 實作；synthetic composition 不接 production。正式 Portal service、origin 與 rollout尚未接線，public build預設仍 fail closed |
-| Email | SQLite durable outbox 與 provider code 已存在；owner-only GAS immutable v14 實寄、收件、duplicate no-op，以及 isolated Portal→outbox→GAS→人工驗碼→`PENDING_REVIEW` service chain 已通過；remote bridge／Discord 白帳號 E2E 尚未通過。Public／Private 案件通知維持 Discord DM-only |
+| 領域                 | 現況                                                                                                                                                                                                                                                                              |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production writer    | Remote Linux 是唯一 production writer；Mac writers 已停止                                                                                                                                                                                                                         |
+| Production runtime   | Active release `feab01757897`；三個 systemd services 依遠端交接均 active／enabled；Discord `/ops status` 與 `/ops attention-list` PASS                                                                                                                                            |
+| Production DB        | Remote SQLite schema 13；critical queues 與 manual attention 均為 0                                                                                                                                                                                                               |
+| Observation          | v13 Bot、metadata-only ops smoke、owner-only GAS provider 實寄與 isolated Email service chain PASS；Discord 永久入口、白帳號 ACL／完整 E2E 與 Portal rollout 仍是獨立 gate                                                                                                        |
+| Repository candidate | 本次文件整理前的 implementation head 為 `f79827e`；branch `codex/portal-post-v13` 已包含 Portal staging package、GAS dual-scope bridge 與 Discord 永久入口 preflight。這些 post-v13 變更尚未部署，不改變 production active release                                                |
+| Google               | SQLite 是 operational authority；Sheets 是 compact projection，不是第二套主資料庫                                                                                                                                                                                                 |
+| Portal               | 公開／reviewer artifact 分離；local browser smoke 與 host-bound staging package 流程已完成，package ready but not deployed。Portal 尚未 external staging，也沒有 production hosting                                                                                               |
+| Portal backend       | same-origin join／Email verify／one-case lookup 與匿名分 scope session issuer 已在 local candidate 實作；synthetic composition 不接 production。正式 Portal service、origin 與 rollout 尚未接線，public build 預設仍 fail closed                                                  |
+| Email                | SQLite durable outbox 與 provider code 已存在；owner-only GAS immutable v14 實寄、收件、duplicate no-op，以及 isolated Portal→outbox→GAS→人工驗碼→`PENDING_REVIEW` service chain 已通過；remote bridge／Discord 白帳號 E2E 尚未通過。Public／Private 案件通知維持 Discord DM-only |
 
 ## Repository integration checkpoint
 
@@ -35,8 +35,9 @@ Last repository／AI handoff reconciliation: 2026-08-28（Asia/Taipei）
 - Owner 接受完整 Case ID 作 content-free status lookup 的 bearer capability；不額外要求 user ID／OAuth。這只適用唯讀最小狀態，未來內容或案件操作須另加身分驗證。
 - Discord allowlisted live Guild 已建立 C01–C16，三個 managed forums、Private category、role hierarchy
   與 bot permissions 經 read-only verify 為 0 error／0 warning；真實 IDs 只保存在 mode `0600` secure mapping。
+- 永久入口 `開啟隱密案件` 的 targeted provisioner 與 ACL preflight 已完成，但 live channel 尚未建立。先前失敗的 apply 都已自動 rollback，沒有留下入口 channel 或 mapping；動態 Private 案件頻道不受影響。
 - Deployment hardening 後的 worktree gate 通過 Portal 61、Config 3、GAS 70、Python 334、Ruff、format、mypy、build、production npm audit 0 與 secret scan；exact commit 由外部 evidence receipt 綁定 archive checksum。
-- Post-v13 current gate 通過 Portal 67、Config 3、GAS 70、Python 351、Ruff、format、mypy、build 與 secret scan 708／0。
+- 最新完整 post-v13 gate 通過 Portal 67、Config 3、GAS 70、Python 372、Ruff、format、mypy、build 與 secret scan 717／0。Implementation head `f79827e` 目前收集 374 個 Python tests；新增的 Discord 永久入口／案件生命週期 focused suite 25／25 PASS，本次未重跑完整 374 tests。
 - schema-shaped v6 暫存副本已演練到 v13：ledger 1–13 完整、`integrity_check=ok`、核心 row counts 不變。這不取代 production consistent backup rehearsal。
 
 ## Portal 現況
@@ -53,17 +54,17 @@ Last repository／AI handoff reconciliation: 2026-08-28（Asia/Taipei）
 
 - Course Manager reviewer UI 與加入狀態／去重 policy 已建立；same-origin adapter、匿名分 scope session 與 synthetic staging 已完成本機 candidate，正式 Portal service／production audit／origin 接線仍待 gate。
 - Connected public artifact 已在 loopback same-origin browser smoke 完成 Guest Email dialog／申請、一般與 Private lookup；這不取代外部 HTTPS staging 或 production rollout。
+- Synthetic staging package builder、installer、rollback、systemd unit、smoke 與 proxy contract 已完成並通過測試。真正可部署的 package 仍須綁定 staging HTTPS origin、base path、loopback port 與 host proxy adapter；目前沒有 external staging deployment。
 - `/status/` 是管理員建造 dashboard；所有 gate 完成後才轉長期 monitor。
 - 舊 `/ask/`、`/private-support/`、`/discord-guide/` 留 reviewer 封存提示，public build 移除。
 - 封存 stage 不是新決策來源；恢復舊設計前須先寫 decision，只取回仍適用的部分。
 
 ## 尚未完成
 
-1. 為 Portal 建立受控 production service，使用同一份 SQLite authority、獨立 audit DB、已驗證的分 scope session issuer 與 HTTPS same-origin proxy；這是新的 production mutation gate。
-2. 完成 remote bridge／Discord 白帳號 E2E 與 external HTTPS staging 後才開放 public endpoint；GAS provider 與 isolated Portal Email service chain 已通過。
-3. Production Discord role／category／class-module 的 live provisioning 與 secure ID capture 已完成；白帳號端到端驗收與 reviewer grant 仍待完成。
-4. Core deployment 已完成；Portal／Email 各自保留 rollout 與 rollback gate，不沿用 core PASS 代替驗收。
-5. Repository owner、公開 URL、backend origin、CNAME 與首次 Portal rollout 維持人工 gate，暫不阻擋上述上線前工程。
-6. 系辦交付目前固定為 `NOT APPROVED`；只有 PM 明示 `APPROVED FOR DEPARTMENT HANDOFF` 後才能交付或掛上統一教學網。
+1. 以 current implementation head 的 targeted command 建立並驗證 Discord 永久入口 `開啟隱密案件`，再由白帳號執行 `/private open`、ACL、DM、close／reopen／private dump E2E。
+2. 取得 staging 的 HTTPS origin、base path、loopback port 與 root-owned proxy adapter facts，產生 exact host-bound package；先部署 synthetic SQLite staging，不接 production authority。
+3. External staging 通過 Portal 加入、Email、Case ID lookup、rollback 與白帳號 click-through 後，才評估 production Portal service 與 SQLite 接線。這是新的 production mutation gate。
+4. Core deployment 已完成；Portal／Email 與 Discord 永久入口各自保留 rollout／rollback gate，不沿用 core PASS 代替驗收。
+5. 系辦交付目前固定為 `NOT APPROVED`；現有 department draft 不是可交付 artifact。只有 PM 明示 `APPROVED FOR DEPARTMENT HANDOFF` 後才能交付或掛上統一教學網。
 
 詳細 runtime observation：`docs/ops/PHASE2C_24H_OBSERVATION.md`。
