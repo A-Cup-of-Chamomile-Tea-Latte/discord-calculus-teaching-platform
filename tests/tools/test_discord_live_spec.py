@@ -8,7 +8,12 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 import pytest
 
-from tools.discord_provisioning.live import LiveProvisioner, desired_overwrites, parse_args
+from tools.discord_provisioning.live import (
+    LiveProvisioner,
+    ProvisioningError,
+    desired_overwrites,
+    parse_args,
+)
 from tools.discord_provisioning.live_spec import (
     CATEGORIES,
     CHANNELS,
@@ -142,6 +147,7 @@ def test_private_entry_preserves_existing_managed_bot_role_boundary() -> None:
     provisioner.guild.default_role = MagicMock(spec=discord.Role)
     provisioner.course = MagicMock(spec=discord.Member)
     provisioner.course.top_role = MagicMock(spec=discord.Role)
+    provisioner.course.guild_permissions = discord.Permissions.all()
     provisioner.dump = MagicMock(spec=discord.Member)
     provisioner.dump.top_role = MagicMock(spec=discord.Role)
     provisioner.roles = {
@@ -159,16 +165,41 @@ def test_private_entry_preserves_existing_managed_bot_role_boundary() -> None:
     assert provisioner.dump.top_role not in overwrites
 
 
+def test_private_entry_rejects_acl_bits_the_bot_cannot_write() -> None:
+    provisioner = object.__new__(LiveProvisioner)
+    provisioner.course = MagicMock(spec=discord.Member)
+    provisioner.course.guild_permissions = discord.Permissions(view_channel=True)
+    role = cast(discord.Role, MagicMock(spec=discord.Role))
+    desired: dict[discord.Role | discord.Member, discord.PermissionOverwrite] = {
+        role: discord.PermissionOverwrite(view_channel=True, send_voice_messages=False)
+    }
+
+    with pytest.raises(ProvisioningError, match="send_voice_messages"):
+        provisioner.validate_private_entry_writable_permissions(desired)
+
+
 @pytest.mark.asyncio
 async def test_private_entry_never_writes_managed_bot_role_overwrites() -> None:
     provisioner = object.__new__(LiveProvisioner)
     provisioner.course = MagicMock(spec=discord.Member)
     provisioner.course.top_role = MagicMock(spec=discord.Role)
+    provisioner.course.guild_permissions = discord.Permissions.all()
     provisioner.course.top_role.id = 90
     provisioner.dump = MagicMock(spec=discord.Member)
     provisioner.dump.top_role = MagicMock(spec=discord.Role)
     provisioner.dump.top_role.id = 91
     provisioner.operations = MagicMock()
+    provisioner.guild = MagicMock(spec=discord.Guild)
+    provisioner.guild.default_role = MagicMock(spec=discord.Role)
+    provisioner.guild.default_role.id = 1
+    provisioner.roles = {
+        "role.verified_member": MagicMock(spec=discord.Role),
+        "role.guest": MagicMock(spec=discord.Role),
+        "role.admin": MagicMock(spec=discord.Role),
+        "role.staff": MagicMock(spec=discord.Role),
+    }
+    for role_id, role in enumerate(provisioner.roles.values(), start=10):
+        role.id = role_id
 
     channel = MagicMock(spec=discord.TextChannel)
     channel.id = 100
@@ -184,8 +215,7 @@ async def test_private_entry_never_writes_managed_bot_role_overwrites() -> None:
         provisioner.course.top_role: managed,
         provisioner.dump.top_role: managed,
     }
-    member_role = cast(discord.Role, MagicMock(spec=discord.Role))
-    member_role.id = 10
+    member_role = provisioner.roles["role.verified_member"]
     desired: dict[discord.Role | discord.Member, discord.PermissionOverwrite] = {
         member_role: discord.PermissionOverwrite(view_channel=True)
     }
@@ -228,6 +258,7 @@ async def test_targeted_ensure_does_not_enter_full_reconciliation(tmp_path) -> N
     provisioner.guild = guild
     provisioner.course = MagicMock(spec=discord.Member)
     provisioner.course.top_role = MagicMock(spec=discord.Role)
+    provisioner.course.guild_permissions = discord.Permissions.all()
     provisioner.dump = MagicMock(spec=discord.Member)
     provisioner.dump.top_role = MagicMock(spec=discord.Role)
     provisioner.roles = roles
@@ -281,6 +312,7 @@ async def test_targeted_ensure_rolls_back_a_new_channel_when_acl_fails(tmp_path)
     provisioner.guild = guild
     provisioner.course = MagicMock(spec=discord.Member)
     provisioner.course.top_role = MagicMock(spec=discord.Role)
+    provisioner.course.guild_permissions = discord.Permissions.all()
     provisioner.dump = MagicMock(spec=discord.Member)
     provisioner.dump.top_role = MagicMock(spec=discord.Role)
     provisioner.roles = {

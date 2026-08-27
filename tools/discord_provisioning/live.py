@@ -251,7 +251,6 @@ PRIVATE_SUPPORT_ENTRY_MEMBER = {
     "add_reactions": False,
     "attach_files": False,
     "embed_links": False,
-    "send_voice_messages": False,
     "send_polls": False,
 }
 PRIVATE_SUPPORT_ENTRY_STAFF = {
@@ -1202,12 +1201,13 @@ class LiveProvisioner:
         spec = next(item for item in CHANNELS if item.key == "channel.private_support_entry")
         category = self.categories["category.private_support"]
         channel = self.channels.get(spec.key)
+        desired = self.private_entry_overwrites(spec)
+        self.validate_private_entry_writable_permissions(desired)
         actions: list[str] = []
         if channel is None:
             actions.append("CREATE_CHANNEL")
             actions.append("SET_EXACT_OVERWRITES")
         else:
-            desired = self.private_entry_overwrites(spec)
             if channel.category_id != category.id:
                 actions.append("MOVE_TO_PRIVATE_SUPPORT_CATEGORY")
             if channel.topic != spec.topic:
@@ -1250,6 +1250,22 @@ class LiveProvisioner:
         desired.pop(self.dump.top_role, None)
         return desired
 
+    def validate_private_entry_writable_permissions(
+        self,
+        desired: dict[discord.Role | discord.Member, discord.PermissionOverwrite],
+    ) -> None:
+        writable = self.course.guild_permissions.value
+        unsupported = 0
+        for overwrite in desired.values():
+            allow, deny = overwrite.pair()
+            unsupported |= (allow.value | deny.value) & ~writable
+        if unsupported:
+            names = ", ".join(permission_names(discord.Permissions(unsupported)))
+            raise ProvisioningError(
+                "Private Support entry ACL includes permissions unavailable to "
+                f"course_assistant: {names}"
+            )
+
     async def ensure_private_entry_overwrites(
         self,
         channel: discord.TextChannel,
@@ -1257,15 +1273,27 @@ class LiveProvisioner:
     ) -> None:
         desired_ids = {target.id for target in desired}
         protected_ids = {self.course.top_role.id, self.dump.top_role.id}
+        labels = {
+            self.guild.default_role.id: "everyone",
+            self.roles["role.verified_member"].id: "verified-member",
+            self.roles["role.guest"].id: "guest",
+            self.roles["role.admin"].id: "admin",
+            self.roles["role.staff"].id: "staff",
+        }
         for target, overwrite in desired.items():
             if channel.overwrites_for(target).pair() == overwrite.pair():
                 continue
-            await retry(
-                lambda target=target, overwrite=overwrite: channel.set_permissions(
-                    target, overwrite=overwrite, reason=REASON
-                ),
-                label=f"set Private Support entry overwrite:{target.id}",
-            )
+            try:
+                await retry(
+                    lambda target=target, overwrite=overwrite: channel.set_permissions(
+                        target, overwrite=overwrite, reason=REASON
+                    ),
+                    label=f"set Private Support entry overwrite:{labels[target.id]}",
+                )
+            except discord.Forbidden as exc:
+                raise ProvisioningError(
+                    "cannot set Private Support entry overwrite for " + labels[target.id]
+                ) from exc
             self.operations.record(
                 "updated", f"channel.private_support_entry.permission.{target.id}", channel.id
             )
@@ -1400,6 +1428,7 @@ class LiveProvisioner:
 
         try:
             overwrites = self.private_entry_overwrites(spec)
+            self.validate_private_entry_writable_permissions(overwrites)
             await self.ensure_private_entry_overwrites(channel, overwrites)
             errors = await self.private_entry_errors()
             if errors:
