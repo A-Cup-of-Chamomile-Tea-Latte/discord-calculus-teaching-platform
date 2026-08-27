@@ -1,7 +1,13 @@
+# mypy: disable-error-code="no-untyped-def,assignment,method-assign,union-attr"
 from __future__ import annotations
 
 import re
+from unittest.mock import AsyncMock, MagicMock
 
+import discord
+import pytest
+
+from tools.discord_provisioning.live import LiveProvisioner, desired_overwrites, parse_args
 from tools.discord_provisioning.live_spec import (
     CATEGORIES,
     CHANNELS,
@@ -10,6 +16,12 @@ from tools.discord_provisioning.live_spec import (
     class_resource_errors,
     validate_spec,
 )
+
+
+class _Target:
+    def __init__(self, target_id: int, name: str) -> None:
+        self.id = target_id
+        self.name = name
 
 
 def test_live_spec_has_unique_logical_keys_and_supported_types() -> None:
@@ -52,3 +64,203 @@ def test_dump_and_course_bot_are_not_mutable_role_specs() -> None:
     names = {role.name for role in ROLES}
     assert "DC-Calculus-Manager" not in names
     assert "DC-Calculus-Archive" not in names
+
+
+def test_private_support_has_one_permanent_non_case_entry() -> None:
+    entries = [
+        channel for channel in CHANNELS if channel.category_key == "category.private_support"
+    ]
+
+    assert [
+        (entry.key, entry.name, entry.kind, entry.policy, entry.managed_case) for entry in entries
+    ] == [
+        (
+            "channel.private_support_entry",
+            "開啟隱密案件",
+            "text",
+            "private_support_entry",
+            False,
+        )
+    ]
+
+
+def test_private_entry_allows_commands_but_rejects_member_content() -> None:
+    spec = next(channel for channel in CHANNELS if channel.key == "channel.private_support_entry")
+    everyone = _Target(1, "@everyone")
+    admin = _Target(2, "Admin")
+    staff = _Target(3, "Staff / TA")
+    verified = _Target(4, "Verified Member")
+    guest = _Target(5, "Guest")
+    course = _Target(6, "DC-Calculus-Manager")
+    dump = _Target(7, "DC-Calculus-Archive")
+
+    overwrites = desired_overwrites(
+        spec,
+        everyone=everyone,  # type: ignore[arg-type]
+        admin=admin,  # type: ignore[arg-type]
+        staff=staff,  # type: ignore[arg-type]
+        verified=verified,  # type: ignore[arg-type]
+        guest=guest,  # type: ignore[arg-type]
+        course=course,  # type: ignore[arg-type]
+        dump=dump,  # type: ignore[arg-type]
+    )
+
+    for member in (verified, guest):
+        permission = overwrites[member]  # type: ignore[index]
+        assert permission.view_channel is True
+        assert permission.read_message_history is True
+        assert permission.use_application_commands is True
+        assert permission.send_messages is False
+        assert permission.send_messages_in_threads is False
+        assert permission.create_public_threads is False
+        assert permission.create_private_threads is False
+        assert permission.attach_files is False
+    for operator in (admin, course):
+        permission = overwrites[operator]  # type: ignore[index]
+        assert permission.view_channel is True
+        assert permission.send_messages is True
+        assert permission.manage_messages is True
+        assert permission.manage_channels is True
+    staff_permission = overwrites[staff]  # type: ignore[index]
+    assert staff_permission.view_channel is True
+    assert staff_permission.send_messages is True
+    assert staff_permission.manage_messages is True
+    assert staff_permission.manage_channels is False
+    assert overwrites[everyone].view_channel is False  # type: ignore[index]
+    assert overwrites[dump].view_channel is False  # type: ignore[index]
+
+
+def test_private_entry_targeted_commands_are_explicitly_allowlisted() -> None:
+    for command in ("plan-private-entry", "ensure-private-entry"):
+        args = parse_args([command, "--guild-id", "123"])
+        assert args.command == command
+        assert not hasattr(args, "reset_lab")
+
+
+@pytest.mark.asyncio
+async def test_targeted_ensure_does_not_enter_full_reconciliation(tmp_path) -> None:
+    provisioner = object.__new__(LiveProvisioner)
+    category = MagicMock(spec=discord.CategoryChannel)
+    category.id = 100
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.id = 101
+    channel.category_id = 100
+    channel.topic = next(
+        item for item in CHANNELS if item.key == "channel.private_support_entry"
+    ).topic
+    roles = {
+        "role.admin": MagicMock(spec=discord.Role),
+        "role.staff": MagicMock(spec=discord.Role),
+        "role.verified_member": MagicMock(spec=discord.Role),
+        "role.guest": MagicMock(spec=discord.Role),
+    }
+    guild = MagicMock(spec=discord.Guild)
+    guild.default_role = MagicMock(spec=discord.Role)
+    provisioner.guild = guild
+    provisioner.course = MagicMock(spec=discord.Member)
+    provisioner.course.top_role = MagicMock(spec=discord.Role)
+    provisioner.dump = MagicMock(spec=discord.Member)
+    provisioner.dump.top_role = MagicMock(spec=discord.Role)
+    provisioner.roles = roles
+    provisioner.categories = {"category.private_support": category}
+    provisioner.channels = {"channel.private_support_entry": channel}
+    provisioner.operations = MagicMock(mutations=0, actions={})
+    provisioner.store = MagicMock(path=tmp_path / "mapping.json")
+    provisioner.run_dir = tmp_path
+    provisioner.plan_private_entry = AsyncMock(
+        return_value={"unrelated_drift": ["forum.example: report only"]}
+    )
+    provisioner.resolve_private_entry_context = AsyncMock()
+    provisioner.ensure_overwrites = AsyncMock()
+    provisioner.ensure_private_entry_seed = AsyncMock()
+    provisioner.update_private_entry_runtime_config = MagicMock()
+    provisioner.private_entry_errors = AsyncMock(return_value=[])
+    provisioner.ensure_roles = AsyncMock(side_effect=AssertionError("full role reconcile called"))
+    provisioner.ensure_categories = AsyncMock(
+        side_effect=AssertionError("full category reconcile called")
+    )
+    provisioner.ensure_channels = AsyncMock(
+        side_effect=AssertionError("full channel reconcile called")
+    )
+    provisioner.enforce_bot_boundaries = AsyncMock(
+        side_effect=AssertionError("global boundary reconcile called")
+    )
+
+    result = await provisioner.ensure_private_entry()
+
+    assert result["ok"] is True
+    assert result["other_resources_action"] == "REPORTED_ONLY"
+    provisioner.ensure_overwrites.assert_awaited_once()
+    assert provisioner.ensure_overwrites.await_args.args[0] is channel
+    provisioner.ensure_roles.assert_not_awaited()
+    provisioner.ensure_categories.assert_not_awaited()
+    provisioner.ensure_channels.assert_not_awaited()
+    provisioner.enforce_bot_boundaries.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_private_entry_seed_creates_and_pins_instruction() -> None:
+    provisioner = object.__new__(LiveProvisioner)
+    message = MagicMock(spec=discord.Message)
+    message.id = 303
+    message.pinned = False
+    message.pin = AsyncMock()
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.send = AsyncMock(return_value=message)
+    provisioner.channels = {"channel.private_support_entry": channel}
+    provisioner.store = MagicMock()
+    provisioner.store.get_id.return_value = None
+    provisioner.operations = MagicMock()
+
+    await LiveProvisioner.ensure_private_entry_seed(provisioner)
+
+    channel.send.assert_awaited_once()
+    message.pin.assert_awaited_once()
+    provisioner.store.set.assert_called_once_with(
+        "message.private_support_entry", 303, "message", "private-support-entry"
+    )
+
+
+@pytest.mark.asyncio
+async def test_targeted_ensure_rolls_back_a_new_channel_when_seed_fails(tmp_path) -> None:
+    provisioner = object.__new__(LiveProvisioner)
+    category = MagicMock(spec=discord.CategoryChannel)
+    category.id = 100
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.id = 101
+    channel.name = "開啟隱密案件"
+    channel.delete = AsyncMock()
+    guild = MagicMock(spec=discord.Guild)
+    guild.default_role = MagicMock(spec=discord.Role)
+    guild.create_text_channel = AsyncMock(return_value=channel)
+    provisioner.guild = guild
+    provisioner.course = MagicMock(spec=discord.Member)
+    provisioner.course.top_role = MagicMock(spec=discord.Role)
+    provisioner.dump = MagicMock(spec=discord.Member)
+    provisioner.dump.top_role = MagicMock(spec=discord.Role)
+    provisioner.roles = {
+        "role.admin": MagicMock(spec=discord.Role),
+        "role.staff": MagicMock(spec=discord.Role),
+        "role.verified_member": MagicMock(spec=discord.Role),
+        "role.guest": MagicMock(spec=discord.Role),
+    }
+    provisioner.categories = {"category.private_support": category}
+    provisioner.channels = {}
+    provisioner.operations = MagicMock(mutations=0, actions={})
+    provisioner.store = MagicMock(path=tmp_path / "mapping.json")
+    provisioner.run_dir = tmp_path
+    provisioner.plan_private_entry = AsyncMock(return_value={"unrelated_drift": []})
+    provisioner.resolve_private_entry_context = AsyncMock()
+    provisioner.ensure_overwrites = AsyncMock()
+    provisioner.ensure_private_entry_seed = AsyncMock(side_effect=RuntimeError("PIN_FAILED"))
+    provisioner.update_private_entry_runtime_config = MagicMock()
+
+    with pytest.raises(RuntimeError, match="PIN_FAILED"):
+        await provisioner.ensure_private_entry()
+
+    channel.delete.assert_awaited_once()
+    assert [item.args[0] for item in provisioner.store.remove.call_args_list] == [
+        "message.private_support_entry",
+        "channel.private_support_entry",
+    ]
+    provisioner.update_private_entry_runtime_config.assert_not_called()

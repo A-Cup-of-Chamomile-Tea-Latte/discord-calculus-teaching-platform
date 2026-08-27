@@ -57,3 +57,9 @@
 4. 部署後以 Student／Guest／Staff 與兩個 bot 的白帳號矩陣驗證 view／post／manage 邊界。
 
 目前唯一未完成的 predeploy mapping 項目是 production host 的 `BOT_OWNER_IDS` 非空確認；explicit reviewer grants 是 migration 後、rollout 前 gate。
+
+## Post-v13 additive Private 入口
+
+永久入口 `channel.private_support_entry` 不屬於 frozen v13 deployment mapping，也不改寫 v13 release evidence。它只使用 provisioning resource map 與 SQLite `private_support_entry_channel_id` 保存 live ID。
+
+套用時先跑 `plan-private-entry`，確認只建立／採用 `開啟隱密案件`、設定該頻道 ACL 與置頂說明，再跑 `ensure-private-entry`。其他 drift 只回報、不修復；既有 Private category 與所有動態案件頻道都必須保留。若 operation log 證明入口是本次新建才可刪除；adopted 入口只能依 before inventory 還原。

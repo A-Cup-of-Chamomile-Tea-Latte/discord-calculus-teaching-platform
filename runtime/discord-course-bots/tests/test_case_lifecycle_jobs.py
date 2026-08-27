@@ -65,6 +65,83 @@ async def test_public_case_registration_covers_all_three_managed_forums(
         thread.send.assert_not_awaited()
 
 
+@pytest.mark.asyncio
+async def test_private_entry_policy_does_not_weaken_dynamic_case_acl(tmp_path: Path) -> None:
+    repo = Repository(tmp_path / "private-entry-dynamic-acl.sqlite3")
+    repo.set_config("private_support_category_id", 700)
+    repo.set_config("ta_role_id", 701)
+    repo.set_config("professor_role_id", 702)
+    repo.set_config("system_admin_role_id", 703)
+    repo.begin_private_open_request(
+        interaction_id="private-entry-acl",
+        guild_id=10,
+        requester_id=20,
+        module_code="M1",
+        keyword="成績",
+        ai_content_permission=False,
+    )
+    claim = repo.claim_private_open_request("worker")
+    assert claim is not None
+
+    everyone = MagicMock(spec=discord.Role)
+    everyone.id = 10
+    bot_member = MagicMock(spec=discord.Member)
+    bot_member.id = 11
+    requester = MagicMock(spec=discord.Member)
+    requester.id = 20
+    ta = MagicMock(spec=discord.Role)
+    ta.id = 701
+    professor = MagicMock(spec=discord.Role)
+    professor.id = 702
+    system_admin_role = MagicMock(spec=discord.Role)
+    system_admin_role.id = 703
+    direct_admin = MagicMock(spec=discord.Member)
+    direct_admin.id = 90
+    category = MagicMock(spec=discord.CategoryChannel)
+    category.id = 700
+    case_channel = MagicMock(spec=discord.TextChannel)
+    case_channel.id = 800
+    case_channel.jump_url = "https://discord.example/channels/10/800"
+    case_channel.send = AsyncMock()
+
+    guild = MagicMock(spec=discord.Guild)
+    guild.id = 10
+    guild.default_role = everyone
+    guild.me = bot_member
+    guild.get_channel.side_effect = lambda channel_id: category if channel_id == 700 else None
+    guild.get_role.side_effect = {
+        701: ta,
+        702: professor,
+        703: system_admin_role,
+    }.get
+    guild.get_member.side_effect = lambda member_id: {
+        20: requester,
+        90: direct_admin,
+    }.get(member_id)
+    guild.create_text_channel = AsyncMock(return_value=case_channel)
+    bot = MagicMock()
+    bot.get_guild.return_value = guild
+    settings = MagicMock()
+    settings.owner_ids = frozenset({90})
+    service = CourseService(bot, settings, repo)
+
+    await service.apply_private_open_request(claim)
+
+    guild.create_text_channel.assert_awaited_once()
+    create = guild.create_text_channel.await_args.kwargs
+    assert create["category"] is category
+    overwrites = create["overwrites"]
+    assert overwrites[everyone].view_channel is False
+    assert overwrites[requester].view_channel is True
+    assert overwrites[requester].send_messages is True
+    assert overwrites[requester].attach_files is True
+    assert overwrites[bot_member].manage_channels is True
+    for operator in (ta, professor, system_admin_role, direct_admin):
+        assert overwrites[operator].view_channel is True
+        assert overwrites[operator].send_messages is True
+        assert overwrites[operator].read_message_history is True
+
+
 def test_guest_public_identity_is_distinct_from_class_roles(tmp_path: Path) -> None:
     repo = Repository(tmp_path / "guest-identity.sqlite3")
     repo.set_config("visitor_role_id", 700)

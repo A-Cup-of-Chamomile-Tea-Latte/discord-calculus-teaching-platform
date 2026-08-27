@@ -4,14 +4,14 @@
 
 ## Portal build
 
-| 變數 | 用途 | 安全規則 |
-| --- | --- | --- |
-| `ASTRO_BASE_PATH` | root 或 GitHub Pages project path | 未設定時為 `/`；只影響 static path |
-| `ASTRO_SITE_URL` | 可選 public HTTPS origin | 未設定不猜 production URL |
-| `PUBLIC_PORTAL_BUILD` | 建立 public artifact | `build:public` 自動設為 `true`，並移除 internal routes／assets |
-| `PUBLIC_JOIN_APPLICATION_ENDPOINT` | same-origin 加入申請 endpoint | 未設定時 public submit fail closed；不得直連 SQLite、Bot token 或 GAS owner credential |
-| `PUBLIC_CASE_STATUS_ENDPOINT` | same-origin 單案狀態查詢 endpoint | 未設定時查詢 fail closed；只允許 content-free projection |
-| `PUBLIC_PORTAL_SESSION_ENDPOINT` | 匿名分 scope session endpoint | 未設定時 join／lookup 都 fail closed；不得跨 scope 共用 session |
+| 變數                               | 用途                              | 安全規則                                                                               |
+| ---------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------- |
+| `ASTRO_BASE_PATH`                  | root 或 GitHub Pages project path | 未設定時為 `/`；只影響 static path                                                     |
+| `ASTRO_SITE_URL`                   | 可選 public HTTPS origin          | 未設定不猜 production URL                                                              |
+| `PUBLIC_PORTAL_BUILD`              | 建立 public artifact              | `build:public` 自動設為 `true`，並移除 internal routes／assets                         |
+| `PUBLIC_JOIN_APPLICATION_ENDPOINT` | same-origin 加入申請 endpoint     | 未設定時 public submit fail closed；不得直連 SQLite、Bot token 或 GAS owner credential |
+| `PUBLIC_CASE_STATUS_ENDPOINT`      | same-origin 單案狀態查詢 endpoint | 未設定時查詢 fail closed；只允許 content-free projection                               |
+| `PUBLIC_PORTAL_SESSION_ENDPOINT`   | 匿名分 scope session endpoint     | 未設定時 join／lookup 都 fail closed；不得跨 scope 共用 session                        |
 
 Backend、匿名分 scope session 與 synthetic staging 已通過本機驗證；正式 Portal service、HTTPS proxy、production SQLite 與 GAS 實寄尚未接線。預設 public build 不使用 fixture 冒充成功。
 
@@ -36,7 +36,7 @@ Token、owner IDs 與 live DB path 只放 host secret boundary，不進 Git、�
 
 以下只保存 Discord resource mapping，不保存 token 或學生內容：
 
-- `managed_forum_ids`、`private_support_category_id`
+- `managed_forum_ids`、`private_support_category_id`、`private_support_entry_channel_id`
 - `course_role_id`、`visitor_role_id`
 - `ta_role_id`、`professor_role_id`、`system_admin_role_id`
 - `class_role_01` 至 `class_role_16`

@@ -113,7 +113,7 @@ cp .env.example .env
 
 下列 key 儲存在 SQLite `runtime_config`，不放 token 或學生資料：
 
-- `managed_forum_ids`、`private_support_category_id`
+- `managed_forum_ids`、`private_support_category_id`、`private_support_entry_channel_id`
 - `course_role_id`、`visitor_role_id`
 - `ta_role_id`、`professor_role_id`、`system_admin_role_id`
 - `class_role_01` 至 `class_role_16`

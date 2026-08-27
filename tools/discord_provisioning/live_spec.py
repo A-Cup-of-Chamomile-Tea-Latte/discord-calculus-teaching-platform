@@ -30,6 +30,9 @@ class ChannelSpec:
     managed_case: bool = False
 
 
+PRIVATE_SUPPORT_ENTRY_TOPIC = "請使用 /private open 建立隱密案件；不要在入口貼問題、個資或附件。"
+
+
 CLASS_ROLES: tuple[RoleSpec, ...] = tuple(
     RoleSpec(f"role.class_{number:02d}", f"C{number:02d}") for number in range(1, 17)
 )
@@ -113,6 +116,14 @@ CHANNELS = (
         "member_forum",
         "回報教材、系統或伺服器錯誤；不建立案件。",
     ),
+    ChannelSpec(
+        "channel.private_support_entry",
+        "開啟隱密案件",
+        "text",
+        "category.private_support",
+        "private_support_entry",
+        PRIVATE_SUPPORT_ENTRY_TOPIC,
+    ),
     ChannelSpec("voice.office_hours", "Office Hours", "voice", "category.voice", "member_voice"),
     ChannelSpec("voice.study_room", "Study Room", "voice", "category.voice", "member_voice"),
     ChannelSpec("channel.staff_chat", "staff-chat", "text", "category.staff", "staff_only"),
@@ -158,6 +169,13 @@ GUIDELINES_CONTENT = """- 請依各頻道用途發文，避免重複洗版。
 - 課程正式資料仍以 NTU COOL 為準。
 - 管理團隊可在必要時整理、移動或移除明顯違反規範的內容。"""
 
+PRIVATE_SUPPORT_ENTRY_CONTENT = (
+    "需要私下詢問成績、個人資料或其他不適合公開討論的事情時，"
+    "請在本頻道執行 `/private open`。\n\n"
+    "機器人會另行建立只有您與授權教學團隊可見的案件頻道，並以 Discord 私訊通知結果。"
+    "請不要在這個入口貼問題、個人資料或附件。"
+)
+
 
 def validate_spec() -> None:
     resources = (
@@ -179,6 +197,22 @@ def validate_spec() -> None:
     actual_managed = {item.key for item in CHANNELS if item.managed_case}
     if actual_managed != MANAGED_FORUM_KEYS:
         raise ValueError("managed_case flags do not match the approved three forums")
+    private_entries = [
+        item
+        for item in CHANNELS
+        if item.category_key == "category.private_support" and not item.managed_case
+    ]
+    if private_entries != [
+        ChannelSpec(
+            "channel.private_support_entry",
+            "開啟隱密案件",
+            "text",
+            "category.private_support",
+            "private_support_entry",
+            PRIVATE_SUPPORT_ENTRY_TOPIC,
+        )
+    ]:
+        raise ValueError("live spec must contain exactly one permanent Private Support entry")
     class_roles = [role for role in ROLES if re.fullmatch(r"C\d\d", role.name)]
     if [role.name for role in class_roles] != [f"C{number:02d}" for number in range(1, 17)]:
         raise ValueError("live spec must contain exactly C01 through C16")
