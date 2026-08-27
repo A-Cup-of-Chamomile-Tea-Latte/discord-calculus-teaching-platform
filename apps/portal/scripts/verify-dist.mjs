@@ -114,6 +114,17 @@ if (publicMode) {
         `${relativePath}: public lookup must fail closed until its adapter is connected`,
       );
     }
+    if (
+      /data-case-endpoint="[^"]+"/.test(contents) &&
+      (!contents.includes('data-sync-url="false"') ||
+        !/<form[^>]*method="post"[^>]*class="case-search-widget__form"/.test(
+          contents,
+        ))
+    ) {
+      throw new Error(
+        `${relativePath}: connected lookup must keep the Case ID out of the URL`,
+      );
+    }
   }
 } else {
   const sqliteLab = readFileSync(join(dist, "sqlite-lab/index.html"), "utf8");

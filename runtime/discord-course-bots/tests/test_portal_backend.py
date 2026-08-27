@@ -10,7 +10,14 @@ from discord_course_bots.portal_backend import (
     CASE_LOOKUP_PATH,
     EMAIL_START_PATH,
     EMAIL_VERIFY_PATH,
+    JOIN_CSRF_COOKIE,
     JOIN_PATH,
+    JOIN_SCOPE,
+    JOIN_SESSION_COOKIE,
+    LOOKUP_CSRF_COOKIE,
+    LOOKUP_SCOPE,
+    LOOKUP_SESSION_COOKIE,
+    SESSION_PATH,
     InMemoryAuditSink,
     PortalBackend,
     PortalBackendSettings,
@@ -57,9 +64,12 @@ def request(
     csrf: str | None = CSRF,
     client_key: str = "test-client",
 ) -> PortalRequest:
+    lookup = path == CASE_LOOKUP_PATH
+    session_cookie = LOOKUP_SESSION_COOKIE if lookup else JOIN_SESSION_COOKIE
+    csrf_cookie = LOOKUP_CSRF_COOKIE if lookup else JOIN_CSRF_COOKIE
     headers = {
         "Host": host,
-        "Cookie": f"portal_session={session}; portal_csrf={CSRF}",
+        "Cookie": f"{session_cookie}={session}; {csrf_cookie}={CSRF}",
         "Content-Type": "application/json",
     }
     if origin is not None:
@@ -89,6 +99,30 @@ def student_payload(**overrides: str) -> dict[str, str]:
 
 def lookup_payload(case_number: str) -> dict[str, str]:
     return {"caseNumber": case_number}
+
+
+def session_request(
+    scope: str,
+    *,
+    origin: str = ORIGIN,
+    host: str = HOST,
+    cookie: str | None = None,
+    client_key: str = "test-client",
+) -> PortalRequest:
+    headers = {
+        "Host": host,
+        "Origin": origin,
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+    if cookie:
+        headers["Cookie"] = cookie
+    return PortalRequest(
+        method="POST",
+        target=SESSION_PATH,
+        headers=headers,
+        body=f"scope={scope}".encode(),
+        client_key=client_key,
+    )
 
 
 def verified_payload(
@@ -210,7 +244,7 @@ def test_csrf_seed_is_same_origin_and_no_store(tmp_path: Path) -> None:
         PortalRequest(
             method="GET",
             target=JOIN_PATH,
-            headers={"Host": HOST, "Cookie": f"portal_session={session}"},
+            headers={"Host": HOST, "Cookie": f"{JOIN_SESSION_COOKIE}={session}"},
             client_key="test-client",
         )
     )
@@ -221,13 +255,141 @@ def test_csrf_seed_is_same_origin_and_no_store(tmp_path: Path) -> None:
     assert response.headers["Cache-Control"] == "no-store"
 
 
+def test_session_issuer_sets_separate_secure_scope_cookies(tmp_path: Path) -> None:
+    store = SqlitePortalStore(tmp_path / "portal.sqlite3")
+    sessions = SignedSessionAuthorizer(b"s" * 32)
+    backend = PortalBackend(
+        store,
+        settings=PortalBackendSettings(ORIGIN),
+        sessions=sessions,
+        audit=InMemoryAuditSink(),
+    )
+    try:
+        response = backend.handle(session_request(LOOKUP_SCOPE))
+    finally:
+        store.close()
+
+    assert response.status == 201
+    assert response.json() == {
+        "schemaVersion": "1.0",
+        "outcome": "ISSUED",
+        "scope": LOOKUP_SCOPE,
+        "expiresIn": 1_800,
+    }
+    cookies = response.headers["Set-Cookie"]
+    assert isinstance(cookies, tuple)
+    assert len(cookies) == 2
+    assert cookies[0].startswith(f"{LOOKUP_SESSION_COOKIE}=")
+    assert "HttpOnly" in cookies[0]
+    assert "Secure" in cookies[0]
+    assert cookies[1].startswith(f"{LOOKUP_CSRF_COOKIE}=")
+    assert "HttpOnly" not in cookies[1]
+    assert all("SameSite=Strict" in cookie for cookie in cookies)
+    assert all("; Path=/;" in cookie for cookie in cookies)
+    assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_session_issuer_is_same_origin_scoped_and_rate_limited(tmp_path: Path) -> None:
+    backend, _, _, _ = backend_for(
+        tmp_path,
+        rate_limiter=RateLimiter(limit=10, window_seconds=60),
+    )
+    backend.issuer_rate_limiter = RateLimiter(limit=1, window_seconds=60)
+
+    foreign = backend.handle(session_request(JOIN_SCOPE, origin="https://evil.example"))
+    invalid = backend.handle(session_request("OWNER"))
+    first = backend.handle(session_request(JOIN_SCOPE, client_key="issuer-client"))
+    second = backend.handle(session_request(JOIN_SCOPE, client_key="issuer-client"))
+
+    assert foreign.status == 403
+    assert invalid.status == 400
+    assert first.status == 201
+    assert second.status == 429
+
+
+def test_join_and_lookup_sessions_cannot_cross_scopes(tmp_path: Path) -> None:
+    backend, sessions, _, _ = backend_for(tmp_path)
+    join_only = sessions.issue_for_test("join-only", scopes=(JOIN_SCOPE,))
+    lookup_only = sessions.issue_for_test("lookup-only", scopes=(LOOKUP_SCOPE,))
+
+    lookup_with_join = backend.handle(
+        request(join_only, CASE_LOOKUP_PATH, lookup_payload("C01-7K4M2Q-0702-1000"))
+    )
+    join_with_lookup = backend.handle(request(lookup_only, JOIN_PATH, student_payload()))
+
+    assert lookup_with_join.status == 401
+    assert join_with_lookup.status == 401
+
+
+def test_session_signature_expiry_tamper_and_key_rotation() -> None:
+    old = SignedSessionAuthorizer(
+        b"o" * 32,
+        key_id="old",
+        max_age_seconds=300,
+        clock_skew_seconds=0,
+        now=lambda: 1_000,
+    )
+    token = old.issue_for_test("rotating-session", scopes=(LOOKUP_SCOPE,))
+    request_with_token = PortalRequest(
+        method="POST",
+        target=CASE_LOOKUP_PATH,
+        headers={"Cookie": f"{LOOKUP_SESSION_COOKIE}={token}"},
+    )
+    rotated = SignedSessionAuthorizer(
+        b"n" * 32,
+        key_id="new",
+        previous_keys={"old": b"o" * 32},
+        max_age_seconds=300,
+        clock_skew_seconds=0,
+        now=lambda: 1_100,
+    )
+    expired = SignedSessionAuthorizer(
+        b"o" * 32,
+        key_id="old",
+        max_age_seconds=300,
+        clock_skew_seconds=0,
+        now=lambda: 1_301,
+    )
+    tampered_token = token[:-1] + ("A" if token[-1] != "A" else "B")
+    tampered = PortalRequest(
+        method="POST",
+        target=CASE_LOOKUP_PATH,
+        headers={"Cookie": f"{LOOKUP_SESSION_COOKIE}={tampered_token}"},
+    )
+
+    assert (
+        rotated.authorize(
+            request_with_token,
+            required_scope=LOOKUP_SCOPE,
+            cookie_name=LOOKUP_SESSION_COOKIE,
+        )
+        == "rotating-session"
+    )
+    assert (
+        expired.authorize(
+            request_with_token,
+            required_scope=LOOKUP_SCOPE,
+            cookie_name=LOOKUP_SESSION_COOKIE,
+        )
+        is None
+    )
+    assert (
+        rotated.authorize(
+            tampered,
+            required_scope=LOOKUP_SCOPE,
+            cookie_name=LOOKUP_SESSION_COOKIE,
+        )
+        is None
+    )
+
+
 def test_undocumented_get_case_status_route_is_not_available(tmp_path: Path) -> None:
     backend, _, _, session = backend_for(tmp_path)
     response = backend.handle(
         PortalRequest(
             method="GET",
             target="/api/cases/status?caseNumber=C01-7K4M2Q-0702-1000",
-            headers={"Host": HOST, "Cookie": f"portal_session={session}"},
+            headers={"Host": HOST, "Cookie": f"{LOOKUP_SESSION_COOKIE}={session}"},
             client_key="test-client",
         )
     )

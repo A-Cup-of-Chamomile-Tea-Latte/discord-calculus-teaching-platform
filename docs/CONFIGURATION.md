@@ -1,6 +1,6 @@
 # 設定總覽
 
-最後核對：2026-08-27。Production 已在 remote Linux 運作；repository 另有尚未部署的 v13 deployment／schema v13 candidate。設定名稱與責任以本頁和各 component 的 `.env.example` 為準，舊 Task report 只作歷史證據。
+最後核對：2026-08-28。Production remote Linux 已運作 v13／schema 13；Portal 與 Email 尚未正式部署。設定名稱與責任以本頁和各 component 的 `.env.example` 為準，舊 Task report 只作歷史證據。
 
 ## Portal build
 
@@ -9,9 +9,11 @@
 | `ASTRO_BASE_PATH` | root 或 GitHub Pages project path | 未設定時為 `/`；只影響 static path |
 | `ASTRO_SITE_URL` | 可選 public HTTPS origin | 未設定不猜 production URL |
 | `PUBLIC_PORTAL_BUILD` | 建立 public artifact | `build:public` 自動設為 `true`，並移除 internal routes／assets |
-| `PUBLIC_JOIN_APPLICATION_ENDPOINT` | 未來 same-origin 加入申請 endpoint | 未設定時 public submit fail closed；不得直連 SQLite、Bot token 或 GAS owner credential |
+| `PUBLIC_JOIN_APPLICATION_ENDPOINT` | same-origin 加入申請 endpoint | 未設定時 public submit fail closed；不得直連 SQLite、Bot token 或 GAS owner credential |
+| `PUBLIC_CASE_STATUS_ENDPOINT` | same-origin 單案狀態查詢 endpoint | 未設定時查詢 fail closed；只允許 content-free projection |
+| `PUBLIC_PORTAL_SESSION_ENDPOINT` | 匿名分 scope session endpoint | 未設定時 join／lookup 都 fail closed；不得跨 scope 共用 session |
 
-單案查詢 backend 尚未接線；public build 不使用 fixture 冒充成功。
+Backend、匿名分 scope session 與 synthetic staging 已通過本機驗證；正式 Portal service、HTTPS proxy、production SQLite 與 GAS 實寄尚未接線。預設 public build 不使用 fixture 冒充成功。
 
 ## Discord runtime
 

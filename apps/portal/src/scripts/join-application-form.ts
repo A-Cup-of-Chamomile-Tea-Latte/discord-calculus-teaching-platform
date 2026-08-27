@@ -115,12 +115,12 @@ function showErrors(
   errorSummary.focus();
 }
 
-function csrfTokenFromCookie(): string | null {
+function csrfTokenFromCookie(name: string): string | null {
   const pair = document.cookie
     .split(";")
     .map((part) => part.trim())
-    .find((part) => part.startsWith("portal_csrf="));
-  return pair ? decodeURIComponent(pair.slice("portal_csrf=".length)) : null;
+    .find((part) => part.startsWith(`${name}=`));
+  return pair ? decodeURIComponent(pair.slice(name.length + 1)) : null;
 }
 
 function requestVerificationCode(
@@ -247,10 +247,15 @@ function initialize(root: HTMLElement): void {
       }
       try {
         const sessionResponse = await fetch(sessionEndpoint, {
+          method: "POST",
           credentials: "same-origin",
-          headers: { Accept: "application/json" },
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({ scope: "JOIN" }).toString(),
         });
-        const csrfToken = csrfTokenFromCookie();
+        const csrfToken = csrfTokenFromCookie("portal_join_csrf");
         if (!sessionResponse.ok || !csrfToken) throw new Error("session");
         const identityEmail =
           values.identityType === "STUDENT"

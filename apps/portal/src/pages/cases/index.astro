@@ -31,7 +31,7 @@ const lookupConnected = Boolean(caseStatusEndpoint && sessionEndpoint);
     <CaseSearch
       cases={isPublicBuild ? [] : caseStatuses}
       inputId="case-number"
-      syncUrl
+      syncUrl={!lookupConnected}
       compact
       enabled={!isPublicBuild || lookupConnected}
       endpoint={caseStatusEndpoint}

@@ -67,5 +67,5 @@ Loading、empty、error、success 也都有 heading、symbol 及具體下一步�
 ## Known integration limits
 
 - Astro compiler/build 已驗證 `.astro` 元件；目前 Portal diagnostics 為 0 errors、0 warnings、0 hints。
-- same-origin backend 已完成本機候選，但正式 session／audit／origin、rollout、institution logo 與 custom domain 尚未完成。
+- same-origin backend、匿名分 scope session 與 synthetic staging 已完成本機候選；正式 Portal service、production audit／origin、rollout、institution logo 與 custom domain 尚未完成。
 - `FormField` 不自動修改 slotted control 的 ARIA；頁面作者必須連結 hint/error IDs，fixture forms tests 已覆蓋這項要求。

@@ -23,6 +23,7 @@ const {
   sessionEndpoint = "",
 } = Astro.props;
 const safeJson = JSON.stringify(cases).replaceAll("<", "\\u003c");
+const remoteConnected = Boolean(endpoint && sessionEndpoint);
 ---
 
 <section
@@ -37,11 +38,15 @@ const safeJson = JSON.stringify(cases).replaceAll("<", "\\u003c");
   <div>
     <h2 id={`${inputId}-title`}>輸入案號</h2>
     <p>只查詢這一次，不會在背景持續更新。</p>
+    <p>
+      <strong>測試中：</strong>
+      目前可能無法正確取得最新案件狀態；若查詢結果異常，請以 Discord 為準。
+    </p>
   </div>
 
   <form
     action={withBase("cases/")}
-    method="get"
+    method={remoteConnected ? "post" : "get"}
     class="case-search-widget__form"
   >
     <FormField

@@ -8,7 +8,8 @@
 
 | Method | Path | 用途 | 安全邊界 |
 | --- | --- | --- | --- |
-| `GET` | `/api/join`（或 lookup route） | 由已授權 session seed 短效 CSRF cookie | 嚴格 `Origin` allowlist；session cookie 由外部 auth provider 管理，CSRF cookie `SameSite=Strict` |
+| `POST` | `/api/session` | 建立匿名短效 `JOIN` 或 `LOOKUP` session | 嚴格 Host／Origin、per-IP／global rate limit；兩種 scope 使用不同 cookie，不能互相呼叫 |
+| `GET` | `/api/join`（或 lookup route） | 以既有 scope session 重新 seed CSRF cookie | session cookie 為 `HttpOnly; Secure; SameSite=Strict`；CSRF cookie 才由 browser script 讀取 |
 | `POST` | `/api/join/email/start` | 建立 session/email-bound 六位數 challenge 並排入獨立 GAS sender | NTU/聯絡 Email server validation、PBKDF2 code hash、10 分鐘 expiry、rate limit |
 | `POST` | `/api/join/email/verify` | 驗證 challenge | 最多五次、session binding、metadata-only audit |
 | `POST` | `/api/join` | 消耗已驗證 challenge，建立或去重加入申請 | session、`X-CSRF-Token`、body allowlist、每 session／IP rate limit |
@@ -22,24 +23,26 @@
 
 backend 只透過既有 `Repository` 寫入與 Bot 相同的 canonical SQLite。加入申請使用 `join_applications`、`join_application_events`、v12 email challenge/outbox 與既有 Course Manager review queue；案件查詢使用 content-free `safe_case_projection`。Browser 不取得 token、SQLite path、row 或 writer access。
 
-session 預期由 trusted same-origin issuer 發出短效簽章 cookie；目前 local implementation 只有 `SignedSessionAuthorizer` 驗證器與 `issue_for_test()`，不自行替瀏覽器建立正式 session。CSRF seed 是對 `/api/join` 或 `/api/cases/lookup` 的 `GET`，不是登入 endpoint。不能把 test token 或 local fixture receipt 當 staging／production evidence。
+session issuer 已在 local candidate 實作：`POST /api/session` 只發匿名、短效、scope-bound cookie，不是登入或身分證明。`JOIN` 只供 Email challenge／加入申請，`LOOKUP` 只供一次一案的狀態查詢；兩者使用不同 session 與 CSRF cookie。不能把 local fixture receipt 當 external staging／production evidence。
 
 ## Session issuer stage
 
-進入獨立 staging 前必須先完成下列 contract；這些是 session issuer 本身的工作，不得用 static Portal 或 CSRF cookie 代替：
+2026-08-28 owner 決定：完整 Case ID 是 content-free status lookup 的 bearer capability。所有一般與 Private Case ID 都由 Discord DM 傳給案件建立者，但可以自行轉傳；取得完整案號的人可查看最小狀態。此決定不把 session 或案號宣稱為身分證明。
 
-- 決定 issuer 的 trust source，並分開「建立加入申請」與「查詢既有案件」所需的 session scope。匿名 browser session 可支援 Email challenge，但不能自然取得案件 ownership。
-- issuer 只把 opaque random subject 放入 session，不放 Email、學號、Discord ID 或案件號；session cookie 必須為 `HttpOnly; Secure; SameSite=Strict`，有 bounded expiry，CSRF cookie 才由 browser script 讀取。
-- issuer 與 verifier 使用 staging-only secret，需定義 rotation／key version、失效與 clock-skew policy；不得沿用 production secret。
-- 現有 lookup path 對任一 valid session 會呼叫 `safe_case_projection(..., allow_private=True)`。在 subject-to-case ownership 尚未實作前，staging 必須使用 synthetic data 並停用 Private lookup；案號本身不能作唯一授權憑證。
-- tests 至少覆蓋：首次 issuance、expiry、tampered signature、cross-origin／wrong Host、cookie attributes、rate limit、rotation、scope mismatch，以及沒有 ownership 時拒絕 Private lookup。
+- issuer 只把 opaque random subject、scope、`iat`／`exp` 與 `kid` 放入 session，不放 Email、學號、Discord ID 或案件號。
+- session cookie 為 `HttpOnly; Secure; SameSite=Strict`，最長 30 分鐘；HMAC key ring 支援 key version／rotation，clock skew 限 60 秒。staging 使用獨立 secret。
+- lookup 回應只含案號、類型、五態、更新時間、是否回覆與 HTTPS Discord URL；不含內容、附件、作者、Email、Discord ID 或內部 ID。
+- Case ID 只以 POST body 傳送；connected lookup 不同步到 URL。API 回應 `no-store`／`no-referrer`，且採 per-session、per-IP 與 global rate limit。
+- 頁面「測試中」表示功能可能查不到或狀態延遲，不表示 Case ID 禁止轉傳。
+- 若未來加入對話／附件檢視、補充內容、關閉、重開或其他案件操作，bearer Case ID 不再足夠，必須另行決定身分驗證與授權。
+- tests 覆蓋 issuance、expiry、tampered signature、cross-origin／wrong Host、cookie attributes、rate limit、rotation、scope mismatch，以及一般／Private synthetic minimal projection。
 
 ## Independent staging gates still open
 
 - 使用獨立 HTTPS origin、staging-only secret、synthetic／temporary SQLite、獨立 audit DB 與 bounded rate-limit；不可連 production authority。
-- 實作並驗證上述 session issuer contract；same-origin reverse proxy 必須能在 staging 重現。
+- local issuer 與 synthetic composition 已實作；same-origin HTTPS reverse proxy 仍須在 external staging 重現。
 - 以 staging 帳號驗證 join／Email capturing flow；不寄真信、不套 Discord role、不呼叫 Bot。
-- Private lookup 在 ownership binding 完成前保持停用；一般 lookup 也只使用 synthetic cases。
+- 一般與 Private lookup 都只使用 synthetic cases；不連 production authority。
 - staging smoke、cleanup／rollback 與明示 external staging authorization 仍是 human gate。
 
 未完成上述 gate 前，不應設定 `PUBLIC_JOIN_APPLICATION_ENDPOINT`、`PUBLIC_CASE_STATUS_ENDPOINT` 或 `PUBLIC_PORTAL_SESSION_ENDPOINT` 到任何公開 build，也不應開放動態 submission／lookup。issuer 完成後，staging 預期使用 `/api/join`、`/api/cases/lookup`、`/api/session`；Email start/verify 由 join client 以同站相對路徑呼叫。正式 rollout 仍需另外驗收 production service、白帳號、Email provider、backup 與 rollback，不沿用 staging PASS。

@@ -30,7 +30,11 @@ const scenarioGroups: readonly ScenarioGroup[] = [
       ["含附件", "只顯示 metadata marker 與 Discord 連結。", "info"],
       ["AI 允許", "OP 明確選 Yes；仍需逐作者過濾。", "success"],
       ["AI 不允許", "保存服務紀錄，但排除分析。", "neutral"],
-      ["Private Support", "不進公開查詢，只顯示受保護流程。", "danger"],
+      [
+        "Private Support",
+        "完整案號只查最小狀態；內容與操作仍留在受保護流程。",
+        "danger",
+      ],
       [
         "未完成文章屬性",
         "Bot 提示補齊 main tag、Module 與 AI 選擇。",
@@ -52,7 +56,7 @@ const scenarioGroups: readonly ScenarioGroup[] = [
     description: "查詢無法正常完成時的安全回應。",
     items: [
       ["系統離線", "查詢保留輸入並顯示備援管道。", "danger"],
-      ["不存在案號", "不揭露相似案件或 Private Support。", "neutral"],
+      ["不存在案號", "不列出相似案件，也不回傳任何案件內容。", "neutral"],
     ],
   },
 ] as const;

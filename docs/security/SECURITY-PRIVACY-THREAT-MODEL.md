@@ -7,6 +7,14 @@
 
 > 這是 2026-07-23 的原型期基線，不是目前部署清單。Discord 測試 Guild、Mac bots、精簡 Sheet、owner-only Execution API 與 Desktop OAuth 的後續狀態見 [`docs/IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md)。本文的未解風險仍可作正式試用 gate；「目前沒有外部連線」等歷史敘述不可再當成現況。
 
+> 2026-08-28 post-v13 override：F-03、F-10、F-11 與 F-15 的原始建議不得再被當成
+> 現行產品決策。Owner 已接受完整 Case ID 作 content-free 單案狀態查詢的 bearer capability，
+> 不要求 user ID／OAuth；一般與 Private 共用最小 projection。Local candidate 已加入匿名分
+> scope session、CSRF、same-origin／Host allowlist、session／IP／global rate limit、generic error、
+> metadata-only audit 與不將 Case ID 寫入 URL 的 POST 流程。剩餘 gate 是 external staging、
+> production service／SQLite／audit 接線與 live abuse／白帳號驗收。若未來增加案件內容或操作，
+> 才重新要求 identity 與 ownership binding。
+
 ## 結論
 
 本模型建立於 2026-07-23。當時 repository 只使用虛構 fixtures，尚未部署 Portal／GAS，也未連線 Discord／Sheets／email 或自動 AI 分析。這段基線說明不能取代後續實作狀態；風險項目仍須在正式學生試用前逐項複核。

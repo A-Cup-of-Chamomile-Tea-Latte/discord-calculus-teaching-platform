@@ -180,11 +180,11 @@ export function validateFixtureSubmission(
 
   if (trimmed(values, "privacyAcknowledgement") !== "yes") {
     errors.privacyAcknowledgement =
-      "請確認了解 Private Support 不會進入公開查詢，才能建立預覽。";
+      "請確認了解 Portal 只會顯示 Private Support 的最小狀態，才能建立預覽。";
   }
   if (!(trimmed(values, "analysisPermission") in analysisLabels)) {
     errors.analysisPermission =
-      "請明確選擇 Yes 或 No；Private Support 仍不會進入公開查詢。";
+      "請明確選擇 Yes 或 No；Portal 不會顯示 Private Support 的內容。";
   }
   return errors;
 }
@@ -267,7 +267,7 @@ export function createFixtureConfirmation(
       { label: "可見範圍", value: "僅授權教學團隊" },
       {
         label: "Private 案號",
-        value: "C99-F6Q2S8-0723-1031-P（不可公開查詢）",
+        value: "C99-F6Q2S8-0723-1031-P（只查最小狀態）",
       },
       {
         label: "AI 輔助教學分析",

@@ -6,7 +6,9 @@ from pathlib import Path
 from discord_course_bots.portal_backend import (
     EMAIL_START_PATH,
     EMAIL_VERIFY_PATH,
+    JOIN_CSRF_COOKIE,
     JOIN_PATH,
+    JOIN_SESSION_COOKIE,
     InMemoryAuditSink,
     PortalBackend,
     PortalBackendSettings,
@@ -45,7 +47,7 @@ def post(session: str, path: str, payload: dict[str, str]) -> PortalRequest:
             "Host": HOST,
             "Origin": ORIGIN,
             "Content-Type": "application/json",
-            "Cookie": f"portal_session={session}; portal_csrf={CSRF}",
+            "Cookie": f"{JOIN_SESSION_COOKIE}={session}; {JOIN_CSRF_COOKIE}={CSRF}",
             "X-CSRF-Token": CSRF,
         },
         body=json.dumps(payload).encode("utf-8"),

@@ -50,7 +50,7 @@ ASTRO_BASE_PATH=/~calc/DC-platform-beta \
 ASTRO_SITE_URL=https://www.math.ntu.edu.tw \
 PUBLIC_JOIN_APPLICATION_ENDPOINT=/~calc/DC-platform-beta/api/join \
 PUBLIC_CASE_STATUS_ENDPOINT=/~calc/DC-platform-beta/api/cases/lookup \
-PUBLIC_PORTAL_SESSION_ENDPOINT=/~calc/DC-platform-beta/api/join \
+PUBLIC_PORTAL_SESSION_ENDPOINT=/~calc/DC-platform-beta/api/session \
 npm run build:public --workspace @calculus/portal
 
 npm run verify:public --workspace @calculus/portal -- /~calc/DC-platform-beta

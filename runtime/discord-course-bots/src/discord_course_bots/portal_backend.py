@@ -38,10 +38,18 @@ JOIN_PATH = "/api/join"
 EMAIL_START_PATH = "/api/join/email/start"
 EMAIL_VERIFY_PATH = "/api/join/email/verify"
 CASE_LOOKUP_PATH = "/api/cases/lookup"
-PORTAL_ROUTES = frozenset({JOIN_PATH, EMAIL_START_PATH, EMAIL_VERIFY_PATH, CASE_LOOKUP_PATH})
+SESSION_PATH = "/api/session"
+PORTAL_ROUTES = frozenset(
+    {SESSION_PATH, JOIN_PATH, EMAIL_START_PATH, EMAIL_VERIFY_PATH, CASE_LOOKUP_PATH}
+)
 CSRF_HEADER = "x-csrf-token"
-SESSION_COOKIE = "portal_session"
-CSRF_COOKIE = "portal_csrf"
+JOIN_SCOPE = "JOIN"
+LOOKUP_SCOPE = "LOOKUP"
+SESSION_SCOPES = frozenset({JOIN_SCOPE, LOOKUP_SCOPE})
+JOIN_SESSION_COOKIE = "portal_join_session"
+LOOKUP_SESSION_COOKIE = "portal_lookup_session"
+JOIN_CSRF_COOKIE = "portal_join_csrf"
+LOOKUP_CSRF_COOKIE = "portal_lookup_csrf"
 CASE_STATUS_VALUES = frozenset({"OPEN", "TRACKED", "IDLE", "CLOSED", "AUTO_CLOSED"})
 CASE_NUMBER_RE = re.compile(
     r"^(?:C[0-9]{2}|GUEST)-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}-"
@@ -124,7 +132,7 @@ class PortalRequest:
 class PortalResponse:
     status: int
     body: bytes = b""
-    headers: Mapping[str, str] = field(default_factory=dict)
+    headers: Mapping[str, str | tuple[str, ...]] = field(default_factory=dict)
 
     def json(self) -> Any:
         return json.loads(self.body.decode("utf-8"))
@@ -133,8 +141,11 @@ class PortalResponse:
 @dataclass(frozen=True, slots=True)
 class PortalBackendSettings:
     origin: str
-    session_cookie: str = SESSION_COOKIE
-    csrf_cookie: str = CSRF_COOKIE
+    join_session_cookie: str = JOIN_SESSION_COOKIE
+    lookup_session_cookie: str = LOOKUP_SESSION_COOKIE
+    join_csrf_cookie: str = JOIN_CSRF_COOKIE
+    lookup_csrf_cookie: str = LOOKUP_CSRF_COOKIE
+    session_ttl_seconds: int = 1_800
     max_body_bytes: int = 8_192
     csrf_token_bytes: int = 32
     lookup_min_duration_seconds: float = 0.0
@@ -146,7 +157,11 @@ class PortalBackendSettings:
             raise ValueError("origin must be an absolute http(s) origin")
         if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
             raise ValueError("origin must not contain a path, query, or fragment")
-        if self.max_body_bytes <= 0 or self.csrf_token_bytes < 16:
+        if (
+            self.max_body_bytes <= 0
+            or self.csrf_token_bytes < 16
+            or not 60 <= self.session_ttl_seconds <= 3_600
+        ):
             raise ValueError("backend limits are unsafe")
         if self.lookup_min_duration_seconds < 0:
             raise ValueError("lookup_min_duration_seconds cannot be negative")
@@ -253,7 +268,11 @@ class InMemoryAuditSink:
 
 
 class SessionAuthorizer(Protocol):
-    def authorize(self, request: PortalRequest) -> str | None: ...
+    def issue(self, scope: str) -> str: ...
+
+    def authorize(
+        self, request: PortalRequest, *, required_scope: str, cookie_name: str
+    ) -> str | None: ...
 
 
 def _b64encode(value: bytes) -> str:
@@ -267,54 +286,110 @@ def _b64decode(value: str) -> bytes:
 
 
 class SignedSessionAuthorizer:
-    """Verify a short-lived, HMAC-signed session cookie from the same backend."""
+    """Issue and verify anonymous, short-lived, scope-bound Portal sessions."""
 
     def __init__(
         self,
         secret: bytes,
         *,
-        cookie_name: str = SESSION_COOKIE,
-        max_age_seconds: int = 86_400,
+        key_id: str = "v1",
+        previous_keys: Mapping[str, bytes] | None = None,
+        max_age_seconds: int = 1_800,
+        clock_skew_seconds: int = 60,
         now: callable = time.time,
     ) -> None:
         if len(secret) < 32:
             raise ValueError("session secret must contain at least 32 bytes")
-        if max_age_seconds <= 0:
-            raise ValueError("session max age must be positive")
-        self.secret = secret
-        self.cookie_name = cookie_name
+        if not re.fullmatch(r"[A-Za-z0-9._-]{1,32}", key_id):
+            raise ValueError("unsafe session key id")
+        if max_age_seconds <= 0 or not 0 <= clock_skew_seconds <= 300:
+            raise ValueError("unsafe session lifetime policy")
+        keys = dict(previous_keys or {})
+        keys[key_id] = secret
+        if any(
+            not re.fullmatch(r"[A-Za-z0-9._-]{1,32}", stored_id) or len(stored_secret) < 32
+            for stored_id, stored_secret in keys.items()
+        ):
+            raise ValueError("unsafe session key ring")
+        self.keys = keys
+        self.active_key_id = key_id
         self.max_age_seconds = max_age_seconds
+        self.clock_skew_seconds = clock_skew_seconds
         self.now = now
 
-    def issue_for_test(self, subject: str, *, issued_at: int | None = None) -> str:
-        """Create a token for tests and a future trusted session issuer."""
+    def issue(self, scope: str) -> str:
+        return self._issue(secrets.token_urlsafe(32), (scope,))
+
+    def issue_for_test(
+        self,
+        subject: str,
+        *,
+        scopes: tuple[str, ...] = (JOIN_SCOPE, LOOKUP_SCOPE),
+        issued_at: int | None = None,
+    ) -> str:
+        """Create a deterministic-subject token for isolated tests only."""
+        return self._issue(subject, scopes, issued_at=issued_at)
+
+    def _issue(self, subject: str, scopes: tuple[str, ...], *, issued_at: int | None = None) -> str:
         if not SAFE_SESSION_SUBJECT.fullmatch(subject):
             raise ValueError("unsafe session subject")
+        if not scopes or not set(scopes) <= SESSION_SCOPES:
+            raise ValueError("unsafe session scope")
+        issued = int(self.now() if issued_at is None else issued_at)
         payload = json.dumps(
-            {"sub": subject, "iat": int(self.now() if issued_at is None else issued_at)},
+            {
+                "sub": subject,
+                "scp": sorted(set(scopes)),
+                "iat": issued,
+                "exp": issued + self.max_age_seconds,
+                "kid": self.active_key_id,
+            },
             separators=(",", ":"),
         ).encode("utf-8")
         encoded = _b64encode(payload)
-        signature = hmac.new(self.secret, encoded.encode("ascii"), hashlib.sha256).digest()
+        signature = hmac.new(
+            self.keys[self.active_key_id], encoded.encode("ascii"), hashlib.sha256
+        ).digest()
         return f"{encoded}.{_b64encode(signature)}"
 
-    def authorize(self, request: PortalRequest) -> str | None:
+    def authorize(
+        self, request: PortalRequest, *, required_scope: str, cookie_name: str
+    ) -> str | None:
+        if required_scope not in SESSION_SCOPES:
+            return None
         cookies = _parse_cookies(request.header("cookie"))
-        token = cookies.get(self.cookie_name)
+        token = cookies.get(cookie_name)
         if token is None:
             return None
         try:
             encoded, supplied_signature = token.split(".", 1)
-            expected_signature = hmac.new(
-                self.secret, encoded.encode("ascii"), hashlib.sha256
-            ).digest()
+            payload = json.loads(_b64decode(encoded))
+            if set(payload) != {"sub", "scp", "iat", "exp", "kid"}:
+                return None
+            key_id = payload["kid"]
+            secret = self.keys.get(key_id)
+            if secret is None:
+                return None
+            expected_signature = hmac.new(secret, encoded.encode("ascii"), hashlib.sha256).digest()
             if not hmac.compare_digest(_b64decode(supplied_signature), expected_signature):
                 return None
-            payload = json.loads(_b64decode(encoded))
             subject = payload["sub"]
+            scopes = payload["scp"]
             issued_at = int(payload["iat"])
-            age = int(self.now()) - issued_at
-            if not SAFE_SESSION_SUBJECT.fullmatch(subject) or age < 0 or age > self.max_age_seconds:
+            expires_at = int(payload["exp"])
+            moment = int(self.now())
+            if (
+                not isinstance(scopes, list)
+                or not scopes
+                or any(not isinstance(scope, str) for scope in scopes)
+                or not set(scopes) <= SESSION_SCOPES
+                or required_scope not in scopes
+                or not isinstance(subject, str)
+                or not SAFE_SESSION_SUBJECT.fullmatch(subject)
+                or expires_at - issued_at != self.max_age_seconds
+                or moment + self.clock_skew_seconds < issued_at
+                or moment - self.clock_skew_seconds > expires_at
+            ):
                 return None
             return subject
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
@@ -398,9 +473,9 @@ def _response(
     status: int,
     payload: Any,
     *,
-    extra_headers: Mapping[str, str] | None = None,
+    extra_headers: Mapping[str, str | tuple[str, ...]] | None = None,
 ) -> PortalResponse:
-    headers: MutableMapping[str, str] = {
+    headers: MutableMapping[str, str | tuple[str, ...]] = {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
@@ -429,6 +504,10 @@ class PortalBackend:
         sessions: SessionAuthorizer,
         audit: PortalAuditSink,
         rate_limiter: RateLimiter | None = None,
+        ip_rate_limiter: RateLimiter | None = None,
+        global_rate_limiter: RateLimiter | None = None,
+        issuer_rate_limiter: RateLimiter | None = None,
+        issuer_global_rate_limiter: RateLimiter | None = None,
         clock: callable = _now_iso,
     ) -> None:
         self.store = store
@@ -436,6 +515,10 @@ class PortalBackend:
         self.sessions = sessions
         self.audit = audit
         self.rate_limiter = rate_limiter or RateLimiter()
+        self.ip_rate_limiter = ip_rate_limiter or RateLimiter(limit=60)
+        self.global_rate_limiter = global_rate_limiter or RateLimiter(limit=600)
+        self.issuer_rate_limiter = issuer_rate_limiter or RateLimiter(limit=20)
+        self.issuer_global_rate_limiter = issuer_global_rate_limiter or RateLimiter(limit=600)
         self.clock = clock
 
     def handle(self, request: PortalRequest) -> PortalResponse:
@@ -448,25 +531,42 @@ class PortalBackend:
         if not self._same_origin(request, require_origin=request.method.upper() != "GET"):
             return _error(HTTPStatus.FORBIDDEN, "FORBIDDEN")
 
-        subject = self.sessions.authorize(request)
+        method = request.method.upper()
+        if path == SESSION_PATH:
+            if method != "POST":
+                return _error(HTTPStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED")
+            if len(request.body) > self.settings.max_body_bytes:
+                return _error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "REQUEST_TOO_LARGE")
+            return self._issue_session(request)
+
+        scope = LOOKUP_SCOPE if path == CASE_LOOKUP_PATH else JOIN_SCOPE
+        session_cookie, _ = self._cookies_for_scope(scope)
+        subject = self.sessions.authorize(
+            request,
+            required_scope=scope,
+            cookie_name=session_cookie,
+        )
         if subject is None:
             return _error(HTTPStatus.UNAUTHORIZED, "UNAUTHORIZED")
-        rate_key = f"{request.client_key}:{path}:{_actor_fingerprint(subject)}"
-        if not self.rate_limiter.allow(rate_key):
+        actor = _actor_fingerprint(subject)
+        if not (
+            self.rate_limiter.allow(f"session:{path}:{actor}")
+            and self.ip_rate_limiter.allow(f"ip:{path}:{request.client_key}")
+            and self.global_rate_limiter.allow(f"global:{path}")
+        ):
             return _response(
                 HTTPStatus.TOO_MANY_REQUESTS,
                 {"error": "RATE_LIMITED", "message": "請稍後再試。"},
                 extra_headers={"Retry-After": "60"},
             )
 
-        method = request.method.upper()
         if method == "GET":
             if parsed_target.query:
                 return _error(HTTPStatus.BAD_REQUEST, "INVALID_REQUEST")
-            return self._csrf_seed(request)
+            return self._csrf_seed(request, scope)
         if method != "POST":
             return _error(HTTPStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED")
-        if not self._csrf_valid(request):
+        if not self._csrf_valid(request, scope):
             return _error(HTTPStatus.FORBIDDEN, "CSRF_REJECTED")
         if len(request.body) > self.settings.max_body_bytes:
             return _error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "REQUEST_TOO_LARGE")
@@ -478,6 +578,61 @@ class PortalBackend:
         if path == EMAIL_VERIFY_PATH:
             return self._email_verify(request, subject)
         return self._lookup(request, subject)
+
+    def _issue_session(self, request: PortalRequest) -> PortalResponse:
+        if not (
+            self.issuer_rate_limiter.allow(f"issuer-ip:{request.client_key}")
+            and self.issuer_global_rate_limiter.allow("issuer-global")
+        ):
+            return _response(
+                HTTPStatus.TOO_MANY_REQUESTS,
+                {"error": "RATE_LIMITED", "message": "請稍後再試。"},
+                extra_headers={"Retry-After": "60"},
+            )
+        try:
+            payload = self._parse_payload(request)
+            if set(payload) != {"scope"}:
+                raise PortalBackendError("invalid session fields")
+            scope = payload["scope"].strip().upper()
+            if scope not in SESSION_SCOPES:
+                raise PortalBackendError("invalid session scope")
+        except PortalBackendError:
+            return _error(HTTPStatus.BAD_REQUEST, "INVALID_REQUEST")
+        session_cookie, csrf_cookie = self._cookies_for_scope(scope)
+        supplied_token = _parse_cookies(request.header("cookie")).get(session_cookie)
+        existing_subject = self.sessions.authorize(
+            request,
+            required_scope=scope,
+            cookie_name=session_cookie,
+        )
+        token = supplied_token if existing_subject is not None and supplied_token else None
+        if token is None:
+            token = self.sessions.issue(scope)
+        csrf = secrets.token_urlsafe(self.settings.csrf_token_bytes)
+        secure = "; Secure" if self.settings.secure_cookies else ""
+        max_age = self.settings.session_ttl_seconds
+        cookie_headers = (
+            f"{session_cookie}={token}; Path=/; Max-Age={max_age}; "
+            f"HttpOnly; SameSite=Strict{secure}",
+            f"{csrf_cookie}={csrf}; Path=/; Max-Age={max_age}; SameSite=Strict{secure}",
+        )
+        return _response(
+            HTTPStatus.CREATED,
+            {
+                "schemaVersion": "1.0",
+                "outcome": "ISSUED",
+                "scope": scope,
+                "expiresIn": max_age,
+            },
+            extra_headers={"Set-Cookie": cookie_headers},
+        )
+
+    def _cookies_for_scope(self, scope: str) -> tuple[str, str]:
+        if scope == JOIN_SCOPE:
+            return self.settings.join_session_cookie, self.settings.join_csrf_cookie
+        if scope == LOOKUP_SCOPE:
+            return self.settings.lookup_session_cookie, self.settings.lookup_csrf_cookie
+        raise PortalBackendError("unknown session scope")
 
     def _email_start(self, request: PortalRequest, subject: str) -> PortalResponse:
         try:
@@ -539,12 +694,13 @@ class PortalBackend:
         fetch_site = request.header("sec-fetch-site")
         return fetch_site is None or fetch_site.casefold() == "same-origin"
 
-    def _csrf_seed(self, request: PortalRequest) -> PortalResponse:
+    def _csrf_seed(self, request: PortalRequest, scope: str) -> PortalResponse:
+        _, csrf_cookie = self._cookies_for_scope(scope)
         cookies = _parse_cookies(request.header("cookie"))
-        token = cookies.get(self.settings.csrf_cookie)
+        token = cookies.get(csrf_cookie)
         if token is None or not (16 <= len(token) <= 256):
             token = secrets.token_urlsafe(self.settings.csrf_token_bytes)
-        cookie = f"{self.settings.csrf_cookie}={token}; Path=/; SameSite=Strict" + (
+        cookie = f"{csrf_cookie}={token}; Path=/; SameSite=Strict" + (
             "; Secure" if self.settings.secure_cookies else ""
         )
         return PortalResponse(
@@ -557,8 +713,9 @@ class PortalBackend:
             },
         )
 
-    def _csrf_valid(self, request: PortalRequest) -> bool:
-        cookie = _parse_cookies(request.header("cookie")).get(self.settings.csrf_cookie)
+    def _csrf_valid(self, request: PortalRequest, scope: str) -> bool:
+        _, csrf_cookie = self._cookies_for_scope(scope)
+        cookie = _parse_cookies(request.header("cookie")).get(csrf_cookie)
         header = request.header(CSRF_HEADER)
         if cookie is None or header is None or len(cookie) > 256 or len(header) > 256:
             return False
@@ -859,7 +1016,9 @@ class PortalRequestHandler(BaseHTTPRequestHandler):
             )
         self.send_response(response.status)
         for key, value in response.headers.items():
-            self.send_header(key, value)
+            values = value if isinstance(value, tuple) else (value,)
+            for item in values:
+                self.send_header(key, item)
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(response.body)

@@ -46,12 +46,12 @@ function requiredElement<T extends Element>(
   return element;
 }
 
-function csrfTokenFromCookie(): string | null {
+function csrfTokenFromCookie(name: string): string | null {
   const pair = document.cookie
     .split(";")
     .map((part) => part.trim())
-    .find((part) => part.startsWith("portal_csrf="));
-  return pair ? decodeURIComponent(pair.slice("portal_csrf=".length)) : null;
+    .find((part) => part.startsWith(`${name}=`));
+  return pair ? decodeURIComponent(pair.slice(name.length + 1)) : null;
 }
 
 function initializeCaseSearch(root: HTMLElement): void {
@@ -190,10 +190,15 @@ function initializeCaseSearch(root: HTMLElement): void {
     } else {
       try {
         const sessionResponse = await fetch(sessionEndpoint!, {
+          method: "POST",
           credentials: "same-origin",
-          headers: { Accept: "application/json" },
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({ scope: "LOOKUP" }).toString(),
         });
-        const csrfToken = csrfTokenFromCookie();
+        const csrfToken = csrfTokenFromCookie("portal_lookup_csrf");
         if (!sessionResponse.ok || !csrfToken) throw new Error("session");
         const response = await fetch(endpoint!, {
           method: "POST",

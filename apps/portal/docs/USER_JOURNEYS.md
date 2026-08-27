@@ -28,7 +28,7 @@
 4. Bot 私訊以 `-P` 結尾的案號與直達連結。
 5. Portal 不收內容或附件，也不另存 Discord 圖片副本。
 
-目前 production 的 `/private open` 仍在獨立 UX／安全工作流中驗收；Portal 不把它預告成已完成的新功能。
+Production 已提供 `/private open`；實際 ACL、關閉、private dump 與自動刪除仍待白帳號端到端驗收。Portal 只查詢不含內容的最小狀態，不接收案件操作。
 
 ## 查詢案件
 

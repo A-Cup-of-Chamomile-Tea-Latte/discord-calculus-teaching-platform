@@ -98,7 +98,7 @@ describe("fixture form prototypes", () => {
     ).toHaveProperty("coolAcknowledgement");
   });
 
-  it("keeps Private Support outside public lookup and analysis", () => {
+  it("keeps the Private preview unpersisted and outside analysis", () => {
     const values = {
       title: "Fixture private support request",
       content: "This is fictional private support content for validation only.",

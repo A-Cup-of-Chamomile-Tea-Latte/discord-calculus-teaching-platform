@@ -15,18 +15,18 @@ const buildGates = [
   },
   {
     label: "Course Manager 加入審核",
-    status: "PENDING",
-    note: "v13 已有資料模型與 API；Portal service、正式 session issuer、Email 寄送與白帳號 E2E 仍待驗收。",
+    status: "IN_PROGRESS",
+    note: "v13 已有資料模型與 API；Portal 加入流程與分 scope session 已通過本機驗證，正式服務、GAS 實寄與白帳號 E2E 仍待驗收。",
   },
   {
     label: "隱密支援正式化",
-    status: "PENDING",
-    note: "現有 /private open 尚未完成；仍需驗收權限、關閉與匯出流程。",
+    status: "IN_PROGRESS",
+    note: "production 已提供 /private open 與案件生命週期；仍需以白帳號驗收實際 ACL、關閉、private dump 與自動刪除流程。",
   },
   {
     label: "案件狀態查詢後端",
-    status: "PENDING",
-    note: "v13 已完成最小欄位與 same-origin API；尚未以獨立服務接到 production SQLite，也沒有正式 session issuer。",
+    status: "IN_PROGRESS",
+    note: "最小欄位、same-origin API、匿名分 scope session 與一般／隱密假案件查詢已通過本機驗證；尚未以獨立服務接到 production SQLite。",
   },
   {
     label: "網站公開發布",
@@ -54,7 +54,7 @@ const monitorCards = [
   {
     label: "API／寄信服務",
     value: "尚未正式部署",
-    note: "Portal backend service、session issuer、API 轉送與 GAS 實寄仍待完成；瀏覽器目前維持 fail closed。",
+    note: "本機 session issuer、synthetic staging 與 capture-only Email 已通過；Portal service、API 轉送與 GAS 實寄仍待部署及驗收。",
   },
 ];
 ---
@@ -70,8 +70,8 @@ const monitorCards = [
         <p><a href={withBase("access/")}>內部工作區</a> / 建造與系統狀態</p>
         <h1>建造與系統狀態</h1>
         <p>
-          v13 核心已上線；Portal 與 Email
-          仍在發布前驗收。全部通過後，這一頁只保留長期監控資訊。
+          v13 核心已上線；Portal 已完成本機 session 與 synthetic staging，Email
+          與外部發布仍待驗收。全部通過後，這一頁只保留長期監控資訊。
         </p>
       </div>
       <span class="mode-badge">Portal 驗收中</span>
@@ -82,9 +82,9 @@ const monitorCards = [
         <div>
           <h2 id="snapshot-title">目前系統狀態</h2>
           <p>
-            頁面核對：2026-08-27。Production core 已是 v13；證據來自遠端交接與
-            Discord ops smoke，本機沒有直接連線朋友主機。Portal 網址與 API
-            目前尚未部署。
+            頁面核對：2026-08-28。Production core 已是 v13；證據來自遠端交接與
+            Discord ops smoke，本機沒有直接連線朋友主機。Portal 的本機 synthetic
+            staging 不接 production；正式網址、API 與 Email 目前尚未部署。
           </p>
         </div>
       </div>
