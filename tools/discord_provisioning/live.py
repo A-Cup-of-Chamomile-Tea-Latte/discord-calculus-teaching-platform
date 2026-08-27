@@ -1247,6 +1247,10 @@ class LiveProvisioner:
         # entry stays content-free, so it does not need bot-specific overwrites.
         desired.pop(self.course.top_role, None)
         desired.pop(self.dump.top_role, None)
+        # Admin bypasses channel overwrites and Staff inherits its moderation
+        # capability. Both roles are above the bot in the live hierarchy.
+        desired.pop(self.roles["role.admin"], None)
+        desired.pop(self.roles["role.staff"], None)
         return desired
 
     def validate_private_entry_writable_permissions(
@@ -1263,6 +1267,24 @@ class LiveProvisioner:
             raise ProvisioningError(
                 "Private Support entry ACL includes permissions unavailable to "
                 f"course_assistant: {names}"
+            )
+        blocked_roles = [
+            target
+            for target in desired
+            if isinstance(target, discord.Role)
+            and target != self.guild.default_role
+            and target.position >= self.course.top_role.position
+        ]
+        if blocked_roles:
+            safe_names = {
+                self.roles["role.verified_member"].id: "verified-member",
+                self.roles["role.guest"].id: "guest",
+                self.roles["role.admin"].id: "admin",
+                self.roles["role.staff"].id: "staff",
+            }
+            labels = ", ".join(safe_names.get(role.id, "unknown-role") for role in blocked_roles)
+            raise ProvisioningError(
+                "Private Support entry ACL targets roles at or above course_assistant: " + labels
             )
 
     async def ensure_private_entry_overwrites(
@@ -1372,12 +1394,7 @@ class LiveProvisioner:
                 errors.append("Private Support entry staff role mapping is incomplete")
                 continue
             entry = channel.permissions_for(role)
-            if not (
-                entry.view_channel
-                and entry.read_message_history
-                and entry.send_messages
-                and entry.manage_messages
-            ):
+            if not (entry.view_channel and entry.read_message_history and entry.manage_messages):
                 errors.append(f"{role.name} cannot manage the Private Support entry")
         course_entry = channel.permissions_for(self.course)
         if not (

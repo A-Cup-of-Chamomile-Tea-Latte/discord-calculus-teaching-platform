@@ -148,6 +148,7 @@ def test_private_entry_preserves_existing_managed_bot_role_boundary() -> None:
     provisioner.course = MagicMock(spec=discord.Member)
     provisioner.course.top_role = MagicMock(spec=discord.Role)
     provisioner.course.guild_permissions = discord.Permissions.all()
+    provisioner.course.top_role.position = 10
     provisioner.dump = MagicMock(spec=discord.Member)
     provisioner.dump.top_role = MagicMock(spec=discord.Role)
     provisioner.roles = {
@@ -163,6 +164,8 @@ def test_private_entry_preserves_existing_managed_bot_role_boundary() -> None:
     assert provisioner.course not in overwrites
     assert provisioner.course.top_role not in overwrites
     assert provisioner.dump.top_role not in overwrites
+    assert provisioner.roles["role.admin"] not in overwrites
+    assert provisioner.roles["role.staff"] not in overwrites
 
 
 def test_private_entry_rejects_acl_bits_the_bot_cannot_write() -> None:
@@ -259,9 +262,12 @@ async def test_targeted_ensure_does_not_enter_full_reconciliation(tmp_path) -> N
     provisioner.course = MagicMock(spec=discord.Member)
     provisioner.course.top_role = MagicMock(spec=discord.Role)
     provisioner.course.guild_permissions = discord.Permissions.all()
+    provisioner.course.top_role.position = 10
     provisioner.dump = MagicMock(spec=discord.Member)
     provisioner.dump.top_role = MagicMock(spec=discord.Role)
     provisioner.roles = roles
+    for role in roles.values():
+        role.position = 1
     provisioner.categories = {"category.private_support": category}
     provisioner.channels = {"channel.private_support_entry": channel}
     provisioner.operations = MagicMock(mutations=0, actions={})
@@ -313,6 +319,7 @@ async def test_targeted_ensure_rolls_back_a_new_channel_when_acl_fails(tmp_path)
     provisioner.course = MagicMock(spec=discord.Member)
     provisioner.course.top_role = MagicMock(spec=discord.Role)
     provisioner.course.guild_permissions = discord.Permissions.all()
+    provisioner.course.top_role.position = 10
     provisioner.dump = MagicMock(spec=discord.Member)
     provisioner.dump.top_role = MagicMock(spec=discord.Role)
     provisioner.roles = {
@@ -321,6 +328,8 @@ async def test_targeted_ensure_rolls_back_a_new_channel_when_acl_fails(tmp_path)
         "role.verified_member": MagicMock(spec=discord.Role),
         "role.guest": MagicMock(spec=discord.Role),
     }
+    for role in provisioner.roles.values():
+        role.position = 1
     provisioner.categories = {"category.private_support": category}
     provisioner.channels = {}
     provisioner.operations = MagicMock(mutations=0, actions={})
