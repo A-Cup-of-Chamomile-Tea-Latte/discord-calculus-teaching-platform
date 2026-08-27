@@ -24,6 +24,36 @@ done
 [[ -f $host_config && ! -L $host_config ]] || fail HOST_CONFIG_INVALID
 [[ -f $package_dir/manifest.json && -f $package_dir/SHA256SUMS ]] || fail PACKAGE_INCOMPLETE
 [[ -z $(find "$package_dir" -type l -print -quit) ]] || fail PACKAGE_SYMLINK_REFUSED
+
+validate_package_inventory() {
+  python3 -I - "$package_dir" <<'PY'
+import re
+import sys
+from pathlib import Path, PurePosixPath
+
+root = Path(sys.argv[1]).resolve()
+expected = set()
+for line in (root / "SHA256SUMS").read_text(encoding="utf-8").splitlines():
+    match = re.fullmatch(r"[0-9a-f]{64}  (.+)", line)
+    if match is None:
+        raise SystemExit(2)
+    value = PurePosixPath(match.group(1))
+    if value.is_absolute() or ".." in value.parts or str(value) == "SHA256SUMS":
+        raise SystemExit(2)
+    if str(value) in expected:
+        raise SystemExit(2)
+    expected.add(str(value))
+actual = {
+    path.relative_to(root).as_posix()
+    for path in root.rglob("*")
+    if path.is_file() and path.name != "SHA256SUMS"
+}
+if expected != actual:
+    raise SystemExit(2)
+PY
+}
+
+validate_package_inventory || fail PACKAGE_INVENTORY_INVALID
 (
   cd "$package_dir"
   sha256sum -c SHA256SUMS >/dev/null
@@ -111,6 +141,7 @@ restore_on_failure() {
       mv -Tf "$current_link.rollback" "$current_link"
       systemctl start "$unit_name" >/dev/null 2>&1 || true
     else
+      systemctl disable "$unit_name" >/dev/null 2>&1 || true
       rm -f -- "$current_link"
     fi
   fi

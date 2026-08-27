@@ -76,6 +76,17 @@ def test_package_scan_rejects_symlinks_and_secret_filenames(tmp_path: Path) -> N
         builder.regular_files(tmp_path)
 
 
+def test_package_scan_rejects_secret_content_and_private_env_variants(tmp_path: Path) -> None:
+    builder = load_builder()
+    secret = "ghp_" + "A" * 36
+    (tmp_path / "unsafe.txt").write_text(secret, encoding="utf-8")
+    with pytest.raises(builder.PackageError, match="SECRET_CONTENT_REFUSED"):
+        builder.assert_no_secret_content(tmp_path)
+    (tmp_path / ".env.production").write_text("SAFE=value", encoding="utf-8")
+    with pytest.raises(builder.PackageError, match="SECRET_FILENAME_REFUSED"):
+        builder.regular_files(tmp_path)
+
+
 def test_installer_dry_run_validates_exact_package_and_proxy_contract(tmp_path: Path) -> None:
     package = tmp_path / "package"
     package.mkdir()

@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 from pathlib import Path
@@ -79,10 +80,25 @@ def regular_files(root: Path) -> list[Path]:
         if not path.is_file():
             raise PackageError(f"SPECIAL_FILE_REFUSED:{path.relative_to(root)}")
         lowered = path.name.casefold()
-        if lowered in DENIED_NAMES or lowered.endswith(DENIED_SUFFIXES):
+        if (
+            lowered in DENIED_NAMES
+            or (lowered.startswith(".env.") and lowered != ".env.example")
+            or lowered.endswith(DENIED_SUFFIXES)
+        ):
             raise PackageError(f"SECRET_FILENAME_REFUSED:{path.relative_to(root)}")
         files.append(path)
     return files
+
+
+def assert_no_secret_content(root: Path) -> None:
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+    from tools.quality.check_secrets import scan_repository
+
+    findings = scan_repository(root)
+    if findings:
+        rules = ",".join(sorted({finding.rule for finding in findings}))
+        raise PackageError(f"SECRET_CONTENT_REFUSED:{rules}")
 
 
 def run(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> None:
@@ -170,6 +186,8 @@ def main() -> int:
         print(f"origin={origin}")
         print(f"base_path={base_path}")
         return 0
+    if commit != git_output("rev-parse", "HEAD"):
+        raise PackageError("PACKAGE_COMMIT_NOT_CHECKED_OUT")
     dirty_inputs = git_output(
         "status", "--porcelain", "--untracked-files=no", "--", *BUILD_INPUT_PATHS
     )
@@ -220,6 +238,7 @@ def main() -> int:
         copy_payload(exported, PROJECT_ROOT / "apps/portal/dist", package)
 
     files_before_manifest = regular_files(package)
+    assert_no_secret_content(package)
     manifest = {
         "schemaVersion": "1.0",
         "kind": "CALCULUS_PORTAL_SYNTHETIC_STAGING",
