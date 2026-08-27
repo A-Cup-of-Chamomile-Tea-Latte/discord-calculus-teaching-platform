@@ -83,7 +83,7 @@ if (publicMode) {
   for (const relativePath of collectFiles(dist)) {
     const contents = readFileSync(join(dist, relativePath), "utf8");
     if (
-      /calculus-local-access|data-local-access|PBKDF2|建立第一位管理員|SQLite 學習實驗室|discord\.com\/channels\/111111111111111111/.test(
+      /calculus-local-access|calculus-local-registration-gate|data-local-access|PBKDF2|建立第一位管理員|SQLite 學習實驗室|discord\.com\/channels\/111111111111111111/.test(
         contents,
       )
     ) {

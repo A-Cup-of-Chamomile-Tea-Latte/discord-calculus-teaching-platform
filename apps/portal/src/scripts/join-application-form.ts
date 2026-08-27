@@ -208,7 +208,9 @@ function initialize(root: HTMLElement): void {
     .forEach((control) => control.addEventListener("change", updateIdentity));
   updateIdentity();
 
-  const reviewMode = root.dataset.reviewMode === "true";
+  // This build-time flag lets Rollup remove the reviewer-only local gate and
+  // its storage key from the public bundle instead of shipping a dormant UI.
+  const reviewMode = import.meta.env.PUBLIC_PORTAL_BUILD !== "true";
   const sessionEndpoint = root.dataset.sessionEndpoint;
   const runValidation = (): JoinValues | null => {
     clearErrors(form, errorSummary);
