@@ -109,6 +109,32 @@ def git_output(*arguments: str) -> str:
     return subprocess.check_output(["git", *arguments], cwd=PROJECT_ROOT, text=True).strip()
 
 
+def assert_no_local_portal_env(portal_root: Path) -> None:
+    local_env = sorted(
+        path.name for path in portal_root.glob(".env*") if path.name != ".env.example"
+    )
+    if local_env:
+        raise PackageError(f"LOCAL_PORTAL_ENV_REFUSED:{','.join(local_env)}")
+
+
+def build_environment(origin: str, base_path: str) -> dict[str, str]:
+    env = {
+        key: value for key, value in os.environ.items() if not key.startswith(("ASTRO_", "PUBLIC_"))
+    }
+    normalized_base = "" if base_path == "/" else base_path
+    env.update(
+        {
+            "ASTRO_BASE_PATH": base_path,
+            "ASTRO_SITE_URL": origin,
+            "PUBLIC_PORTAL_BUILD": "true",
+            "PUBLIC_JOIN_APPLICATION_ENDPOINT": f"{normalized_base}/api/join",
+            "PUBLIC_PORTAL_SESSION_ENDPOINT": f"{normalized_base}/api/session",
+            "PUBLIC_CASE_STATUS_ENDPOINT": f"{normalized_base}/api/cases/lookup",
+        }
+    )
+    return env
+
+
 def export_release(commit: str, destination: Path) -> None:
     archive = subprocess.Popen(
         ["git", "archive", "--format=tar", commit, *RELEASE_PATHS],
@@ -189,10 +215,11 @@ def main() -> int:
     if commit != git_output("rev-parse", "HEAD"):
         raise PackageError("PACKAGE_COMMIT_NOT_CHECKED_OUT")
     dirty_inputs = git_output(
-        "status", "--porcelain", "--untracked-files=no", "--", *BUILD_INPUT_PATHS
+        "status", "--porcelain", "--untracked-files=all", "--", *BUILD_INPUT_PATHS
     )
     if dirty_inputs:
         raise PackageError("PACKAGE_BUILD_INPUTS_NOT_CLEAN")
+    assert_no_local_portal_env(PROJECT_ROOT / "apps/portal")
 
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -205,18 +232,7 @@ def main() -> int:
         exported = Path(temporary) / "export"
         exported.mkdir()
         export_release(commit, exported)
-        env = os.environ.copy()
-        normalized_base = "" if base_path == "/" else base_path
-        env.update(
-            {
-                "ASTRO_BASE_PATH": base_path,
-                "ASTRO_SITE_URL": origin,
-                "PUBLIC_PORTAL_BUILD": "true",
-                "PUBLIC_JOIN_APPLICATION_ENDPOINT": f"{normalized_base}/api/join",
-                "PUBLIC_PORTAL_SESSION_ENDPOINT": f"{normalized_base}/api/session",
-                "PUBLIC_CASE_STATUS_ENDPOINT": f"{normalized_base}/api/cases/lookup",
-            }
-        )
+        env = build_environment(origin, base_path)
         run(
             ["npm", "run", "build:public", "--workspace", "@calculus/portal"],
             cwd=PROJECT_ROOT,

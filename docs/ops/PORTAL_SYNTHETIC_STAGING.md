@@ -43,6 +43,22 @@ npm run build:public --workspace @calculus/portal
 
 Reverse proxy 必須讓頁面與 `/api/` 位於同一個 HTTPS origin。未設定上述 endpoint 時，public build 維持 fail closed。
 
+## Host-bound package
+
+實際 origin 與 base path 由 host owner 確認後，先只看 plan：
+
+```sh
+python3 ops/scripts/build_portal_staging_package.py \
+  --origin https://staging.example.edu \
+  --base-path /portal-staging \
+  --output-dir /path/to/new/output \
+  --plan-only
+```
+
+PM 核對 plan 後，移除 `--plan-only` 產生 versioned directory、deterministic tar、逐檔 `SHA256SUMS` 與外層 `.tar.sha256`。Builder 只接受目前 checkout 的 `HEAD`，拒絕 tracked／untracked build input、symlink、secret filename/content 與本機 `.env*`；同時清除呼叫端既有的 `ASTRO_*`／`PUBLIC_*`，只注入 command contract 內的 origin、base path 與 same-origin API routes。這可避免同一 source commit 因操作者 shell 或未提交檔案產生不同 artifact。
+
+Example domain 只供本機驗證。未取得實際 HTTPS origin、base path、loopback port 與 root-owned proxy adapter 前，不建立可交付封包；產出封包也不等於部署或系辦交付授權。
+
 ## 通過條件
 
 1. `POST /api/session` 分別發出 `JOIN`／`LOOKUP` cookie，跨 scope 使用回 `401`。

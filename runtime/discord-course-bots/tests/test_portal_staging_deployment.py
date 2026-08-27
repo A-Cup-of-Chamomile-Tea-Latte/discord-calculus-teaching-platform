@@ -87,6 +87,26 @@ def test_package_scan_rejects_secret_content_and_private_env_variants(tmp_path: 
         builder.regular_files(tmp_path)
 
 
+def test_builder_refuses_local_env_and_sanitizes_build_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    builder = load_builder()
+    (tmp_path / ".env.example").write_text("SAFE=example\n", encoding="utf-8")
+    builder.assert_no_local_portal_env(tmp_path)
+    (tmp_path / ".env.local").write_text("PUBLIC_UNTRACKED=value\n", encoding="utf-8")
+    with pytest.raises(builder.PackageError, match="LOCAL_PORTAL_ENV_REFUSED:.env.local"):
+        builder.assert_no_local_portal_env(tmp_path)
+
+    monkeypatch.setenv("PUBLIC_DISCORD_INVITE_URL", "https://discord.gg/not-in-contract")
+    monkeypatch.setenv("PUBLIC_UNTRACKED", "value")
+    monkeypatch.setenv("ASTRO_SITE_URL", "https://wrong.example")
+    env = builder.build_environment("https://staging.example.edu", "/portal-staging")
+    assert "PUBLIC_DISCORD_INVITE_URL" not in env
+    assert "PUBLIC_UNTRACKED" not in env
+    assert env["ASTRO_SITE_URL"] == "https://staging.example.edu"
+    assert env["PUBLIC_PORTAL_SESSION_ENDPOINT"] == "/portal-staging/api/session"
+
+
 def test_installer_dry_run_validates_exact_package_and_proxy_contract(tmp_path: Path) -> None:
     package = tmp_path / "package"
     package.mkdir()
