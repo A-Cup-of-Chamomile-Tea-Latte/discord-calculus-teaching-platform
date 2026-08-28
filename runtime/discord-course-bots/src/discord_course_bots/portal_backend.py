@@ -66,6 +66,10 @@ class PortalBackendError(RuntimeError):
     """An expected backend failure which must not cross the HTTP boundary."""
 
 
+class PortalEmailDestinationRefused(PortalBackendError):
+    """A deployment policy intentionally refuses this Email destination."""
+
+
 class ForwardedClientAddressError(ValueError):
     """A trusted proxy supplied no usable single client address."""
 
@@ -691,6 +695,8 @@ class PortalBackend:
                 email_kind=kind,
             )
             self._audit("PORTAL_EMAIL_STARTED", EMAIL_START_PATH, "ACCEPTED", subject)
+        except PortalEmailDestinationRefused:
+            return _error(HTTPStatus.BAD_REQUEST, "EMAIL_DESTINATION_REFUSED")
         except (ValueError, PortalBackendError):
             return _error(HTTPStatus.BAD_REQUEST, "INVALID_REQUEST")
         except Exception:

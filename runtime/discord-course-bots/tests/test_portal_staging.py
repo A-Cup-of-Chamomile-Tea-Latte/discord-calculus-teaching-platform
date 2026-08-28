@@ -161,6 +161,7 @@ def test_synthetic_staging_refuses_real_email_before_storage(tmp_path: Path) -> 
             "SELECT COUNT(*) FROM email_delivery_outbox"
         ).fetchone()[0]
         assert response.status == 400
+        assert response.json()["error"] == "EMAIL_DESTINATION_REFUSED"
         assert queued == 0
     finally:
         staging.close()

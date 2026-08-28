@@ -45,6 +45,8 @@ const activeSections = academicSpec.sections.filter(
   (section) => section.status === "ACTIVE",
 );
 const isPublicBuild = import.meta.env.PUBLIC_PORTAL_BUILD === "true";
+const isSyntheticStaging =
+  import.meta.env.PUBLIC_PORTAL_SYNTHETIC_STAGING === "true";
 const applicationEndpoint = sameOriginEndpointPath(
   import.meta.env.PUBLIC_JOIN_APPLICATION_ENDPOINT,
 );
@@ -127,11 +129,16 @@ const courseDiscordInvite = discordInviteUrl(
       </details>
     </section>
 
-    <Alert title="送出前，先確認 Discord 帳號">
-      <p>
-        請使用準備加入課程的帳號進入伺服器。若找不到成員，申請會保留在「等待加入伺服器」，不會被拒絕或刪除。
-      </p>
-    </Alert>
+    {
+      isSyntheticStaging && (
+        <Alert title="隔離測試站不會寄出真實 Email">
+          <p>
+            測學生流程請填 synthetic.student@ntu.edu.tw；測訪客流程請填
+            synthetic.guest@example.com。驗證碼只會寫入本機測試檔案。
+          </p>
+        </Alert>
+      )
+    }
 
     {
       !isPublicBuild && (
@@ -145,6 +152,7 @@ const courseDiscordInvite = discordInviteUrl(
       class="application-panel"
       data-join-application
       data-review-mode={String(!isPublicBuild)}
+      data-synthetic-staging={String(isSyntheticStaging)}
       data-session-endpoint={sessionEndpoint ?? ""}
       aria-labelledby="join-form-title"
     >

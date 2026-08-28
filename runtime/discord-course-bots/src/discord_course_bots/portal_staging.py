@@ -16,6 +16,7 @@ from .apps_script_transport import AppsScriptApiError
 from .portal_backend import (
     PortalBackend,
     PortalBackendSettings,
+    PortalEmailDestinationRefused,
     PortalHTTPServer,
     PortalRequestHandler,
     SignedSessionAuthorizer,
@@ -189,7 +190,7 @@ class SyntheticPortalStore(SqlitePortalStore):
     @staticmethod
     def _require_fixture_destination(destination: object) -> None:
         if str(destination).strip().casefold() not in FIXTURE_DESTINATIONS:
-            raise ValueError("STAGING_DESTINATION_REFUSED")
+            raise PortalEmailDestinationRefused("STAGING_DESTINATION_REFUSED")
 
     def start_email_verification(self, **kwargs: Any) -> str:
         self._require_fixture_destination(kwargs.get("destination"))

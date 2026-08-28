@@ -186,6 +186,7 @@ function requestVerificationCode(
 
 function initialize(root: HTMLElement): void {
   const form = requiredElement<HTMLFormElement>(root, "form");
+  const syntheticStaging = root.dataset.syntheticStaging === "true";
   const errorSummary = requiredElement<HTMLElement>(form, "[data-form-errors]");
   const updateIdentity = (): void => {
     const identity = form.querySelector<HTMLInputElement>(
@@ -275,7 +276,15 @@ function initialize(root: HTMLElement): void {
             email: identityEmail,
           }).toString(),
         });
-        if (!emailStartResponse.ok) throw new Error("email-start");
+        if (!emailStartResponse.ok) {
+          const failure = (await emailStartResponse
+            .json()
+            .catch(() => ({}))) as { error?: string };
+          if (failure.error === "EMAIL_DESTINATION_REFUSED") {
+            throw new Error("email-destination-refused");
+          }
+          throw new Error("email-start");
+        }
         const started = (await emailStartResponse.json()) as {
           challengeId?: string;
         };
@@ -316,13 +325,18 @@ function initialize(root: HTMLElement): void {
         form.hidden = true;
         if (state) {
           state.hidden = false;
-          state.textContent = "申請已收到，請留意 Discord 私訊。";
+          state.textContent = syntheticStaging
+            ? "Synthetic Email 驗證與申請寫入皆已完成；沒有寄出真實 Email 或 Discord 私訊。"
+            : "申請已收到，請留意 Discord 私訊。";
         }
-      } catch {
+      } catch (error) {
         if (state) {
           state.hidden = false;
           state.textContent =
-            "Email 驗證或申請送出未完成。請確認驗證碼，稍後再試。";
+            error instanceof Error &&
+            error.message === "email-destination-refused"
+              ? "這個隔離測試站不會寄信到真實地址；學生請使用 synthetic.student@ntu.edu.tw，訪客請使用 synthetic.guest@example.com。"
+              : "Email 驗證或申請送出未完成。請確認驗證碼，稍後再試。";
         }
       } finally {
         submitButton.disabled = false;
