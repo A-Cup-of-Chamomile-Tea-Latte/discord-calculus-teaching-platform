@@ -176,6 +176,34 @@ const courseDiscordInvite = discordInviteUrl(
         <h2 id="join-form-title">填寫課程身分</h2>
       </div>
 
+      {
+        !isPublicBuild && (
+          <form class="test-code-entry" data-test-code-form hidden>
+            <div>
+              <h3>輸入測試碼</h3>
+              <p>請輸入現場管理員提供的六位數字。</p>
+            </div>
+            <label for="join-test-code">六位數測試碼</label>
+            <div class="test-code-entry__controls">
+              <input
+                id="join-test-code"
+                name="testCode"
+                type="text"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                pattern="[0-9]{6}"
+                minlength="6"
+                maxlength="6"
+                placeholder="000000"
+                required
+              />
+              <button type="submit">進入測試</button>
+            </div>
+            <p data-test-code-message role="status" aria-live="polite" />
+          </form>
+        )
+      }
+
       <form
         class="prototype-form"
         hidden={!isPublicBuild}
@@ -607,6 +635,39 @@ const courseDiscordInvite = discordInviteUrl(
 
   .join-intro {
     max-width: 42rem;
+  }
+
+  .test-code-entry {
+    display: grid;
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    gap: var(--space-3);
+  }
+
+  .test-code-entry[hidden] {
+    display: none;
+  }
+
+  .test-code-entry :is(h3, p) {
+    margin: 0;
+  }
+
+  .test-code-entry label {
+    font-weight: 750;
+  }
+
+  .test-code-entry__controls {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .test-code-entry__controls input {
+    width: min(100%, 12rem);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-lg);
+    letter-spacing: 0.14em;
   }
 
   .join-steps {

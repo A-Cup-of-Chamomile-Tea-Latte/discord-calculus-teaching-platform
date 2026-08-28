@@ -185,7 +185,7 @@ function requestVerificationCode(
 }
 
 function initialize(root: HTMLElement): void {
-  const form = requiredElement<HTMLFormElement>(root, "form");
+  const form = requiredElement<HTMLFormElement>(root, "form.prototype-form");
   const syntheticStaging = root.dataset.syntheticStaging === "true";
   const errorSummary = requiredElement<HTMLElement>(form, "[data-form-errors]");
   const updateIdentity = (): void => {
@@ -367,7 +367,20 @@ function initialize(root: HTMLElement): void {
     notice,
     "[data-test-registration-detail]",
   );
+  const testCodeForm = requiredElement<HTMLFormElement>(
+    root,
+    "[data-test-code-form]",
+  );
+  const testCodeInput = requiredElement<HTMLInputElement>(
+    testCodeForm,
+    '[name="testCode"]',
+  );
+  const testCodeMessage = requiredElement<HTMLElement>(
+    testCodeForm,
+    "[data-test-code-message]",
+  );
   let showingConfirmation = false;
+  let verifiedWindowOpenedAt: number | null = null;
 
   const activeTestWindow = () =>
     parseLocalTestWindow(localStorage.getItem(LOCAL_TEST_WINDOW_KEY));
@@ -379,17 +392,18 @@ function initialize(root: HTMLElement): void {
       noticeTitle.textContent = "測試註冊尚未開放";
       noticeDetail.textContent =
         "請由系統管理員在「教學團隊登入」開放 Beta 註冊。";
+      testCodeForm.hidden = true;
+      verifiedWindowOpenedAt = null;
       if (!showingConfirmation) form.hidden = true;
       return;
     }
-    const audienceText =
-      windowState.audience === "NTU_NETWORK"
-        ? "限臺大校內網路／SSL VPN；所有申請身分均可測試"
-        : "不限連線來源";
+    const codeVerified = verifiedWindowOpenedAt === windowState.openedAt;
     notice.dataset.state = "open";
     if (windowState.mode === "CONTINUOUS") {
       noticeTitle.textContent = "Beta 註冊持續開放中";
-      noticeDetail.textContent = `${audienceText}；將持續開放至管理員手動關閉。`;
+      noticeDetail.textContent = codeVerified
+        ? "測試碼已核對；將持續開放至管理員手動關閉。"
+        : "請輸入現場管理員提供的六位測試碼。";
     } else {
       const closesAt = new Intl.DateTimeFormat("zh-TW", {
         hour: "2-digit",
@@ -398,17 +412,41 @@ function initialize(root: HTMLElement): void {
         hour12: false,
       }).format(new Date(windowState.closesAt ?? 0));
       noticeTitle.textContent = "Beta 註冊臨時開放中";
-      noticeDetail.textContent = `${audienceText}；將於 ${closesAt} 關閉，約剩 ${remainingTestWindowMinutes(windowState)} 分鐘。`;
+      noticeDetail.textContent = codeVerified
+        ? `測試碼已核對；將於 ${closesAt} 關閉，約剩 ${remainingTestWindowMinutes(windowState)} 分鐘。`
+        : `請輸入現場管理員提供的六位測試碼；本次測試約剩 ${remainingTestWindowMinutes(windowState)} 分鐘。`;
     }
-    if (!showingConfirmation) form.hidden = false;
+    testCodeForm.hidden = codeVerified || showingConfirmation;
+    if (!showingConfirmation) form.hidden = !codeVerified;
   };
 
   renderTestWindow();
   window.setInterval(renderTestWindow, 15_000);
 
+  testCodeForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const windowState = activeTestWindow();
+    const supplied = testCodeInput.value.trim();
+    if (!windowState) {
+      testCodeMessage.textContent = "本次測試已關閉，請向現場管理員確認。";
+      renderTestWindow();
+      return;
+    }
+    if (!/^[0-9]{6}$/.test(supplied) || supplied !== windowState.accessCode) {
+      testCodeMessage.textContent = "測試碼不正確，請確認六位數字。";
+      testCodeInput.select();
+      return;
+    }
+    verifiedWindowOpenedAt = windowState.openedAt;
+    testCodeForm.reset();
+    testCodeMessage.textContent = "";
+    renderTestWindow();
+  });
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!activeTestWindow()) {
+    const windowState = activeTestWindow();
+    if (!windowState || verifiedWindowOpenedAt !== windowState.openedAt) {
       renderTestWindow();
       return;
     }

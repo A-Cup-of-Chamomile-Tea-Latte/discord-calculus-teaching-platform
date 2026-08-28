@@ -178,13 +178,11 @@ import { withBase } from "../../lib/paths";
         <p class="release-gate__detail" data-test-window-detail>
           可開放 30 分鐘測試，或持續開放至管理員手動關閉。
         </p>
-        <label class="release-gate__audience">
-          <input type="checkbox" data-test-window-audience checked />
-          <span>安全內測：限臺大校內網路／SSL VPN</span>
-        </label>
-        <p class="release-gate__note">
-          正式限制由入口伺服器依連線來源執行；本機只預覽開放狀態。學生、訪客與教學團隊都可測試。
-        </p>
+        <div class="release-gate__code" data-test-window-code-panel hidden>
+          <span>現場測試碼</span>
+          <output data-test-window-code>------</output>
+          <p>讓現場測試者在加入頁輸入；關閉或重新開放後，舊碼立即失效。</p>
+        </div>
         <div class="cluster release-gate__actions">
           <button type="button" data-open-test-window>臨時開放 30 分鐘</button>
           <button type="button" data-open-continuous-window>持續開放</button>
@@ -470,14 +468,42 @@ import { withBase } from "../../lib/paths";
     color: var(--color-text-muted);
   }
 
-  .release-gate__audience {
-    display: flex;
-    align-items: center;
+  .release-gate__note {
+    font-size: var(--font-size-sm);
+  }
+
+  .release-gate__code {
+    display: grid;
+    width: fit-content;
+    min-width: min(100%, 22rem);
+    padding: var(--space-4);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-canvas);
     gap: var(--space-2);
+  }
+
+  .release-gate__code[hidden] {
+    display: none;
+  }
+
+  .release-gate__code > span {
+    color: var(--color-text-muted);
     font-weight: 750;
   }
 
-  .release-gate__note {
+  .release-gate__code output {
+    color: var(--color-accent);
+    font-family: var(--font-family-mono);
+    font-size: clamp(2rem, 7vw, 3rem);
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    line-height: 1;
+  }
+
+  .release-gate__code p {
+    margin: 0;
+    color: var(--color-text-muted);
     font-size: var(--font-size-sm);
   }
 

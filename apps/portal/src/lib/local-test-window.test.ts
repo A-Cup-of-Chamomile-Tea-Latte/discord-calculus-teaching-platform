@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createContinuousLocalTestWindow,
+  createLocalTestCode,
   createLocalTestWindow,
   parseLocalTestWindow,
   remainingTestWindowMinutes,
@@ -9,22 +10,22 @@ import {
 
 describe("local test registration window", () => {
   it("creates a thirty-minute window by default", () => {
-    const window = createLocalTestWindow(1_000);
+    const window = createLocalTestWindow("123456", 1_000);
     expect(window).toEqual({
-      version: 3,
+      version: 4,
       mode: "TEMPORARY",
-      audience: "NTU_NETWORK",
+      accessCode: "123456",
       openedAt: 1_000,
       closesAt: 1_801_000,
     });
   });
 
   it("creates a continuous window that only an admin closes", () => {
-    const window = createContinuousLocalTestWindow(1_000, "ANY");
+    const window = createContinuousLocalTestWindow("654321", 1_000);
     expect(window).toEqual({
-      version: 3,
+      version: 4,
       mode: "CONTINUOUS",
-      audience: "ANY",
+      accessCode: "654321",
       openedAt: 1_000,
       closesAt: null,
     });
@@ -34,7 +35,7 @@ describe("local test registration window", () => {
   });
 
   it("accepts an active window and rejects expired or malformed state", () => {
-    const active = createLocalTestWindow(1_000, 60_000);
+    const active = createLocalTestWindow("123456", 1_000, 60_000);
     expect(parseLocalTestWindow(JSON.stringify(active), 30_000)).toEqual(
       active,
     );
@@ -46,9 +47,9 @@ describe("local test registration window", () => {
     expect(
       parseLocalTestWindow(
         JSON.stringify({
-          version: 3,
+          version: 4,
           mode: "CONTINUOUS",
-          audience: "NTU_NETWORK",
+          accessCode: "123456",
           openedAt: 1_000,
           closesAt: 2_000,
         }),
@@ -58,7 +59,11 @@ describe("local test registration window", () => {
   });
 
   it("rounds the remaining time up for the operator display", () => {
-    const window = createLocalTestWindow(0, 90_001);
+    const window = createLocalTestWindow("123456", 0, 90_001);
     expect(remainingTestWindowMinutes(window, 1)).toBe(2);
+  });
+
+  it("creates a six-digit code with leading zeroes allowed", () => {
+    expect(createLocalTestCode()).toMatch(/^[0-9]{6}$/);
   });
 });

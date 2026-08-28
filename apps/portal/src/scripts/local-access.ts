@@ -18,6 +18,7 @@ import {
 import {
   LOCAL_TEST_WINDOW_KEY,
   createContinuousLocalTestWindow,
+  createLocalTestCode,
   createLocalTestWindow,
   parseLocalTestWindow,
   remainingTestWindowMinutes,
@@ -97,9 +98,8 @@ if (root) {
       "[data-open-continuous-window]",
     );
     const closeButton = required<HTMLButtonElement>("[data-close-test-window]");
-    const audienceControl = required<HTMLInputElement>(
-      "[data-test-window-audience]",
-    );
+    const codePanel = required<HTMLElement>("[data-test-window-code-panel]");
+    const code = required<HTMLOutputElement>("[data-test-window-code]");
     if (!state) {
       localStorage.removeItem(LOCAL_TEST_WINDOW_KEY);
       stateLabel.textContent = "尚未開放";
@@ -107,18 +107,15 @@ if (root) {
       openButton.disabled = false;
       continuousButton.disabled = false;
       closeButton.disabled = true;
-      audienceControl.disabled = false;
+      codePanel.hidden = true;
+      code.value = "------";
       return;
     }
-    const audienceText =
-      state.audience === "NTU_NETWORK"
-        ? "限臺大校內網路／SSL VPN"
-        : "不限連線來源";
-    audienceControl.checked = state.audience === "NTU_NETWORK";
-    audienceControl.disabled = true;
+    codePanel.hidden = false;
+    code.value = state.accessCode;
     if (state.mode === "CONTINUOUS") {
       stateLabel.textContent = "持續開放中";
-      detail.textContent = `${audienceText}；將持續開放，直到管理員手動關閉。`;
+      detail.textContent = "使用測試碼進入；將持續開放，直到管理員手動關閉。";
     } else {
       const closesAt = new Intl.DateTimeFormat("zh-TW", {
         hour: "2-digit",
@@ -127,7 +124,7 @@ if (root) {
         hour12: false,
       }).format(new Date(state.closesAt ?? 0));
       stateLabel.textContent = "臨時開放中";
-      detail.textContent = `${audienceText}；將於 ${closesAt} 關閉，約剩 ${remainingTestWindowMinutes(state)} 分鐘。`;
+      detail.textContent = `使用測試碼進入；將於 ${closesAt} 關閉，約剩 ${remainingTestWindowMinutes(state)} 分鐘。`;
     }
     openButton.disabled = true;
     continuousButton.disabled = true;
@@ -254,13 +251,10 @@ if (root) {
     .querySelector<HTMLButtonElement>("[data-open-test-window]")
     ?.addEventListener("click", () => {
       if (readSession()?.role !== "admin") return;
-      const audience = required<HTMLInputElement>("[data-test-window-audience]")
-        .checked
-        ? "NTU_NETWORK"
-        : "ANY";
+      const accessCode = createLocalTestCode();
       localStorage.setItem(
         LOCAL_TEST_WINDOW_KEY,
-        JSON.stringify(createLocalTestWindow(Date.now(), undefined, audience)),
+        JSON.stringify(createLocalTestWindow(accessCode)),
       );
       renderTesterWindow();
     });
@@ -269,13 +263,10 @@ if (root) {
     .querySelector<HTMLButtonElement>("[data-open-continuous-window]")
     ?.addEventListener("click", () => {
       if (readSession()?.role !== "admin") return;
-      const audience = required<HTMLInputElement>("[data-test-window-audience]")
-        .checked
-        ? "NTU_NETWORK"
-        : "ANY";
+      const accessCode = createLocalTestCode();
       localStorage.setItem(
         LOCAL_TEST_WINDOW_KEY,
-        JSON.stringify(createContinuousLocalTestWindow(Date.now(), audience)),
+        JSON.stringify(createContinuousLocalTestWindow(accessCode)),
       );
       renderTesterWindow();
     });

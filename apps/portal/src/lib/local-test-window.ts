@@ -1,36 +1,46 @@
 export interface LocalTestWindow {
-  version: 3;
+  version: 4;
   mode: "TEMPORARY" | "CONTINUOUS";
-  audience: "NTU_NETWORK" | "ANY";
+  accessCode: string;
   openedAt: number;
   closesAt: number | null;
 }
 
-export const LOCAL_TEST_WINDOW_KEY = "calculus-local-registration-gate-v3";
+export const LOCAL_TEST_WINDOW_KEY = "calculus-local-registration-gate-v4";
 export const LOCAL_TEST_WINDOW_DURATION_MS = 30 * 60 * 1000;
 
+export function createLocalTestCode(): string {
+  const range = 1_000_000;
+  const limit = Math.floor(0x1_0000_0000 / range) * range;
+  const values = new Uint32Array(1);
+  do {
+    crypto.getRandomValues(values);
+  } while (values[0]! >= limit);
+  return String(values[0]! % range).padStart(6, "0");
+}
+
 export function createLocalTestWindow(
+  accessCode: string,
   now = Date.now(),
   duration = LOCAL_TEST_WINDOW_DURATION_MS,
-  audience: LocalTestWindow["audience"] = "NTU_NETWORK",
 ): LocalTestWindow {
   return {
-    version: 3,
+    version: 4,
     mode: "TEMPORARY",
-    audience,
+    accessCode,
     openedAt: now,
     closesAt: now + duration,
   };
 }
 
 export function createContinuousLocalTestWindow(
+  accessCode: string,
   now = Date.now(),
-  audience: LocalTestWindow["audience"] = "NTU_NETWORK",
 ): LocalTestWindow {
   return {
-    version: 3,
+    version: 4,
     mode: "CONTINUOUS",
-    audience,
+    accessCode,
     openedAt: now,
     closesAt: null,
   };
@@ -44,9 +54,10 @@ export function parseLocalTestWindow(
   try {
     const value = JSON.parse(raw) as Partial<LocalTestWindow>;
     if (
-      value.version !== 3 ||
+      value.version !== 4 ||
       (value.mode !== "TEMPORARY" && value.mode !== "CONTINUOUS") ||
-      (value.audience !== "NTU_NETWORK" && value.audience !== "ANY") ||
+      typeof value.accessCode !== "string" ||
+      !/^[0-9]{6}$/.test(value.accessCode) ||
       typeof value.openedAt !== "number" ||
       (value.mode === "TEMPORARY" &&
         (typeof value.closesAt !== "number" ||
